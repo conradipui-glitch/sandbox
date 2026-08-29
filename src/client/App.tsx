@@ -198,7 +198,7 @@ function Outcome({ state }: { state: GameState }) {
   if (!outcome) return null;
   return (
     <section className="outcome">
-      <div className="outcome-kicker"><Radio size={15} /> Последствия предыдущего решения <span>{outcome.source === "ai" ? "ИИ" : "симулятор"}</span></div>
+      <div className="outcome-kicker"><Radio size={15} /> Последствия предыдущего решения <span>{outcome.provider === "deepseek" ? "DeepSeek" : outcome.provider === "cloudflare" ? "Cloudflare AI" : outcome.source === "ai" ? "ИИ" : "симулятор"}</span></div>
       <h2>{outcome.headline}</h2>
       <p>{outcome.summary}</p>
       <blockquote>{outcome.dispatch}</blockquote>

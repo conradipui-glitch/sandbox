@@ -11,6 +11,7 @@ interface Env {
   AI: Ai;
   HISTORY_SESSIONS: DurableObjectNamespace;
   ASSETS: Fetcher;
+  DEEPSEEK_API_KEY?: string;
 }
 
 interface StoredGame {
@@ -64,7 +65,7 @@ export function extractAiText(result: WorkersAiChatResponse): string {
   return "";
 }
 
-function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: TurnOutcome): TurnOutcome {
+function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: TurnOutcome, provider: "deepseek" | "cloudflare"): TurnOutcome {
   if (!candidate || typeof candidate.headline !== "string" || typeof candidate.summary !== "string") return fallback;
   const validIds = new Set<MetricId>(["legitimacy", "economy", "army", "stability", "diplomacy"]);
   const effects = Array.isArray(candidate.effects)
@@ -98,40 +99,72 @@ function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: Tur
     surprise: typeof candidate.surprise === "string" ? candidate.surprise.slice(0, 450) : fallback.surprise,
     scene,
     source: "ai",
+    provider,
   };
 }
 
 async function generateOutcome(env: Env, state: GameState, action: string): Promise<TurnOutcome> {
   const fallback = simulateTurn(state, action);
+  const compactState = {
+    mode: state.mode,
+    date: state.date,
+    turn: state.turn,
+    metrics: state.metrics,
+    factions: state.factions,
+    lastEvents: state.timeline.slice(-5),
+  };
+  const world = worldContextForTurn(state, action);
+  const messages = [
+    {
+      role: "system" as const,
+      content:
+        "Ты — движок и режиссёр серьёзной альтернативно-исторической стратегии. Моделируй причинные последствия без магии, морализаторства и предопределённого канона. Учитывай логистику, институты, ограниченность власти и частичное знание персонажей. Персонажи преследуют собственные цели, помнят обращение игрока, могут ошибаться, лгать, торговаться и отказываться. Юмор редкий, наблюдательный и никогда не превращает бедность или насилие в шутку. Пиши по-русски. Верни только валидный JSON.",
+    },
+    {
+      role: "user" as const,
+      content: `Сценарий: Россия, март 1917. Игрок — глава Временного правительства.\nСостояние: ${JSON.stringify(compactState)}\nРежиссёрский контекст мира: ${JSON.stringify(world)}\nРешение игрока: ${action}\n\nВыбери максимум двух активных персонажей из контекста. Дай каждому характерную реакцию в пределах его знаний. Микросцену используй только при выполненном триггере. Предмет или техника должны иметь цену/ограничение.\n\nВерни JSON: {"headline":"до 100 знаков","summary":"2-4 конкретных абзаца","dispatch":"короткая газетная или телеграфная цитата","effects":[{"id":"legitimacy|economy|army|stability|diplomacy","delta":целое от -10 до 10,"reason":"почему"}],"reactions":[{"faction":"название или имя персонажа","stance":"поддержка|настороженность|противодействие","text":"характерная конкретная реакция"}],"nextOptions":[ровно 3 объекта {"id":"латиница","title":"название","description":"что именно","risk":"низкий|средний|высокий","intent":"полное действие"}],"daysPassed":число 2..45,"surprise":"непредвиденный, но причинный эффект или null","scene":{"locationId":"id места","activeCharacterIds":["до 2 id персонажей"],"propIds":["до 3 id предметов"],"ambientId":"id микросцены или null","atmosphere":"свет, погода и один фоновый звук"}}`,
+    },
+  ];
+
+  if (env.DEEPSEEK_API_KEY) {
+    try {
+      const response = await fetch("https://api.deepseek.com/chat/completions", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${env.DEEPSEEK_API_KEY}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "deepseek-v4-flash",
+          messages,
+          thinking: { type: "disabled" },
+          response_format: { type: "json_object" },
+          max_tokens: 1600,
+          temperature: 0.72,
+          stream: false,
+        }),
+        signal: AbortSignal.timeout(25_000),
+      });
+      if (!response.ok) throw new Error(`DeepSeek API ${response.status}: ${(await response.text()).slice(0, 240)}`);
+      const result = (await response.json()) as WorkersAiChatResponse;
+      const outcome = validateAiOutcome(parseAiJson(extractAiText(result)), fallback, "deepseek");
+      if (outcome.source === "ai") return outcome;
+      console.warn("DeepSeek returned an invalid game outcome");
+    } catch (error) {
+      console.warn("DeepSeek fallback", error instanceof Error ? error.message : error);
+    }
+  }
+
   try {
-    const compactState = {
-      mode: state.mode,
-      date: state.date,
-      turn: state.turn,
-      metrics: state.metrics,
-      factions: state.factions,
-      lastEvents: state.timeline.slice(-5),
-    };
-    const world = worldContextForTurn(state, action);
     const result = (await env.AI.run("@cf/zai-org/glm-4.7-flash", {
-      messages: [
-        {
-          role: "system",
-          content:
-            "Ты — движок и режиссёр серьёзной альтернативно-исторической стратегии. Моделируй причинные последствия без магии, морализаторства и предопределённого канона. Учитывай логистику, институты, ограниченность власти и частичное знание персонажей. Персонажи преследуют собственные цели, помнят обращение игрока, могут ошибаться, лгать, торговаться и отказываться. Юмор редкий, наблюдательный и никогда не превращает бедность или насилие в шутку. Пиши по-русски. Верни только валидный JSON.",
-        },
-        {
-          role: "user",
-          content: `Сценарий: Россия, март 1917. Игрок — глава Временного правительства.\nСостояние: ${JSON.stringify(compactState)}\nРежиссёрский контекст мира: ${JSON.stringify(world)}\nРешение игрока: ${action}\n\nВыбери максимум двух активных персонажей из контекста. Дай каждому характерную реакцию в пределах его знаний. Микросцену используй только при выполненном триггере. Предмет или техника должны иметь цену/ограничение.\n\nВерни JSON: {"headline":"до 100 знаков","summary":"2-4 конкретных абзаца","dispatch":"короткая газетная или телеграфная цитата","effects":[{"id":"legitimacy|economy|army|stability|diplomacy","delta":целое от -10 до 10,"reason":"почему"}],"reactions":[{"faction":"название или имя персонажа","stance":"поддержка|настороженность|противодействие","text":"характерная конкретная реакция"}],"nextOptions":[ровно 3 объекта {"id":"латиница","title":"название","description":"что именно","risk":"низкий|средний|высокий","intent":"полное действие"}],"daysPassed":число 2..45,"surprise":"непредвиденный, но причинный эффект или null","scene":{"locationId":"id места","activeCharacterIds":["до 2 id персонажей"],"propIds":["до 3 id предметов"],"ambientId":"id микросцены или null","atmosphere":"свет, погода и один фоновый звук"}}`,
-        },
-      ],
+      messages,
       max_completion_tokens: 1600,
       reasoning_effort: "low",
       chat_template_kwargs: { enable_thinking: false },
       response_format: { type: "json_object" },
       temperature: 0.72,
     })) as WorkersAiChatResponse;
-    return validateAiOutcome(parseAiJson(extractAiText(result)), fallback);
+    return validateAiOutcome(parseAiJson(extractAiText(result)), fallback, "cloudflare");
   } catch (error) {
     console.warn("Workers AI fallback", error instanceof Error ? error.message : error);
     return fallback;
@@ -191,7 +224,12 @@ export class HistorySession implements DurableObject {
 async function handleApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/api/health") {
-    return json({ ok: true, service: "living-history-sandbox", aiModel: "@cf/zai-org/glm-4.7-flash" });
+    return json({
+      ok: true,
+      service: "living-history-sandbox",
+      primaryAi: env.DEEPSEEK_API_KEY ? "deepseek-v4-flash" : "@cf/zai-org/glm-4.7-flash",
+      fallbackAi: env.DEEPSEEK_API_KEY ? "@cf/zai-org/glm-4.7-flash" : "simulation",
+    });
   }
   if (request.method === "GET" && url.pathname === "/api/scenarios") return json(scenarioSummaries);
 

@@ -35,6 +35,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Configure DeepSeek runtime secret
+        if: ${{ secrets.DEEPSEEK_API_KEY != '' }}
+        run: printf '%s' "$DEEPSEEK_API_KEY" | npx wrangler secret put DEEPSEEK_API_KEY
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:

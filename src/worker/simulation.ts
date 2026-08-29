@@ -128,6 +128,7 @@ export function simulateTurn(state: GameState, action: string): TurnOutcome {
       atmosphere: effects.some((effect) => effect.delta < -5) ? "холодный тревожный свет, дальний гул толпы" : "приглушённый кабинетный свет, слышен телеграф",
     },
     source: "simulation",
+    provider: "simulation",
   };
 }
 

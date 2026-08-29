@@ -49,6 +49,7 @@ export interface TurnOutcome {
   surprise: string | null;
   scene: SceneCue;
   source: "ai" | "simulation";
+  provider?: "deepseek" | "cloudflare" | "simulation";
 }
 
 export interface GameState {
