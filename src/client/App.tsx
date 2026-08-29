@@ -22,6 +22,8 @@ import officer1917 from "./assets/characters/officer-stavka-1917.webp";
 import lidia1917 from "./assets/characters/lidia-vetrova-1917.webp";
 import staffCar1917 from "./assets/vehicles/staff-car-1917.webp";
 
+type TextScale = "standard" | "large" | "xlarge";
+
 const modeOptions: Array<{ id: GameMode; title: string; duration: string; description: string }> = [
   { id: "chronicle", title: "Хроника", duration: "8–12 ходов", description: "Один кризис и плотный эпилог" },
   { id: "campaign", title: "Кампания", duration: "25–40 ходов", description: "Четыре акта и возвращающиеся последствия" },
@@ -69,7 +71,32 @@ function Seal({ children }: { children: React.ReactNode }) {
   return <span className="seal">{children}</span>;
 }
 
-function Landing({ scenarios, onStart, busy }: { scenarios: ScenarioSummary[]; onStart: (id: string, mode: GameMode) => void; busy: boolean }) {
+function TextScaleControl({ value, onChange }: { value: TextScale; onChange: (value: TextScale) => void }) {
+  const options: Array<{ value: TextScale; label: string; title: string }> = [
+    { value: "standard", label: "A", title: "Обычный крупный текст" },
+    { value: "large", label: "A+", title: "Увеличенный текст" },
+    { value: "xlarge", label: "A++", title: "Максимальный текст" },
+  ];
+
+  return (
+    <div className="text-scale-control" role="group" aria-label="Размер текста">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={value === option.value ? "active" : ""}
+          aria-pressed={value === option.value}
+          title={option.title}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Landing({ scenarios, onStart, busy, textScale, onTextScale }: { scenarios: ScenarioSummary[]; onStart: (id: string, mode: GameMode) => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void }) {
   const [selected, setSelected] = useState(scenarios.find((item) => item.available)?.id ?? scenarios[0]?.id);
   const [mode, setMode] = useState<GameMode>("campaign");
   const scenario = scenarios.find((item) => item.id === selected) ?? scenarios[0];
@@ -78,7 +105,10 @@ function Landing({ scenarios, onStart, busy }: { scenarios: ScenarioSummary[]; o
     <main className="landing shell">
       <nav className="topbar">
         <div className="brand"><Seal>ИИ</Seal><span>Переиграть историю</span></div>
-        <div className="topbar-note"><Radio size={15} /> Живой движок последствий</div>
+        <div className="topbar-tools">
+          <div className="topbar-note"><Radio size={15} /> Живой движок последствий</div>
+          <TextScaleControl value={textScale} onChange={onTextScale} />
+        </div>
       </nav>
 
       <section className="hero">
@@ -210,7 +240,7 @@ function Outcome({ state }: { state: GameState }) {
   );
 }
 
-function Game({ state, onTurn, onExit, busy }: { state: GameState; onTurn: (action: string) => void; onExit: () => void; busy: boolean }) {
+function Game({ state, onTurn, onExit, busy, textScale, onTextScale }: { state: GameState; onTurn: (action: string) => void; onExit: () => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void }) {
   const stability = state.metrics.find((metric) => metric.id === "stability")?.value ?? 50;
   const armyReaction = state.lastOutcome?.reactions.find((reaction) => reaction.faction.includes("Став"));
   const activeCharacters = state.lastOutcome?.scene.activeCharacterIds ?? [];
@@ -225,7 +255,7 @@ function Game({ state, onTurn, onExit, busy }: { state: GameState; onTurn: (acti
       <header className="game-header">
         <button className="icon-button" onClick={onExit} title="К сценариям"><ArrowLeft size={19} /></button>
         <div className="game-identity"><Seal>ИИ</Seal><div><span>{state.scenarioTitle}</span><small>{state.role} · {modeTitle}</small></div></div>
-        <div className="game-date"><Clock3 size={17} /><span>{formatDate(state.date)}</span><b>Ход {state.turn}</b></div>
+        <div className="game-date"><Clock3 size={17} /><span>{formatDate(state.date)}</span><b>Ход {state.turn}</b><TextScaleControl value={textScale} onChange={onTextScale} /></div>
       </header>
 
       <div className="game-layout">
@@ -290,6 +320,10 @@ export default function App() {
   const [game, setGame] = useState<GameState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [textScale, setTextScale] = useState<TextScale>(() => {
+    const saved = localStorage.getItem("living-history-text-scale");
+    return saved === "large" || saved === "xlarge" ? saved : "standard";
+  });
 
   useEffect(() => {
     api.scenarios().then(setScenarios).catch(() => undefined);
@@ -316,7 +350,14 @@ export default function App() {
   };
 
   const exit = () => { localStorage.removeItem("living-history-session"); setGame(null); setError(null); };
-  const content = useMemo(() => game ? <Game state={game} onTurn={playTurn} onExit={exit} busy={busy} /> : <Landing scenarios={scenarios} onStart={start} busy={busy} />, [game, scenarios, busy]);
+  const changeTextScale = (value: TextScale) => {
+    setTextScale(value);
+    localStorage.setItem("living-history-text-scale", value);
+  };
+  const content = useMemo(() => game
+    ? <Game state={game} onTurn={playTurn} onExit={exit} busy={busy} textScale={textScale} onTextScale={changeTextScale} />
+    : <Landing scenarios={scenarios} onStart={start} busy={busy} textScale={textScale} onTextScale={changeTextScale} />,
+  [game, scenarios, busy, textScale]);
 
-  return <>{content}{error && <div className="error-toast"><ShieldAlert size={18} /><span>{error}</span><button onClick={() => setError(null)}>×</button></div>}</>;
+  return <div className={`app-root text-scale-${textScale}`}>{content}{error && <div className="error-toast"><ShieldAlert size={18} /><span>{error}</span><button onClick={() => setError(null)}>×</button></div>}</div>;
 }

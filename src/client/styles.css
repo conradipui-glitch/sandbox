@@ -115,3 +115,103 @@ button { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .scene-character, .scene-character img, .scene-live i { animation: none; }
 }
+
+/* Readability pass: 12px is the baseline for supporting text; the player can
+   increase the full interface without relying on browser zoom. */
+.app-root { --text-adjust: 0px; min-height: 100vh; }
+.app-root.text-scale-large { --text-adjust: 2px; }
+.app-root.text-scale-xlarge { --text-adjust: 4px; }
+
+.topbar-tools { display: flex; align-items: center; gap: 22px; }
+.text-scale-control { display: inline-flex; align-items: stretch; height: 34px; border: 1px solid rgba(222,215,200,.22); background: rgba(255,255,255,.025); }
+.text-scale-control button { min-width: 38px; border: 0; border-right: 1px solid rgba(222,215,200,.16); background: transparent; color: #aaa294; cursor: pointer; font-size: 12px; font-weight: 700; line-height: 1; }
+.text-scale-control button:last-child { border-right: 0; }
+.text-scale-control button:hover { background: rgba(255,255,255,.06); color: #eee8dc; }
+.text-scale-control button.active { background: rgba(201,76,54,.18); color: #f1d4ca; box-shadow: inset 0 -2px var(--red); }
+.text-scale-control button:focus-visible { outline: 2px solid #e07660; outline-offset: 2px; }
+.game-date .text-scale-control { margin-left: 6px; }
+
+.topbar-note,
+.eyebrow,
+.promise-row,
+.section-heading p,
+.scenario-era,
+.scenario-card p,
+.mode-picker small,
+.launch-brief,
+.game-identity small,
+.game-date,
+.rail-heading,
+.metric-top,
+.faction strong,
+.objective p,
+.briefing p,
+.outcome > p,
+.surprise p,
+.reaction-grid strong,
+.reaction-grid p,
+.decision-options p,
+.timeline-entry p,
+.end-state p,
+.error-toast { font-size: calc(12px + var(--text-adjust)); }
+
+.scenario-meta,
+.coming,
+.mode-picker span,
+.metric small,
+.faction span,
+.objective span,
+.scene-caption span,
+.scene-live,
+.eyebrow-small,
+.outcome-kicker,
+.surprise strong,
+.stance,
+.panel-title small,
+.risk,
+.composer-footer span,
+.timeline-entry time,
+.world-thinking span { font-size: calc(11px + var(--text-adjust)); }
+
+.artifact-card span,
+.scene-map span { font-size: calc(10px + var(--text-adjust)); }
+.scenario-card h3 { font-size: calc(21px + var(--text-adjust)); }
+.mode-picker strong { font-size: calc(17px + var(--text-adjust)); }
+.metric-top strong { font-size: calc(17px + var(--text-adjust)); }
+.faction b { font-size: calc(15px + var(--text-adjust)); }
+.scene-caption strong { font-size: calc(20px + var(--text-adjust)); }
+.outcome blockquote { font-size: calc(16px + var(--text-adjust)); }
+.decision-options strong { font-size: calc(16px + var(--text-adjust)); }
+.freeform textarea { font-size: calc(14px + var(--text-adjust)); }
+.composer-footer button,
+.end-state button { font-size: calc(12px + var(--text-adjust)); }
+.timeline-entry strong { font-size: calc(14px + var(--text-adjust)); }
+
+.topbar-note,
+.scenario-card p,
+.section-heading p,
+.mode-picker small,
+.launch-brief,
+.game-date,
+.metric-top,
+.faction span,
+.objective p,
+.briefing p,
+.panel-title small,
+.decision-options p,
+.timeline-entry time,
+.timeline-entry p,
+.world-thinking span { color: #aaa294; }
+.composer-footer span { color: #938c7d; }
+.freeform textarea::placeholder { color: #8f887d; }
+
+@media (max-width: 760px) {
+  .app-root { --text-adjust: 1px; }
+  .app-root.text-scale-large { --text-adjust: 3px; }
+  .app-root.text-scale-xlarge { --text-adjust: 5px; }
+  .topbar-tools .topbar-note { display: none; }
+  .topbar-tools { margin-left: auto; }
+  .game-date > span, .game-date > svg { display: none; }
+  .game-date .text-scale-control { display: none; }
+  .scene-caption strong { font-size: calc(17px + var(--text-adjust)); }
+}
