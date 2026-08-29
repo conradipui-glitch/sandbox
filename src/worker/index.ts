@@ -42,6 +42,24 @@ function parseAiJson(text: string): Partial<TurnOutcome> | null {
   }
 }
 
+interface WorkersAiChatResponse {
+  response?: string;
+  choices?: Array<{
+    text?: string;
+    message?: { content?: string | Array<{ type?: string; text?: string }> };
+  }>;
+}
+
+export function extractAiText(result: WorkersAiChatResponse): string {
+  if (typeof result.response === "string") return result.response;
+  const choice = result.choices?.[0];
+  if (typeof choice?.text === "string") return choice.text;
+  const content = choice?.message?.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) return content.map((part) => part.text ?? "").join("");
+  return "";
+}
+
 function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: TurnOutcome): TurnOutcome {
   if (!candidate || typeof candidate.headline !== "string" || typeof candidate.summary !== "string") return fallback;
   const validIds = new Set<MetricId>(["legitimacy", "economy", "army", "stability", "diplomacy"]);
@@ -101,8 +119,8 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
       ],
       max_tokens: 1300,
       temperature: 0.8,
-    })) as { response?: string };
-    return validateAiOutcome(parseAiJson(result.response ?? ""), fallback);
+    })) as WorkersAiChatResponse;
+    return validateAiOutcome(parseAiJson(extractAiText(result)), fallback);
   } catch (error) {
     console.warn("Workers AI fallback", error instanceof Error ? error.message : error);
     return fallback;

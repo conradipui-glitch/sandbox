@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInitialState } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
 import { gameModes, worldCharacters, worldContextForTurn } from "./world";
+import { extractAiText } from "./index";
 
 describe("history simulation", () => {
   it("creates a playable state", () => {
@@ -41,5 +42,11 @@ describe("history simulation", () => {
     const next = applyOutcome(state, "Продолжить федеративные переговоры", simulateTurn(state, "Продолжить федеративные переговоры"));
     expect(next.status).toBe("active");
     expect(worldContextForTurn(state, "Отправить автомобиль с телеграммой").cast.some((character) => character?.id === "lidia-vetrova")).toBe(true);
+  });
+
+  it("reads both current chat-completions and legacy Workers AI responses", () => {
+    expect(extractAiText({ response: "legacy" })).toBe("legacy");
+    expect(extractAiText({ choices: [{ message: { content: "current" } }] })).toBe("current");
+    expect(extractAiText({ choices: [{ message: { content: [{ type: "text", text: "structured" }] } }] })).toBe("structured");
   });
 });
