@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { DecisionOption, GameState, ScenarioSummary } from "../shared/types";
 import { api } from "./api";
+import minister1917 from "./assets/characters/minister-1917.webp";
 
 const fallbackScenarios: ScenarioSummary[] = [
   {
@@ -193,6 +194,7 @@ function Outcome({ state }: { state: GameState }) {
 }
 
 function Game({ state, onTurn, onExit, busy }: { state: GameState; onTurn: (action: string) => void; onExit: () => void; busy: boolean }) {
+  const stability = state.metrics.find((metric) => metric.id === "stability")?.value ?? 50;
   return (
     <main className="game-shell">
       <header className="game-header">
@@ -213,6 +215,20 @@ function Game({ state, onTurn, onExit, busy }: { state: GameState; onTurn: (acti
         </aside>
 
         <div className="main-stage">
+          <section className={`scene-tableau ${stability < 30 ? "scene-unrest" : ""}`} aria-label="Кабинет Временного правительства">
+            <div className="scene-grid" />
+            <div className="scene-window"><i /><i /><i /></div>
+            <div className="scene-map"><span>ПЕТРОГРАД</span><i /><i /><i /></div>
+            <div className="scene-desk"><span /><span /></div>
+            <div className="scene-character">
+              <img src={minister1917} alt="Министр Временного правительства с запечатанным государственным досье" />
+            </div>
+            <div className="scene-caption">
+              <span>Петроград · Таврический дворец</span>
+              <strong>Кабинет ждёт вашего решения</strong>
+            </div>
+            <div className="scene-live"><i /> Живая сцена</div>
+          </section>
           <section className="briefing">
             <div className="briefing-index">{String(state.turn).padStart(2, "0")}</div>
             <div><span className="eyebrow-small">Оперативная обстановка</span><h1>{state.turn === 1 ? "Власть существует только до первого неверного решения" : state.lastOutcome?.headline}</h1><p>{state.briefing}</p></div>
