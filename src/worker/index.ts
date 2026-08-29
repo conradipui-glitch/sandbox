@@ -117,8 +117,11 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
           content: `Сценарий: Россия, март 1917. Игрок — глава Временного правительства.\nСостояние: ${JSON.stringify(compactState)}\nРежиссёрский контекст мира: ${JSON.stringify(world)}\nРешение игрока: ${action}\n\nВыбери максимум двух активных персонажей из контекста. Дай каждому характерную реакцию в пределах его знаний. Микросцену используй только при выполненном триггере. Предмет или техника должны иметь цену/ограничение.\n\nВерни JSON: {"headline":"до 100 знаков","summary":"2-4 конкретных абзаца","dispatch":"короткая газетная или телеграфная цитата","effects":[{"id":"legitimacy|economy|army|stability|diplomacy","delta":целое от -10 до 10,"reason":"почему"}],"reactions":[{"faction":"название или имя персонажа","stance":"поддержка|настороженность|противодействие","text":"характерная конкретная реакция"}],"nextOptions":[ровно 3 объекта {"id":"латиница","title":"название","description":"что именно","risk":"низкий|средний|высокий","intent":"полное действие"}],"daysPassed":число 2..45,"surprise":"непредвиденный, но причинный эффект или null","scene":{"locationId":"id места","activeCharacterIds":["до 2 id персонажей"],"propIds":["до 3 id предметов"],"ambientId":"id микросцены или null","atmosphere":"свет, погода и один фоновый звук"}}`,
         },
       ],
-      max_tokens: 1300,
-      temperature: 0.8,
+      max_completion_tokens: 1600,
+      reasoning_effort: "low",
+      chat_template_kwargs: { enable_thinking: false },
+      response_format: { type: "json_object" },
+      temperature: 0.72,
     })) as WorkersAiChatResponse;
     return validateAiOutcome(parseAiJson(extractAiText(result)), fallback);
   } catch (error) {
