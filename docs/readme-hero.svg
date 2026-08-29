@@ -1,0 +1,61 @@
+<svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#171512"/>
+      <stop offset="1" stop-color="#0E0D0B"/>
+    </linearGradient>
+    <filter id="grain" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" seed="19" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0" result="gray"/>
+      <feComponentTransfer in="gray" result="faded">
+        <feFuncA type="table" tableValues="0 0.08"/>
+      </feComponentTransfer>
+      <feBlend in="SourceGraphic" in2="faded" mode="screen"/>
+    </filter>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="420" fill="url(#paper)"/>
+  <g opacity="0.11" stroke="#E9E0CC">
+    <path d="M0 70H1200M0 140H1200M0 210H1200M0 280H1200M0 350H1200"/>
+    <path d="M100 0V420M200 0V420M300 0V420M400 0V420M500 0V420M600 0V420M700 0V420M800 0V420M900 0V420M1000 0V420M1100 0V420"/>
+  </g>
+  <g opacity="0.5" stroke="#C94C36">
+    <circle cx="945" cy="210" r="155"/>
+    <circle cx="945" cy="210" r="107" opacity="0.55"/>
+    <circle cx="945" cy="210" r="57" opacity="0.3"/>
+  </g>
+  <g stroke="#BEB5A4" stroke-width="1.2" stroke-dasharray="5 8" opacity="0.32">
+    <path d="M756 120C824 65 878 127 921 173C966 222 1024 173 1137 103"/>
+    <path d="M735 306C826 245 866 329 949 274C1032 220 1065 261 1165 309"/>
+    <path d="M857 30C885 112 839 221 927 389"/>
+  </g>
+  <g transform="translate(70 58)">
+    <circle cx="24" cy="24" r="22" stroke="#C94C36" stroke-width="1.5"/>
+    <circle cx="24" cy="24" r="16" stroke="#C94C36" opacity="0.55"/>
+    <text x="24" y="28" text-anchor="middle" fill="#C94C36" font-family="Georgia, serif" font-size="10" font-weight="bold">ИИ</text>
+    <text x="62" y="20" fill="#E9E0CC" font-family="Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.2">ЖИВАЯ ИСТОРИЧЕСКАЯ ПЕСОЧНИЦА</text>
+    <text x="62" y="39" fill="#8F887B" font-family="Arial, sans-serif" font-size="9" letter-spacing="2.6">ALTERNATIVE HISTORY ENGINE</text>
+  </g>
+  <text x="70" y="173" fill="#F0E9DC" font-family="Georgia, serif" font-size="59" letter-spacing="-2">Переиграть</text>
+  <text x="70" y="238" fill="#C94C36" font-family="Georgia, serif" font-size="67" font-style="italic" letter-spacing="-2">историю</text>
+  <rect x="72" y="266" width="76" height="3" fill="#C94C36"/>
+  <text x="70" y="309" fill="#B3AB9D" font-family="Arial, sans-serif" font-size="15">Любое решение — допустимый ход.</text>
+  <text x="70" y="335" fill="#B3AB9D" font-family="Arial, sans-serif" font-size="15">Ни одного заранее написанного финала.</text>
+  <g filter="url(#shadow)" transform="translate(870 130) rotate(-5)">
+    <rect width="180" height="218" fill="#DED5C2"/>
+    <rect x="8" y="8" width="164" height="202" stroke="#1A1815" stroke-opacity="0.18"/>
+    <text x="22" y="38" fill="#8C3B2C" font-family="Arial, sans-serif" font-size="8" font-weight="bold" letter-spacing="1.2">ТОЧКА РАСХОЖДЕНИЯ</text>
+    <text x="22" y="74" fill="#1A1815" font-family="Georgia, serif" font-size="25">Март</text>
+    <text x="22" y="103" fill="#1A1815" font-family="Georgia, serif" font-size="25">1917</text>
+    <path d="M22 126H151M22 137H131M22 148H146M22 159H112" stroke="#6C6459" stroke-opacity="0.55" stroke-width="2"/>
+    <g transform="translate(118 166) rotate(12)">
+      <circle cx="22" cy="22" r="21" fill="none" stroke="#A94432" stroke-width="2"/>
+      <circle cx="22" cy="22" r="16" fill="none" stroke="#A94432" stroke-width="1"/>
+      <path d="M13 22L19 28L31 15" stroke="#A94432" stroke-width="2"/>
+    </g>
+  </g>
+  <text x="1125" y="376" text-anchor="end" fill="#756E63" font-family="Arial, sans-serif" font-size="9" letter-spacing="1.8">BUILD 0.1 · THE FIRST DIVERGENCE</text>
+  <rect width="1200" height="420" filter="url(#grain)" opacity="0.35"/>
+</svg>
