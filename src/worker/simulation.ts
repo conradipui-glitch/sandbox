@@ -1,4 +1,5 @@
 import type { DecisionOption, GameState, MetricId, TurnOutcome } from "../shared/types";
+import { gameModes, worldContextForTurn } from "./world";
 
 const metricIds: MetricId[] = ["legitimacy", "economy", "army", "stability", "diplomacy"];
 
@@ -43,6 +44,7 @@ function keywordBias(action: string): Partial<Record<MetricId, number>> {
 
 export function simulateTurn(state: GameState, action: string): TurnOutcome {
   const seed = hash(`${state.id}:${state.turn}:${action}`);
+  const world = worldContextForTurn(state, action);
   const bias = keywordBias(action);
   const effects = metricIds.map((id, index) => {
     const noise = ((seed >> (index * 3)) % 7) - 3;
@@ -118,6 +120,13 @@ export function simulateTurn(state: GameState, action: string): TurnOutcome {
     nextOptions,
     daysPassed: 7 + (seed % 15),
     surprise: seed % 4 === 0 ? null : pick(surprises, seed, 4),
+    scene: {
+      locationId: /поезд|вагон|снабж/i.test(action) ? "muddy-station" : /рабоч|забаст|завод/i.test(action) ? "factory-yard" : "tauride-cabinet",
+      activeCharacterIds: world.cast.flatMap((character) => character ? [character.id] : []).slice(0, 2),
+      propIds: world.entityPool.slice(0, 2).map((entity) => entity.id),
+      ambientId: seed % 3 === 0 ? world.microEncounters[seed % world.microEncounters.length]?.id ?? null : null,
+      atmosphere: effects.some((effect) => effect.delta < -5) ? "холодный тревожный свет, дальний гул толпы" : "приглушённый кабинетный свет, слышен телеграф",
+    },
     source: "simulation",
   };
 }
@@ -132,13 +141,20 @@ export function applyOutcome(state: GameState, action: string, outcome: TurnOutc
     return { ...metric, value: Math.max(0, Math.min(100, metric.value + delta)), trend: delta };
   });
   const weakest = Math.min(...metrics.map((metric) => metric.value));
-  const strongest = Math.max(...metrics.map((metric) => metric.value));
+  const turnLimit = gameModes[state.mode].turnLimit;
+  const status = state.mode === "sandbox"
+    ? "active"
+    : weakest <= 2
+      ? "collapsed"
+      : turnLimit !== null && state.turn >= turnLimit
+        ? "victory"
+        : "active";
 
   return {
     ...state,
     date: nextDate,
     turn: state.turn + 1,
-    status: weakest <= 2 ? "collapsed" : strongest >= 96 && state.turn >= 8 ? "victory" : "active",
+    status,
     briefing: outcome.summary,
     metrics,
     options: outcome.nextOptions,

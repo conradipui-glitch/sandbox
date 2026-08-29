@@ -1,4 +1,5 @@
 export type MetricId = "legitimacy" | "economy" | "army" | "stability" | "diplomacy";
+export type GameMode = "chronicle" | "campaign" | "sandbox";
 
 export interface Metric {
   id: MetricId;
@@ -29,6 +30,14 @@ export interface FactionReaction {
   text: string;
 }
 
+export interface SceneCue {
+  locationId: string;
+  activeCharacterIds: string[];
+  propIds: string[];
+  ambientId: string | null;
+  atmosphere: string;
+}
+
 export interface TurnOutcome {
   headline: string;
   summary: string;
@@ -38,12 +47,14 @@ export interface TurnOutcome {
   nextOptions: DecisionOption[];
   daysPassed: number;
   surprise: string | null;
+  scene: SceneCue;
   source: "ai" | "simulation";
 }
 
 export interface GameState {
   id: string;
   scenarioId: string;
+  mode: GameMode;
   scenarioTitle: string;
   role: string;
   date: string;

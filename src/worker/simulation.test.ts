@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
+import { gameModes, worldCharacters, worldContextForTurn } from "./world";
 
 describe("history simulation", () => {
   it("creates a playable state", () => {
@@ -8,6 +9,7 @@ describe("history simulation", () => {
     expect(state.status).toBe("active");
     expect(state.options).toHaveLength(3);
     expect(state.metrics).toHaveLength(5);
+    expect(state.mode).toBe("campaign");
   });
 
   it("is deterministic for the same state and action", () => {
@@ -24,5 +26,20 @@ describe("history simulation", () => {
     expect(next.turn).toBe(2);
     expect(next.timeline.length).toBeGreaterThan(state.timeline.length);
     expect(next.metrics.every((metric) => metric.value >= 0 && metric.value <= 100)).toBe(true);
+    expect(outcome.scene.activeCharacterIds.length).toBeLessThanOrEqual(2);
+  });
+
+  it("supports three modes and distinct voiced characters", () => {
+    expect(Object.keys(gameModes)).toEqual(["chronicle", "campaign", "sandbox"]);
+    expect(new Set(worldCharacters.map((character) => character.id)).size).toBe(worldCharacters.length);
+    expect(worldCharacters.find((character) => character.id === "lidia-vetrova")?.voice).toContain("вопрос");
+  });
+
+  it("keeps the open sandbox active without a turn limit", () => {
+    const state = createInitialState("sandbox-1", "russia-1917", "sandbox");
+    state.turn = 80;
+    const next = applyOutcome(state, "Продолжить федеративные переговоры", simulateTurn(state, "Продолжить федеративные переговоры"));
+    expect(next.status).toBe("active");
+    expect(worldContextForTurn(state, "Отправить автомобиль с телеграммой").cast.some((character) => character?.id === "lidia-vetrova")).toBe(true);
   });
 });

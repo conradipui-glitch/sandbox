@@ -1,4 +1,4 @@
-import type { DecisionOption, GameState, Metric } from "../shared/types";
+import type { DecisionOption, GameMode, GameState, Metric } from "../shared/types";
 
 const initialOptions: DecisionOption[] = [
   {
@@ -57,7 +57,7 @@ export const scenarioSummaries = [
   },
 ] as const;
 
-export function createInitialState(id: string, scenarioId: string): GameState {
+export function createInitialState(id: string, scenarioId: string, mode: GameMode = "campaign"): GameState {
   if (scenarioId !== "russia-1917") {
     throw new Error("Этот сценарий ещё не открыт");
   }
@@ -74,6 +74,7 @@ export function createInitialState(id: string, scenarioId: string): GameState {
   return {
     id,
     scenarioId,
+    mode,
     scenarioTitle: "Россия после отречения",
     role: "Глава Временного правительства",
     date: "1917-03-03",

@@ -15,10 +15,18 @@ import {
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
-import type { DecisionOption, GameState, ScenarioSummary } from "../shared/types";
+import type { DecisionOption, GameMode, GameState, ScenarioSummary } from "../shared/types";
 import { api } from "./api";
 import minister1917 from "./assets/characters/minister-1917.webp";
 import officer1917 from "./assets/characters/officer-stavka-1917.webp";
+import lidia1917 from "./assets/characters/lidia-vetrova-1917.webp";
+import staffCar1917 from "./assets/vehicles/staff-car-1917.webp";
+
+const modeOptions: Array<{ id: GameMode; title: string; duration: string; description: string }> = [
+  { id: "chronicle", title: "Хроника", duration: "8–12 ходов", description: "Один кризис и плотный эпилог" },
+  { id: "campaign", title: "Кампания", duration: "25–40 ходов", description: "Четыре акта и возвращающиеся последствия" },
+  { id: "sandbox", title: "Песочница", duration: "Без лимита", description: "Свободная цель и продолжающийся мир" },
+];
 
 const fallbackScenarios: ScenarioSummary[] = [
   {
@@ -61,8 +69,9 @@ function Seal({ children }: { children: React.ReactNode }) {
   return <span className="seal">{children}</span>;
 }
 
-function Landing({ scenarios, onStart, busy }: { scenarios: ScenarioSummary[]; onStart: (id: string) => void; busy: boolean }) {
+function Landing({ scenarios, onStart, busy }: { scenarios: ScenarioSummary[]; onStart: (id: string, mode: GameMode) => void; busy: boolean }) {
   const [selected, setSelected] = useState(scenarios.find((item) => item.available)?.id ?? scenarios[0]?.id);
+  const [mode, setMode] = useState<GameMode>("campaign");
   const scenario = scenarios.find((item) => item.id === selected) ?? scenarios[0];
 
   return (
@@ -121,9 +130,16 @@ function Landing({ scenarios, onStart, busy }: { scenarios: ScenarioSummary[]; o
             </button>
           ))}
         </div>
+        <div className="mode-picker" aria-label="Режим игры">
+          {modeOptions.map((item) => (
+            <button type="button" key={item.id} className={mode === item.id ? "selected" : ""} onClick={() => setMode(item.id)}>
+              <span>{item.duration}</span><strong>{item.title}</strong><small>{item.description}</small>
+            </button>
+          ))}
+        </div>
         <div className="launch-row">
           <div className="launch-brief"><ShieldAlert size={20} /><span><strong>Правило мира:</strong> ИИ не обязан делать ваш план успешным. Он обязан сделать ответ мира правдоподобным.</span></div>
-          <button className="primary" disabled={!scenario?.available || busy} onClick={() => scenario && onStart(scenario.id)}>
+          <button className="primary" disabled={!scenario?.available || busy} onClick={() => scenario && onStart(scenario.id, mode)}>
             {busy ? <LoaderCircle className="spin" size={20} /> : <Crown size={20} />}
             Начать правление
             <ArrowRight size={20} />
@@ -197,12 +213,18 @@ function Outcome({ state }: { state: GameState }) {
 function Game({ state, onTurn, onExit, busy }: { state: GameState; onTurn: (action: string) => void; onExit: () => void; busy: boolean }) {
   const stability = state.metrics.find((metric) => metric.id === "stability")?.value ?? 50;
   const armyReaction = state.lastOutcome?.reactions.find((reaction) => reaction.faction.includes("Став"));
-  const showOfficer = Boolean(state.lastOutcome);
+  const activeCharacters = state.lastOutcome?.scene.activeCharacterIds ?? [];
+  const sceneProps = state.lastOutcome?.scene.propIds ?? [];
+  const showLidia = activeCharacters.includes("lidia-vetrova");
+  const showOfficer = Boolean(state.lastOutcome) && !showLidia && (activeCharacters.includes("colonel-argunov") || activeCharacters.length === 0);
+  const showCar = sceneProps.includes("staff-renault");
+  const modeTitle = modeOptions.find((mode) => mode.id === state.mode)?.title ?? "Кампания";
+  const guestCaption = showLidia ? "Лидия привезла перехваченную телеграмму" : showOfficer ? "Ставка требует ответа кабинета" : "Кабинет ждёт вашего решения";
   return (
     <main className="game-shell">
       <header className="game-header">
         <button className="icon-button" onClick={onExit} title="К сценариям"><ArrowLeft size={19} /></button>
-        <div className="game-identity"><Seal>ИИ</Seal><div><span>{state.scenarioTitle}</span><small>{state.role}</small></div></div>
+        <div className="game-identity"><Seal>ИИ</Seal><div><span>{state.scenarioTitle}</span><small>{state.role} · {modeTitle}</small></div></div>
         <div className="game-date"><Clock3 size={17} /><span>{formatDate(state.date)}</span><b>Ход {state.turn}</b></div>
       </header>
 
@@ -223,17 +245,23 @@ function Game({ state, onTurn, onExit, busy }: { state: GameState; onTurn: (acti
             <div className="scene-window"><i /><i /><i /></div>
             <div className="scene-map"><span>ПЕТРОГРАД</span><i /><i /><i /></div>
             <div className="scene-desk"><span /><span /></div>
+            {showCar && <div className="scene-vehicle"><img src={staffCar1917} alt="Штабной автомобиль у входа" /></div>}
             {showOfficer && (
               <div className={`scene-character scene-character-officer stance-${armyReaction?.stance ?? "настороженность"}`}>
                 <img src={officer1917} alt="Офицер Ставки с оперативной картой" />
               </div>
             )}
+            {showLidia && (
+              <div className="scene-character scene-character-lidia">
+                <img src={lidia1917} alt="Журналистка и автокурьер Лидия Ветрова с телеграммами" />
+              </div>
+            )}
             <div className="scene-character scene-character-minister">
-              <img src={minister1917} alt="Министр Временного правительства с запечатанным государственным досье" />
+              <img src={minister1917} alt="Министр Аркадий Левицкий с красным портфелем" />
             </div>
-            <div className={`scene-caption ${showOfficer ? "scene-caption-dialogue" : ""}`}>
+            <div className={`scene-caption ${showOfficer || showLidia ? "scene-caption-dialogue" : ""}`}>
               <span>Петроград · Таврический дворец</span>
-              <strong>{showOfficer ? "Ставка требует ответа кабинета" : "Кабинет ждёт вашего решения"}</strong>
+              <strong>{guestCaption}</strong>
             </div>
             <div className="scene-live"><i /> Живая сцена</div>
           </section>
@@ -269,10 +297,10 @@ export default function App() {
     if (saved) api.getGame(saved).then(setGame).catch(() => localStorage.removeItem("living-history-session"));
   }, []);
 
-  const start = async (id: string) => {
+  const start = async (id: string, mode: GameMode) => {
     setBusy(true); setError(null);
     try {
-      const state = await api.createGame(id);
+      const state = await api.createGame(id, mode);
       localStorage.setItem("living-history-session", state.id);
       setGame(state);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Не удалось начать игру"); }

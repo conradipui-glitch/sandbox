@@ -1,6 +1,7 @@
-import type { GameState, MetricId, TurnOutcome } from "../shared/types";
+import type { GameMode, GameState, MetricId, SceneCue, TurnOutcome } from "../shared/types";
 import { createInitialState, scenarioSummaries } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
+import { gameModes, worldContextForTurn } from "./world";
 
 interface Env {
   AI: Ai;
@@ -49,6 +50,15 @@ function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: Tur
         .filter((item) => item && validIds.has(item.id as MetricId) && Number.isFinite(item.delta))
         .map((item) => ({ id: item.id as MetricId, delta: Math.max(-10, Math.min(10, Math.round(item.delta))), reason: String(item.reason || "Последствие решения") }))
     : fallback.effects;
+  const scene = candidate.scene && typeof candidate.scene === "object"
+    ? {
+        locationId: String(candidate.scene.locationId || fallback.scene.locationId).slice(0, 80),
+        activeCharacterIds: Array.isArray(candidate.scene.activeCharacterIds) ? candidate.scene.activeCharacterIds.map(String).slice(0, 2) : fallback.scene.activeCharacterIds,
+        propIds: Array.isArray(candidate.scene.propIds) ? candidate.scene.propIds.map(String).slice(0, 3) : fallback.scene.propIds,
+        ambientId: typeof candidate.scene.ambientId === "string" ? candidate.scene.ambientId.slice(0, 80) : null,
+        atmosphere: typeof candidate.scene.atmosphere === "string" ? candidate.scene.atmosphere.slice(0, 240) : fallback.scene.atmosphere,
+      } satisfies SceneCue
+    : fallback.scene;
 
   return {
     ...fallback,
@@ -60,6 +70,7 @@ function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: Tur
     nextOptions: Array.isArray(candidate.nextOptions) && candidate.nextOptions.length === 3 ? candidate.nextOptions : fallback.nextOptions,
     daysPassed: Number.isFinite(candidate.daysPassed) ? Math.max(2, Math.min(45, Math.round(candidate.daysPassed!))) : fallback.daysPassed,
     surprise: typeof candidate.surprise === "string" ? candidate.surprise.slice(0, 450) : fallback.surprise,
+    scene,
     source: "ai",
   };
 }
@@ -68,22 +79,24 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
   const fallback = simulateTurn(state, action);
   try {
     const compactState = {
+      mode: state.mode,
       date: state.date,
       turn: state.turn,
       metrics: state.metrics,
       factions: state.factions,
       lastEvents: state.timeline.slice(-5),
     };
+    const world = worldContextForTurn(state, action);
     const result = (await env.AI.run("@cf/zai-org/glm-4.7-flash", {
       messages: [
         {
           role: "system",
           content:
-            "Ты — движок серьёзной альтернативно-исторической стратегии. Моделируй причинно-следственные последствия без магии, морализаторства и предопределённого канона. Учитывай логистику, институты, интересы фракций и ограниченность власти игрока. Пиши по-русски. Верни только валидный JSON.",
+            "Ты — движок и режиссёр серьёзной альтернативно-исторической стратегии. Моделируй причинные последствия без магии, морализаторства и предопределённого канона. Учитывай логистику, институты, ограниченность власти и частичное знание персонажей. Персонажи преследуют собственные цели, помнят обращение игрока, могут ошибаться, лгать, торговаться и отказываться. Юмор редкий, наблюдательный и никогда не превращает бедность или насилие в шутку. Пиши по-русски. Верни только валидный JSON.",
         },
         {
           role: "user",
-          content: `Сценарий: Россия, март 1917. Игрок — глава Временного правительства.\nСостояние: ${JSON.stringify(compactState)}\nРешение игрока: ${action}\n\nВерни JSON: {"headline":"до 100 знаков","summary":"2-4 конкретных абзаца","dispatch":"короткая газетная или телеграфная цитата","effects":[{"id":"legitimacy|economy|army|stability|diplomacy","delta":целое от -10 до 10,"reason":"почему"}],"reactions":[{"faction":"название","stance":"поддержка|настороженность|противодействие","text":"конкретная реакция"}],"nextOptions":[ровно 3 объекта {"id":"латиница","title":"название","description":"что именно","risk":"низкий|средний|высокий","intent":"полное действие"}],"daysPassed":число 2..45,"surprise":"непредвиденный, но причинный эффект или null"}`,
+          content: `Сценарий: Россия, март 1917. Игрок — глава Временного правительства.\nСостояние: ${JSON.stringify(compactState)}\nРежиссёрский контекст мира: ${JSON.stringify(world)}\nРешение игрока: ${action}\n\nВыбери максимум двух активных персонажей из контекста. Дай каждому характерную реакцию в пределах его знаний. Микросцену используй только при выполненном триггере. Предмет или техника должны иметь цену/ограничение.\n\nВерни JSON: {"headline":"до 100 знаков","summary":"2-4 конкретных абзаца","dispatch":"короткая газетная или телеграфная цитата","effects":[{"id":"legitimacy|economy|army|stability|diplomacy","delta":целое от -10 до 10,"reason":"почему"}],"reactions":[{"faction":"название или имя персонажа","stance":"поддержка|настороженность|противодействие","text":"характерная конкретная реакция"}],"nextOptions":[ровно 3 объекта {"id":"латиница","title":"название","description":"что именно","risk":"низкий|средний|высокий","intent":"полное действие"}],"daysPassed":число 2..45,"surprise":"непредвиденный, но причинный эффект или null","scene":{"locationId":"id места","activeCharacterIds":["до 2 id персонажей"],"propIds":["до 3 id предметов"],"ambientId":"id микросцены или null","atmosphere":"свет, погода и один фоновый звук"}}`,
         },
       ],
       max_tokens: 1300,
@@ -109,11 +122,12 @@ export class HistorySession implements DurableObject {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/create") {
-      const body = (await request.json()) as { id?: string; scenarioId?: string };
+      const body = (await request.json()) as { id?: string; scenarioId?: string; mode?: GameMode };
       if (!body.id) return errorResponse("Не передан идентификатор сессии");
       const existing = await this.getStored();
       if (existing) return json(existing.state);
-      const state = createInitialState(body.id, body.scenarioId ?? "russia-1917");
+      const mode = body.mode && body.mode in gameModes ? body.mode : "campaign";
+      const state = createInitialState(body.id, body.scenarioId ?? "russia-1917", mode);
       await this.ctx.storage.put("game", { state, processedKeys: {} } satisfies StoredGame);
       return json(state, 201);
     }
@@ -153,13 +167,13 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET" && url.pathname === "/api/scenarios") return json(scenarioSummaries);
 
   if (request.method === "POST" && url.pathname === "/api/games") {
-    const body = (await request.json().catch(() => ({}))) as { scenarioId?: string };
+    const body = (await request.json().catch(() => ({}))) as { scenarioId?: string; mode?: GameMode };
     const id = crypto.randomUUID();
     const stub = env.HISTORY_SESSIONS.get(env.HISTORY_SESSIONS.idFromName(id));
     return stub.fetch("https://session/create", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id, scenarioId: body.scenarioId ?? "russia-1917" }),
+      body: JSON.stringify({ id, scenarioId: body.scenarioId ?? "russia-1917", mode: body.mode ?? "campaign" }),
     });
   }
 
