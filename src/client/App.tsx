@@ -18,6 +18,7 @@ import {
 import type { DecisionOption, GameState, ScenarioSummary } from "../shared/types";
 import { api } from "./api";
 import minister1917 from "./assets/characters/minister-1917.webp";
+import officer1917 from "./assets/characters/officer-stavka-1917.webp";
 
 const fallbackScenarios: ScenarioSummary[] = [
   {
@@ -195,6 +196,8 @@ function Outcome({ state }: { state: GameState }) {
 
 function Game({ state, onTurn, onExit, busy }: { state: GameState; onTurn: (action: string) => void; onExit: () => void; busy: boolean }) {
   const stability = state.metrics.find((metric) => metric.id === "stability")?.value ?? 50;
+  const armyReaction = state.lastOutcome?.reactions.find((reaction) => reaction.faction.includes("Став"));
+  const showOfficer = Boolean(state.lastOutcome);
   return (
     <main className="game-shell">
       <header className="game-header">
@@ -220,12 +223,17 @@ function Game({ state, onTurn, onExit, busy }: { state: GameState; onTurn: (acti
             <div className="scene-window"><i /><i /><i /></div>
             <div className="scene-map"><span>ПЕТРОГРАД</span><i /><i /><i /></div>
             <div className="scene-desk"><span /><span /></div>
-            <div className="scene-character">
+            {showOfficer && (
+              <div className={`scene-character scene-character-officer stance-${armyReaction?.stance ?? "настороженность"}`}>
+                <img src={officer1917} alt="Офицер Ставки с оперативной картой" />
+              </div>
+            )}
+            <div className="scene-character scene-character-minister">
               <img src={minister1917} alt="Министр Временного правительства с запечатанным государственным досье" />
             </div>
-            <div className="scene-caption">
+            <div className={`scene-caption ${showOfficer ? "scene-caption-dialogue" : ""}`}>
               <span>Петроград · Таврический дворец</span>
-              <strong>Кабинет ждёт вашего решения</strong>
+              <strong>{showOfficer ? "Ставка требует ответа кабинета" : "Кабинет ждёт вашего решения"}</strong>
             </div>
             <div className="scene-live"><i /> Живая сцена</div>
           </section>
