@@ -1,7 +1,11 @@
 import type { GameMode, GameState, MetricId, SceneCue, TurnOutcome } from "../shared/types";
 import { createInitialState, scenarioSummaries } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
-import { gameModes, worldContextForTurn } from "./world";
+import { gameModes, microEncounters, worldCharacters, worldContextForTurn, worldEntities } from "./world";
+
+const validCharacterIds = new Set(worldCharacters.map((character) => character.id));
+const validEntityIds = new Set(worldEntities.map((entity) => entity.id));
+const validAmbientIds = new Set(microEncounters.map((encounter) => encounter.id));
 
 interface Env {
   AI: Ai;
@@ -71,9 +75,13 @@ function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: Tur
   const scene = candidate.scene && typeof candidate.scene === "object"
     ? {
         locationId: String(candidate.scene.locationId || fallback.scene.locationId).slice(0, 80),
-        activeCharacterIds: Array.isArray(candidate.scene.activeCharacterIds) ? candidate.scene.activeCharacterIds.map(String).slice(0, 2) : fallback.scene.activeCharacterIds,
-        propIds: Array.isArray(candidate.scene.propIds) ? candidate.scene.propIds.map(String).slice(0, 3) : fallback.scene.propIds,
-        ambientId: typeof candidate.scene.ambientId === "string" ? candidate.scene.ambientId.slice(0, 80) : null,
+        activeCharacterIds: Array.isArray(candidate.scene.activeCharacterIds)
+          ? candidate.scene.activeCharacterIds.map(String).filter((id) => validCharacterIds.has(id)).slice(0, 2)
+          : fallback.scene.activeCharacterIds,
+        propIds: Array.isArray(candidate.scene.propIds)
+          ? candidate.scene.propIds.map(String).filter((id) => validEntityIds.has(id)).slice(0, 3)
+          : fallback.scene.propIds,
+        ambientId: typeof candidate.scene.ambientId === "string" && validAmbientIds.has(candidate.scene.ambientId) ? candidate.scene.ambientId : null,
         atmosphere: typeof candidate.scene.atmosphere === "string" ? candidate.scene.atmosphere.slice(0, 240) : fallback.scene.atmosphere,
       } satisfies SceneCue
     : fallback.scene;

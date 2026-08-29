@@ -42,6 +42,7 @@ describe("history simulation", () => {
     const next = applyOutcome(state, "Продолжить федеративные переговоры", simulateTurn(state, "Продолжить федеративные переговоры"));
     expect(next.status).toBe("active");
     expect(worldContextForTurn(state, "Отправить автомобиль с телеграммой").cast.some((character) => character?.id === "lidia-vetrova")).toBe(true);
+    expect(worldContextForTurn(state, "Поручить Лидии Ветровой доставить график").cast.some((character) => character?.id === "lidia-vetrova")).toBe(true);
   });
 
   it("reads both current chat-completions and legacy Workers AI responses", () => {

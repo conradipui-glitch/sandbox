@@ -281,7 +281,7 @@ export function worldContextForTurn(state: GameState, action: string) {
   const weak = weakestMetric(state);
   const ids = new Set(["minister-levitsky"]);
   if (/арм|фронт|мир|солдат/i.test(action) || weak === "army") ids.add("colonel-argunov");
-  if (/газет|телеграф|утеч|авто|публич/i.test(action) || weak === "diplomacy") ids.add("lidia-vetrova");
+  if (/газет|телеграф|утеч|авто|публич|лидия|ветров/i.test(action) || weak === "diplomacy") ids.add("lidia-vetrova");
   if (/рабоч|хлеб|забаст/i.test(action) || weak === "economy") ids.add("worker-novikova");
   if (/земл|крестьян|деревн/i.test(action)) ids.add("peasant-grushina");
   if (/банк|завод|кредит|промыш/i.test(action)) ids.add("industrialist-vorontsova");
