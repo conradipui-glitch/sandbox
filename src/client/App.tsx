@@ -260,6 +260,9 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale }: { state: 
   const showCar = sceneProps.includes("staff-renault");
   const modeTitle = modeOptions.find((mode) => mode.id === state.mode)?.title ?? "Кампания";
   const guestCaption = showLidia ? "Лидия привезла перехваченную телеграмму" : showOfficer ? "Ставка требует ответа кабинета" : "Кабинет ждёт вашего решения";
+  const briefingText = state.turn === 1
+    ? state.briefing
+    : state.lastOutcome?.nextBriefing ?? `Прошло ${state.lastOutcome?.daysPassed ?? 7} дней. Решение вышло из кабинета и теперь проверяется исполнением на местах.`;
   return (
     <main className="game-shell">
       <header className="game-header">
@@ -307,7 +310,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale }: { state: 
           </section>
           <section className="briefing">
             <div className="briefing-index">{String(state.turn).padStart(2, "0")}</div>
-            <div><span className="eyebrow-small">Оперативная обстановка</span><h1>{state.turn === 1 ? "Власть существует только до первого неверного решения" : "Решение вышло из кабинета"}</h1><p>{state.briefing}</p></div>
+            <div><span className="eyebrow-small">Оперативная обстановка</span><h1>{state.turn === 1 ? "Власть существует только до первого неверного решения" : "Решение вышло из кабинета"}</h1><p>{briefingText}</p></div>
           </section>
           <Outcome state={state} />
           {state.status === "active" ? <DecisionComposer options={state.options} onSubmit={onTurn} busy={busy} /> : <div className="end-state"><h2>{state.status === "victory" ? "Новый порядок устоял" : "Государство распалось"}</h2><p>Эта ветка истории завершена. Можно вернуться к точке разлома и попробовать другую стратегию.</p><button onClick={onExit}><RotateCcw size={18} /> Начать заново</button></div>}
