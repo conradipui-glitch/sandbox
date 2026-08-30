@@ -171,10 +171,10 @@ button { color: inherit; }
 .risk,
 .composer-footer span,
 .timeline-entry time,
-.world-thinking span { font-size: calc(11px + var(--text-adjust)); }
+.world-thinking span { font-size: calc(12px + var(--text-adjust)); }
 
 .artifact-card span,
-.scene-map span { font-size: calc(10px + var(--text-adjust)); }
+.scene-map span { font-size: calc(11px + var(--text-adjust)); }
 .scenario-card h3 { font-size: calc(21px + var(--text-adjust)); }
 .mode-picker strong { font-size: calc(17px + var(--text-adjust)); }
 .metric-top strong { font-size: calc(17px + var(--text-adjust)); }
