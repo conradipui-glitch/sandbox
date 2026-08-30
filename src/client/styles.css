@@ -16,6 +16,7 @@
 body { margin: 0; min-width: 320px; min-height: 100vh; background: #12110f; }
 button, textarea { font: inherit; }
 button { color: inherit; }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .shell { width: min(1440px, 100%); margin: 0 auto; padding: 0 42px 64px; }
 .landing { min-height: 100vh; overflow: hidden; background: radial-gradient(circle at 78% 19%, rgba(144, 88, 52, .12), transparent 31%), #12110f; }
 .topbar { height: 86px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
@@ -23,6 +24,10 @@ button { color: inherit; }
 .seal { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--red); color: var(--red); font-family: "Prata", serif; font-size: 12px; border-radius: 50%; transform: rotate(-7deg); position: relative; flex: 0 0 auto; }
 .seal::after { content: ""; position: absolute; inset: 4px; border: 1px solid currentColor; border-radius: 50%; opacity: .6; }
 .topbar-note { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .12em; display: flex; gap: 8px; align-items: center; }
+.music-toggle { width: 36px; height: 36px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid rgba(222,215,200,.22); background: rgba(255,255,255,.025); color: #c9c1b3; cursor: pointer; transition: color .18s, border-color .18s, background .18s; }
+.music-toggle:hover { color: #f0e9dc; border-color: rgba(201,76,54,.55); background: rgba(201,76,54,.08); }
+.music-toggle.muted { color: #8b8478; background: rgba(255,255,255,.015); }
+.music-toggle:focus-visible { outline: 2px solid #e07660; outline-offset: 2px; }
 .hero { min-height: 545px; display: grid; grid-template-columns: 55% 45%; align-items: center; border-bottom: 1px solid var(--line); position: relative; }
 .hero-copy { padding: 64px 35px 64px 0; position: relative; z-index: 2; }
 .eyebrow { display: flex; align-items: center; gap: 18px; color: var(--red); font-size: 10px; letter-spacing: .2em; font-weight: 700; }
@@ -129,7 +134,7 @@ button { color: inherit; }
 .text-scale-control button:hover { background: rgba(255,255,255,.06); color: #eee8dc; }
 .text-scale-control button.active { background: rgba(201,76,54,.18); color: #f1d4ca; box-shadow: inset 0 -2px var(--red); }
 .text-scale-control button:focus-visible { outline: 2px solid #e07660; outline-offset: 2px; }
-.game-date .text-scale-control { margin-left: 6px; }
+.game-date .text-scale-control { margin-left: 2px; }
 
 .topbar-note,
 .eyebrow,
@@ -213,6 +218,7 @@ button { color: inherit; }
   .topbar-tools .topbar-note { display: none; }
   .topbar-tools { margin-left: auto; }
   .game-date > span, .game-date > svg { display: none; }
+  .game-date > .music-toggle svg { display: block; }
   .game-date .text-scale-control { display: none; }
   .scene-caption strong { font-size: calc(17px + var(--text-adjust)); }
 }

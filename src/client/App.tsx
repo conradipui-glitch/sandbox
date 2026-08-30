@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -14,6 +14,8 @@ import {
   RotateCcw,
   ShieldAlert,
   Sparkles,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import type { DecisionOption, GameMode, GameState, ScenarioSummary } from "../shared/types";
 import { api } from "./api";
@@ -23,6 +25,44 @@ import lidia1917 from "./assets/characters/lidia-vetrova-1917.webp";
 import staffCar1917 from "./assets/vehicles/staff-car-1917.webp";
 
 type TextScale = "standard" | "large" | "xlarge";
+
+type MusicTrack = {
+  src: string;
+  title: string;
+  loop: boolean;
+};
+
+const musicTracks = {
+  menu: { src: "/audio/music-00-main-menu.mp3", title: "Нераскрытая книга", loop: true },
+  chronicle: { src: "/audio/music-01-chronicle-reflection.mp3", title: "Полуночная книга", loop: true },
+  deadline: { src: "/audio/music-02-chronicle-deadline.mp3", title: "Телеграф без ответа", loop: true },
+  cabinet: { src: "/audio/music-03-campaign-cabinet.mp3", title: "Вес указа", loop: true },
+  street: { src: "/audio/music-04-campaign-street.mp3", title: "Телеграфная контора", loop: true },
+  sandbox: { src: "/audio/music-05-sandbox-open-horizon.mp3", title: "Чернила на карте", loop: true },
+  supply: { src: "/audio/music-06-crisis-supply.mp3", title: "Застрявший груз", loop: true },
+  front: { src: "/audio/music-07-crisis-front.mp3", title: "Пограничный телеграф", loop: true },
+  intrigue: { src: "/audio/music-08-intrigue-surveillance.mp3", title: "Стол землемера", loop: true },
+  reveal: { src: "/audio/music-09-decision-reveal.mp3", title: "Закрывая книгу", loop: false },
+  finale: { src: "/audio/music-10-fragile-victory.mp3", title: "Последняя телеграмма", loop: true },
+} satisfies Record<string, MusicTrack>;
+
+function selectMusic(game: GameState | null, busy: boolean): MusicTrack {
+  if (!game) return musicTracks.menu;
+  if (busy) return musicTracks.reveal;
+  if (game.status !== "active") return musicTracks.finale;
+
+  const economy = game.metrics.find((metric) => metric.id === "economy")?.value ?? 50;
+  const army = game.metrics.find((metric) => metric.id === "army")?.value ?? 50;
+  const stability = game.metrics.find((metric) => metric.id === "stability")?.value ?? 50;
+  const hasIntrigue = Boolean(game.lastOutcome?.surprise) || game.lastOutcome?.scene.propIds.includes("coded-telegram");
+
+  if (economy < 24) return musicTracks.supply;
+  if (army < 24) return musicTracks.front;
+  if (stability < 30 && hasIntrigue) return musicTracks.intrigue;
+  if (game.mode === "chronicle") return game.turn % 3 === 0 ? musicTracks.deadline : musicTracks.chronicle;
+  if (game.mode === "sandbox") return musicTracks.sandbox;
+  return game.turn % 3 === 0 ? musicTracks.street : musicTracks.cabinet;
+}
 
 const modeOptions: Array<{ id: GameMode; title: string; duration: string; description: string }> = [
   { id: "chronicle", title: "Хроника", duration: "8–12 ходов", description: "Один кризис и плотный эпилог" },
@@ -96,7 +136,24 @@ function TextScaleControl({ value, onChange }: { value: TextScale; onChange: (va
   );
 }
 
-function Landing({ scenarios, onStart, busy, textScale, onTextScale }: { scenarios: ScenarioSummary[]; onStart: (id: string, mode: GameMode) => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void }) {
+function MusicToggle({ muted, onToggle, trackTitle }: { muted: boolean; onToggle: () => void; trackTitle: string }) {
+  const action = muted ? "Включить музыку" : "Выключить музыку";
+  return (
+    <button
+      type="button"
+      className={`music-toggle ${muted ? "muted" : ""}`}
+      aria-label={`${action}. Сейчас: ${trackTitle}`}
+      aria-pressed={muted}
+      title={action}
+      onClick={onToggle}
+    >
+      {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+      <span className="visually-hidden">{action}</span>
+    </button>
+  );
+}
+
+function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { scenarios: ScenarioSummary[]; onStart: (id: string, mode: GameMode) => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
   const [selected, setSelected] = useState(scenarios.find((item) => item.available)?.id ?? scenarios[0]?.id);
   const [mode, setMode] = useState<GameMode>("campaign");
   const scenario = scenarios.find((item) => item.id === selected) ?? scenarios[0];
@@ -107,6 +164,7 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale }: { scenari
         <div className="brand"><Seal>ИИ</Seal><span>Переиграть историю</span></div>
         <div className="topbar-tools">
           <div className="topbar-note"><Radio size={15} /> Живой движок последствий</div>
+          <MusicToggle muted={musicMuted} onToggle={onMusicToggle} trackTitle={trackTitle} />
           <TextScaleControl value={textScale} onChange={onTextScale} />
         </div>
       </nav>
@@ -250,7 +308,7 @@ function Outcome({ state }: { state: GameState }) {
   );
 }
 
-function Game({ state, onTurn, onExit, busy, textScale, onTextScale }: { state: GameState; onTurn: (action: string) => void; onExit: () => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void }) {
+function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { state: GameState; onTurn: (action: string) => void; onExit: () => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
   const stability = state.metrics.find((metric) => metric.id === "stability")?.value ?? 50;
   const armyReaction = state.lastOutcome?.reactions.find((reaction) => reaction.faction.includes("Став"));
   const activeCharacters = state.lastOutcome?.scene.activeCharacterIds ?? [];
@@ -268,7 +326,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale }: { state: 
       <header className="game-header">
         <button className="icon-button" onClick={onExit} title="К сценариям"><ArrowLeft size={19} /></button>
         <div className="game-identity"><Seal>ИИ</Seal><div><span>{state.scenarioTitle}</span><small>{state.role} · {modeTitle}</small></div></div>
-        <div className="game-date"><Clock3 size={17} /><span>{formatDate(state.date)}</span><b>Ход {state.turn}</b><TextScaleControl value={textScale} onChange={onTextScale} /></div>
+        <div className="game-date"><Clock3 size={17} /><span>{formatDate(state.date)}</span><b>Ход {state.turn}</b><MusicToggle muted={musicMuted} onToggle={onMusicToggle} trackTitle={trackTitle} /><TextScaleControl value={textScale} onChange={onTextScale} /></div>
       </header>
 
       <div className="game-layout">
@@ -333,6 +391,8 @@ export default function App() {
   const [game, setGame] = useState<GameState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [musicMuted, setMusicMuted] = useState(() => localStorage.getItem("living-history-music-muted") === "true");
   const [textScale, setTextScale] = useState<TextScale>(() => {
     const saved = localStorage.getItem("living-history-text-scale");
     return saved === "large" || saved === "xlarge" ? saved : "standard";
@@ -367,10 +427,36 @@ export default function App() {
     setTextScale(value);
     localStorage.setItem("living-history-text-scale", value);
   };
-  const content = useMemo(() => game
-    ? <Game state={game} onTurn={playTurn} onExit={exit} busy={busy} textScale={textScale} onTextScale={changeTextScale} />
-    : <Landing scenarios={scenarios} onStart={start} busy={busy} textScale={textScale} onTextScale={changeTextScale} />,
-  [game, scenarios, busy, textScale]);
+  const activeTrack = useMemo(() => selectMusic(game, busy), [game, busy]);
+  const toggleMusic = () => {
+    const nextMuted = !musicMuted;
+    setMusicMuted(nextMuted);
+    localStorage.setItem("living-history-music-muted", String(nextMuted));
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.muted = nextMuted;
+    if (nextMuted) audio.pause();
+    else void audio.play().catch(() => undefined);
+  };
+  const unlockMusic = () => {
+    const audio = audioRef.current;
+    if (!musicMuted && audio?.paused) void audio.play().catch(() => undefined);
+  };
 
-  return <div className={`app-root text-scale-${textScale}`}>{content}{error && <div className="error-toast"><ShieldAlert size={18} /><span>{error}</span><button onClick={() => setError(null)}>×</button></div>}</div>;
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = 0.22;
+    audio.muted = musicMuted;
+    audio.loop = activeTrack.loop;
+    audio.currentTime = 0;
+    if (!musicMuted) void audio.play().catch(() => undefined);
+  }, [activeTrack.src, activeTrack.loop, musicMuted]);
+
+  const content = useMemo(() => game
+    ? <Game state={game} onTurn={playTurn} onExit={exit} busy={busy} textScale={textScale} onTextScale={changeTextScale} musicMuted={musicMuted} onMusicToggle={toggleMusic} trackTitle={activeTrack.title} />
+    : <Landing scenarios={scenarios} onStart={start} busy={busy} textScale={textScale} onTextScale={changeTextScale} musicMuted={musicMuted} onMusicToggle={toggleMusic} trackTitle={activeTrack.title} />,
+  [game, scenarios, busy, textScale, musicMuted, activeTrack]);
+
+  return <div className={`app-root text-scale-${textScale}`} onPointerDown={unlockMusic}><audio ref={audioRef} src={activeTrack.src} preload="auto" aria-hidden="true" />{content}{error && <div className="error-toast"><ShieldAlert size={18} /><span>{error}</span><button onClick={() => setError(null)}>×</button></div>}</div>;
 }
