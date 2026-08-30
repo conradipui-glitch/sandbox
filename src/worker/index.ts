@@ -1,4 +1,5 @@
 import type { GameMode, GameState, MetricId, SceneCue, TurnOutcome } from "../shared/types";
+import { campaignActForTurn } from "../shared/campaign";
 import { createInitialState, scenarioSummaries } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
 import { gameModes, microEncounters, worldCharacters, worldContextForTurn, worldEntities } from "./world";
@@ -115,9 +116,10 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
     lastEvents: state.timeline.slice(-5),
   };
   const world = worldContextForTurn(state, action);
+  const campaignAct = state.mode === "campaign" ? campaignActForTurn(state.turn) : null;
   const scenarioBrief = state.scenarioId === "last-train-1917"
     ? "Сценарий: «Последний поезд из Петрограда», апрель 1917 года. Игрок — распорядитель эвакуационного эшелона на Николаевском вокзале. До рассвета есть один исправный состав; раненые, уголь и солдатская делегация претендуют на один маршрут. Это короткая хроника о цене порядка посадки, а не викторина по истории."
-    : "Сценарий: Россия, март 1917. Игрок — глава Временного правительства.";
+    : `Сценарий: Россия, март 1917. Игрок — глава Временного правительства.${campaignAct ? ` Сейчас ${campaignAct.title}: ${campaignAct.question} Фокус акта — ${campaignAct.focus}.` : ""}`;
   const messages = [
     {
       role: "system" as const,
@@ -126,7 +128,7 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
     },
     {
       role: "user" as const,
-      content: `${scenarioBrief}\nСостояние: ${JSON.stringify(compactState)}\nРежиссёрский контекст мира: ${JSON.stringify(world)}\nРешение игрока: ${action}\n\nВыбери максимум двух активных персонажей из контекста. Дай каждому характерную реакцию в пределах его знаний. Микросцену используй только при выполненном триггере. Предмет или техника должны иметь цену/ограничение. Для короткой хроники держи причинную дугу вокруг одного состава и не расширяй конфликт до общей истории страны.\n\nВажно: summary описывает последствия уже принятого решения. nextBriefing — это новая оперативная ситуация следующего хода; не повторяй в нём headline, summary, dispatch или формулировку приказа. Пиши о том, что теперь стало узким местом и кто должен первым действовать.\n\nВерни JSON: {"headline":"до 100 знаков","summary":"2-4 конкретных абзаца","nextBriefing":"новая вводка следующего хода, 1-2 конкретных предложения без повтора последствий","dispatch":"короткая газетная или телеграфная цитата","effects":[{"id":"legitimacy|economy|army|stability|diplomacy","delta":целое от -10 до 10,"reason":"почему"}],"reactions":[{"faction":"название или имя персонажа","stance":"поддержка|настороженность|противодействие","text":"характерная конкретная реакция"}],"nextOptions":[ровно 3 объекта {"id":"латиница","title":"название","description":"что именно","risk":"низкий|средний|высокий","intent":"полное действие"}],"daysPassed":число 1..45,"surprise":"непредвиденный, но причинный эффект или null","scene":{"locationId":"id места","activeCharacterIds":["до 2 id персонажей"],"propIds":["до 3 id предметов"],"ambientId":"id микросцены или null","atmosphere":"свет, погода и один фоновый звук"}}`,
+      content: `${scenarioBrief}\nСостояние: ${JSON.stringify(compactState)}\nРежиссёрский контекст мира: ${JSON.stringify(world)}\nРешение игрока: ${action}\n\nВыбери максимум двух активных персонажей из контекста. Дай каждому характерную реакцию в пределах его знаний. Микросцену используй только при выполненном триггере. Предмет или техника должны иметь цену/ограничение. Для короткой хроники держи причинную дугу вокруг одного состава и не расширяй конфликт до общей истории страны. Для кампании держи вопрос текущего акта в центре, а три nextOptions делай разными человеческими ставками: прозрачность, скорость исполнения и передача полномочий. Не превращай акт в пересказ учебника — покажи исполнителя, ресурс, задержку и цену.\n\nВажно: summary описывает последствия уже принятого решения. nextBriefing — это новая оперативная ситуация следующего хода; не повторяй в нём headline, summary, dispatch или формулировку приказа. Пиши о том, что теперь стало узким местом и кто должен первым действовать.\n\nВерни JSON: {"headline":"до 100 знаков","summary":"2-4 конкретных абзаца","nextBriefing":"новая вводка следующего хода, 1-2 конкретных предложения без повтора последствий","dispatch":"короткая газетная или телеграфная цитата","effects":[{"id":"legitimacy|economy|army|stability|diplomacy","delta":целое от -10 до 10,"reason":"почему"}],"reactions":[{"faction":"название или имя персонажа","stance":"поддержка|настороженность|противодействие","text":"характерная конкретная реакция"}],"nextOptions":[ровно 3 объекта {"id":"латиница","title":"название","description":"что именно","risk":"низкий|средний|высокий","intent":"полное действие"}],"daysPassed":число 1..45,"surprise":"непредвиденный, но причинный эффект или null","scene":{"locationId":"id места","activeCharacterIds":["до 2 id персонажей"],"propIds":["до 3 id предметов"],"ambientId":"id микросцены или null","atmosphere":"свет, погода и один фоновый звук"}}`,
     },
   ];
 

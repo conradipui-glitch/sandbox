@@ -1,4 +1,5 @@
 import type { GameMode, GameState, MetricId } from "../shared/types";
+import { campaignActForTurn } from "../shared/campaign";
 
 export interface ModeDefinition {
   id: GameMode;
@@ -271,10 +272,8 @@ export const microEncounters: MicroEncounter[] = [
 const characterById = new Map(worldCharacters.map((character) => [character.id, character]));
 
 export function campaignAct(turn: number): string {
-  if (turn <= 7) return "I. Март–апрель: легитимность и двоевластие";
-  if (turn <= 16) return "II. Май–июль: война, земля и хлеб";
-  if (turn <= 26) return "III. Август–октябрь: переворот и радикализация";
-  return "IV. После ноября: новая форма государства";
+  const act = campaignActForTurn(turn);
+  return `Акт ${act.number}. ${act.title} · ${act.question}`;
 }
 
 function weakestMetric(state: GameState): MetricId {

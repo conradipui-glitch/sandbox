@@ -18,6 +18,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import type { DecisionOption, GameMode, GameState, ScenarioSummary } from "../shared/types";
+import { campaignActForTurn } from "../shared/campaign";
 import { api } from "./api";
 import minister1917 from "./assets/characters/minister-1917.webp";
 import modeSparksOverlay from "./assets/effects/mode-sparks-overlay.png";
@@ -590,6 +591,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
   const showCar = sceneProps.includes("staff-renault");
   const showTrain = sceneProps.includes("freight-train");
   const modeTitle = modeOptions.find((mode) => mode.id === state.mode)?.title ?? "Кампания";
+  const campaignAct = state.mode === "campaign" ? campaignActForTurn(state.turn) : null;
   const locationNames: Record<string, string> = {
     "nikolaevsky-platform": "Петроград · Николаевский перрон",
     "station-telegraph-office": "Петроград · телеграфная комната",
@@ -663,7 +665,15 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
           </section>
           <section className="briefing">
             <div className="briefing-index">{String(state.turn).padStart(2, "0")}</div>
-            <div><span className="eyebrow-small">Оперативная обстановка</span><h1>{state.turn === 1 ? "Власть существует только до первого неверного решения" : "Решение вышло из кабинета"}</h1><p>{briefingText}</p></div>
+            <div>
+              <span className="eyebrow-small">Оперативная обстановка</span>
+              {campaignAct && <div className="campaign-wayfinding" aria-label={`Кампания, акт ${campaignAct.number}: ${campaignAct.question}`}>
+                <div className="campaign-wayfinding-meta"><span>Кампания · акт {campaignAct.number}</span><small>{campaignAct.range}</small></div>
+                <strong>{campaignAct.title}</strong>
+                <p>{campaignAct.question} <em>{campaignAct.focus}</em></p>
+              </div>}
+              <h1>{state.turn === 1 ? "Власть существует только до первого неверного решения" : "Решение вышло из кабинета"}</h1><p>{briefingText}</p>
+            </div>
           </section>
           <Outcome state={state} />
           {state.status === "active" ? <DecisionComposer options={state.options} onSubmit={onTurn} busy={busy} /> : <div className="end-state"><h2>{state.status === "victory" ? "Новый порядок устоял" : "Государство распалось"}</h2><p>Эта ветка истории завершена. Можно вернуться к точке разлома и попробовать другую стратегию.</p><button onClick={onExit}><RotateCcw size={18} /> Начать заново</button></div>}

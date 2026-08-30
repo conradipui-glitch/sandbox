@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInitialState } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
 import { gameModes, worldCharacters, worldContextForTurn } from "./world";
+import { campaignActForTurn } from "../shared/campaign";
 import { extractAiText } from "./index";
 
 describe("history simulation", () => {
@@ -63,6 +64,20 @@ describe("history simulation", () => {
     const campaignWorld = worldContextForTurn(campaign, "Обсудить хлеб и рабочую смену на фабрике");
     expect(campaignWorld.cast.map((character) => character?.id)).toContain("worker-novikova");
     expect(campaignWorld.entityPool.length).toBeGreaterThan(0);
+  });
+
+  it("guides the long campaign with an act question and human-scale fallback beat", () => {
+    expect(campaignActForTurn(1).number).toBe(1);
+    expect(campaignActForTurn(8).number).toBe(2);
+    expect(campaignActForTurn(17).number).toBe(3);
+    expect(campaignActForTurn(27).number).toBe(4);
+
+    const state = createInitialState("campaign-beat-1", "russia-1917", "campaign");
+    const outcome = simulateTurn(state, "Опубликовать проект указа до заседания");
+    expect(outcome.headline).toBe("Мандат попросили показать вслух");
+    expect(outcome.nextOptions).toHaveLength(3);
+    expect(outcome.scene.activeCharacterIds).toEqual(["minister-levitsky", "lidia-vetrova"]);
+    expect(outcome.scene.propIds).toContain("printing-press");
   });
 
   it("keeps the open sandbox active without a turn limit", () => {
