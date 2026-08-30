@@ -44,3 +44,26 @@
 - P3: capture the mode selector on a narrow mobile viewport during the next broader responsive QA pass.
 
 Final result: passed.
+
+## Checkpoint — intro deck and world-state scenes
+
+- Live build: https://living-history-sandbox.conradipui.workers.dev/?v=a367d3a
+- Commit: https://github.com/conradipui-glitch/sandbox/commit/a367d3a3901184631135556945d796597b7d6573
+- Tested states: five-slide campaign intro; first turn of «Последний поезд из Петрограда»; campaign turn with a factory negotiation; campaign turn with a telegraph dispatch.
+
+| Area | Result | Notes |
+| --- | --- | --- |
+| Intro scrolling | Pass | Five vertical snap slides, progress indicator, arrows, keyboard navigation, skip and begin actions all remain visible and readable. |
+| Short chronicle scene | Pass | The train chronicle renders Belyaev, the freight train, a station background and state-selected prop labels. |
+| Campaign scene switching | Pass | The factory branch renders Anna Novikova on `factory-yard`; the telegraph branch renders Lidia Vetrova and changes the prop set. |
+| Character variety | Pass | The renderer consumes up to two known `activeCharacterIds`; minister, officer, journalist, dispatcher, worker and industrialist have distinct assets and positions. |
+| State-driven background | Pass | `scene.locationId` maps to distinct cabinet, station, telegraph, carriage and factory treatments; no copy-only location swap. |
+| Readability and controls | Pass | Mute and text-scale controls persist in intro and game; scene prop labels stay secondary to the briefing and outcome. |
+
+## Evidence limits
+
+- The scene checks were made in the cloud browser at desktop width; no separate narrow-mobile capture was made for this checkpoint.
+- DeepSeek and Cloudflare AI responses are nondeterministic; the tested screenshots prove the rendering contract and two concrete production branches, not every possible future scene selection.
+- `prefers-reduced-motion` is covered by CSS and existing QA; it was not toggled live in this browser session.
+
+Final result: passed; no P0, P1 or P2 issues found.
