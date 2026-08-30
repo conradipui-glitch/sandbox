@@ -20,6 +20,7 @@ import {
 import type { DecisionOption, GameMode, GameState, ScenarioSummary } from "../shared/types";
 import { api } from "./api";
 import minister1917 from "./assets/characters/minister-1917.webp";
+import modeSparksOverlay from "./assets/effects/mode-sparks-overlay.png";
 import officer1917 from "./assets/characters/officer-stavka-1917.webp";
 import lidia1917 from "./assets/characters/lidia-vetrova-1917.webp";
 import staffCar1917 from "./assets/vehicles/staff-car-1917.webp";
@@ -157,6 +158,21 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
   const [selected, setSelected] = useState(scenarios.find((item) => item.available)?.id ?? scenarios[0]?.id);
   const [mode, setMode] = useState<GameMode>("campaign");
   const scenario = scenarios.find((item) => item.id === selected) ?? scenarios[0];
+  const moveModeSparks = (event: React.PointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 18;
+    const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 12;
+    event.currentTarget.style.setProperty("--spark-x", `${x}px`);
+    event.currentTarget.style.setProperty("--spark-y", `${y}px`);
+    event.currentTarget.style.setProperty("--spark-x-reverse", `${x * -0.55}px`);
+    event.currentTarget.style.setProperty("--spark-y-reverse", `${y * -0.55}px`);
+  };
+  const resetModeSparks = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.style.setProperty("--spark-x", "0px");
+    event.currentTarget.style.setProperty("--spark-y", "0px");
+    event.currentTarget.style.setProperty("--spark-x-reverse", "0px");
+    event.currentTarget.style.setProperty("--spark-y-reverse", "0px");
+  };
 
   return (
     <main className="landing shell">
@@ -218,12 +234,18 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
             </button>
           ))}
         </div>
-        <div className="mode-picker" aria-label="Режим игры">
-          {modeOptions.map((item) => (
-            <button type="button" key={item.id} className={mode === item.id ? "selected" : ""} onClick={() => setMode(item.id)}>
-              <span>{item.duration}</span><strong>{item.title}</strong><small>{item.description}</small>
-            </button>
-          ))}
+        <div className="mode-picker-stage" onPointerMove={moveModeSparks} onPointerLeave={resetModeSparks}>
+          <div className="mode-sparks" aria-hidden="true">
+            <img className="mode-sparks-a" src={modeSparksOverlay} alt="" />
+            <img className="mode-sparks-b" src={modeSparksOverlay} alt="" />
+          </div>
+          <div className="mode-picker" aria-label="Режим игры">
+            {modeOptions.map((item) => (
+              <button type="button" key={item.id} className={mode === item.id ? "selected" : ""} onClick={() => setMode(item.id)}>
+                <span>{item.duration}</span><strong>{item.title}</strong><small>{item.description}</small>
+              </button>
+            ))}
+          </div>
         </div>
         <section className="world-portal" aria-labelledby="world-portal-title">
           <div className="world-portal-heading">
