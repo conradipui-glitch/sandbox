@@ -24,6 +24,8 @@ import modeSparksOverlay from "./assets/effects/mode-sparks-overlay.png";
 import officer1917 from "./assets/characters/officer-stavka-1917.webp";
 import lidia1917 from "./assets/characters/lidia-vetrova-1917.webp";
 import belyaev1917 from "./assets/characters/rail-belyaev-1917.webp";
+import novikova1917 from "./assets/characters/worker-novikova-1917.webp";
+import vorontsova1917 from "./assets/characters/industrialist-vorontsova-1917.webp";
 import staffCar1917 from "./assets/vehicles/staff-car-1917.webp";
 import freightTrain1917 from "./assets/vehicles/freight-train-1917.webp";
 
@@ -42,6 +44,38 @@ type IntroSlide = {
   body: string;
   note: string;
   scene: "station" | "telegram" | "train" | "platform" | "departure" | "cabinet";
+};
+
+type SceneCharacterAsset = {
+  src: string;
+  alt: string;
+  className: string;
+  defaultSide: "left" | "right";
+};
+
+const sceneCharacterAssets: Record<string, SceneCharacterAsset> = {
+  "minister-levitsky": { src: minister1917, alt: "Министр Аркадий Левицкий с красным портфелем", className: "minister", defaultSide: "right" },
+  "colonel-argunov": { src: officer1917, alt: "Офицер Ставки с оперативной картой", className: "officer", defaultSide: "left" },
+  "lidia-vetrova": { src: lidia1917, alt: "Журналистка и автокурьер Лидия Ветрова с телеграммами", className: "lidia", defaultSide: "left" },
+  "rail-belyaev": { src: belyaev1917, alt: "Диспетчер Тимофей Беляев с маршрутными бирками", className: "belyaev", defaultSide: "left" },
+  "worker-novikova": { src: novikova1917, alt: "Делегатка Анна Новикова с фабричным журналом", className: "worker", defaultSide: "left" },
+  "industrialist-vorontsova": { src: vorontsova1917, alt: "Переговорщица Софья Воронцова с техническими чертежами", className: "industrialist", defaultSide: "right" },
+};
+
+const scenePropLabels: Record<string, string> = {
+  "sealed-decree": "указ с печатью",
+  "coded-telegram": "шифрованная телеграмма",
+  "bread-cards": "хлебные карточки",
+  "printing-press": "печатный станок",
+  "field-telephone": "полевой телефон",
+  samovar: "самовар",
+  "staff-renault": "штабной автомобиль",
+  "armored-car": "броневик",
+  ambulance: "санитарная машина",
+  "freight-train": "товарный эшелон",
+  "yard-horse": "дворовая лошадь",
+  "stray-dog": "бродячая собака",
+  "station-crows": "вороны у станции",
 };
 
 const introDecks: Record<string, IntroSlide[]> = {
@@ -390,6 +424,8 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
   const showLidia = trainStory && ["telegram", "platform"].includes(slide.scene);
   const showMinister = !trainStory && ["cabinet", "memory"].includes(slide.scene);
   const showOfficer = !trainStory && slide.scene === "platform";
+  const showWorker = !trainStory && slide.scene === "platform";
+  const showIndustrialist = !trainStory && slide.scene === "train";
   const sceneLabels: Record<IntroSlide["scene"], string> = { station: "перрон", telegram: "телеграф", train: "состав", platform: "разговор", departure: "отправление", cabinet: "кабинет" };
   return (
     <div className={`intro-visual intro-visual-${slide.scene}`} aria-hidden="true">
@@ -402,6 +438,8 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
       {showLidia && <div className="intro-person intro-person-lidia"><img src={lidia1917} alt="" /></div>}
       {showMinister && <div className="intro-person intro-person-minister"><img src={minister1917} alt="" /></div>}
       {showOfficer && <div className="intro-person intro-person-officer"><img src={officer1917} alt="" /></div>}
+      {showWorker && <div className="intro-person intro-person-worker"><img src={novikova1917} alt="" /></div>}
+      {showIndustrialist && <div className="intro-person intro-person-industrialist"><img src={vorontsova1917} alt="" /></div>}
       <div className="intro-visual-line" />
       <span className="intro-visual-caption">{trainStory ? "Николаевский вокзал · живая хроника" : "Таврический дворец · живая история"}</span>
     </div>
@@ -549,12 +587,8 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
   const sceneProps = state.lastOutcome?.scene.propIds ?? [];
   const trainStory = state.scenarioId === "last-train-1917";
   const sceneLocation = state.lastOutcome?.scene.locationId ?? (trainStory ? "nikolaevsky-platform" : "tauride-cabinet");
-  const showLidia = activeCharacters.includes("lidia-vetrova");
-  const showBelyaev = trainStory && (activeCharacters.includes("rail-belyaev") || activeCharacters.length === 0);
-  const showOfficer = !trainStory && Boolean(state.lastOutcome) && !showLidia && (activeCharacters.includes("colonel-argunov") || activeCharacters.length === 0);
-  const showMinister = !trainStory;
   const showCar = sceneProps.includes("staff-renault");
-  const showTrain = trainStory && sceneProps.includes("freight-train");
+  const showTrain = sceneProps.includes("freight-train");
   const modeTitle = modeOptions.find((mode) => mode.id === state.mode)?.title ?? "Кампания";
   const locationNames: Record<string, string> = {
     "nikolaevsky-platform": "Петроград · Николаевский перрон",
@@ -565,9 +599,26 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
     "factory-yard": "Петроград · фабричный двор",
     "tauride-cabinet": "Петроград · Таврический дворец",
   };
-  const guestCaption = trainStory
-    ? showLidia ? "Лидия держит копию спорной телеграммы" : showBelyaev ? "Беляев считает минуты до стрелки" : "Станция ждёт вашего решения"
-    : showLidia ? "Лидия привезла перехваченную телеграмму" : showOfficer ? "Ставка требует ответа кабинета" : "Кабинет ждёт вашего решения";
+  const requestedSceneCharacters = activeCharacters.filter((id) => sceneCharacterAssets[id]);
+  const fallbackSceneCharacter = trainStory ? "rail-belyaev" : "minister-levitsky";
+  const sceneCharacterIds = (requestedSceneCharacters.length ? requestedSceneCharacters : [fallbackSceneCharacter]).slice(0, 2);
+  const sceneCharacters = sceneCharacterIds.map((id, index) => {
+    const asset = sceneCharacterAssets[id];
+    const side = sceneCharacterIds.length === 1 ? asset.defaultSide : index === 0 ? "left" : "right";
+    return { id, asset, side };
+  });
+  const leadCharacter = sceneCharacters[0]?.id;
+  const guestCaptions: Record<string, string> = {
+    "minister-levitsky": "Кабинет ждёт вашего решения",
+    "colonel-argunov": "Ставка требует ответа кабинета",
+    "lidia-vetrova": trainStory ? "Лидия держит копию спорной телеграммы" : "Лидия привезла перехваченную телеграмму",
+    "rail-belyaev": "Беляев считает минуты до стрелки",
+    "worker-novikova": "Анна принесла список фабричных смен",
+    "industrialist-vorontsova": "Софья ждёт встречного условия",
+  };
+  const guestCaption = guestCaptions[leadCharacter ?? ""] ?? (trainStory ? "Станция ждёт вашего решения" : "Кабинет ждёт вашего решения");
+  const visibleSceneProps = sceneProps.map((id) => ({ id, label: scenePropLabels[id] })).filter((item): item is { id: string; label: string } => Boolean(item.label)).slice(0, 3);
+  const locationLabel = locationNames[sceneLocation] ?? (trainStory ? "Петроград · железнодорожная линия" : "Петроград · Таврический дворец");
   const briefingText = state.turn === 1
     ? state.briefing
     : state.lastOutcome?.nextBriefing ?? `Прошло ${state.lastOutcome?.daysPassed ?? 7} дней. Решение вышло из кабинета и теперь проверяется исполнением на местах.`;
@@ -591,36 +642,24 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
         </aside>
 
         <div className="main-stage">
-          <section className={`scene-tableau ${stability < 30 ? "scene-unrest" : ""} ${trainStory ? "scene-train-world" : ""} scene-location-${sceneLocation}`} aria-label={trainStory ? "Живая сцена на Николаевском вокзале" : "Кабинет Временного правительства"}>
+          <section className={`scene-tableau ${stability < 30 ? "scene-unrest" : ""} ${trainStory ? "scene-train-world" : ""} scene-location-${sceneLocation}`} aria-label={`Живая сцена: ${locationLabel}`}>
             <div className="scene-grid" />
             <div className="scene-window"><i /><i /><i /></div>
             <div className="scene-map"><span>ПЕТРОГРАД</span><i /><i /><i /></div>
             <div className="scene-desk"><span /><span /></div>
             {showCar && <div className="scene-vehicle"><img src={staffCar1917} alt="Штабной автомобиль у входа" /></div>}
             {showTrain && <div className="scene-train"><img src={freightTrain1917} alt="Товарный паровоз у станции" /></div>}
-            {showOfficer && (
-              <div className={`scene-character scene-character-officer stance-${armyReaction?.stance ?? "настороженность"}`}>
-                <img src={officer1917} alt="Офицер Ставки с оперативной картой" />
+            {sceneCharacters.map(({ id, asset, side }) => (
+              <div key={id} className={`scene-character scene-character-${asset.className} scene-slot-${side} ${id === "colonel-argunov" ? `stance-${armyReaction?.stance ?? "настороженность"}` : ""}`} data-character-id={id}>
+                <img src={asset.src} alt={asset.alt} />
               </div>
-            )}
-            {showLidia && (
-              <div className="scene-character scene-character-lidia">
-                <img src={lidia1917} alt="Журналистка и автокурьер Лидия Ветрова с телеграммами" />
-              </div>
-            )}
-            {showBelyaev && (
-              <div className="scene-character scene-character-belyaev">
-                <img src={belyaev1917} alt="Диспетчер Тимофей Беляев с маршрутными бирками" />
-              </div>
-            )}
-            {showMinister && <div className="scene-character scene-character-minister">
-              <img src={minister1917} alt="Министр Аркадий Левицкий с красным портфелем" />
-            </div>}
-            <div className={`scene-caption ${showOfficer || showLidia || showBelyaev ? "scene-caption-dialogue" : ""}`}>
-              <span>{locationNames[sceneLocation] ?? (trainStory ? "Петроград · железнодорожная линия" : "Петроград · Таврический дворец")}</span>
+            ))}
+            {visibleSceneProps.length > 0 && <div className="scene-props" aria-label="Предметы сцены">{visibleSceneProps.map((prop) => <span key={prop.id}>{prop.label}</span>)}</div>}
+            <div className={`scene-caption ${sceneCharacters.length > 1 ? "scene-caption-dialogue" : ""}`}>
+              <span>{locationLabel}</span>
               <strong>{guestCaption}</strong>
             </div>
-            <div className="scene-live"><i /> Живая сцена</div>
+            <div className="scene-live" title={state.lastOutcome?.scene.atmosphere ?? undefined}><i /> Живая сцена</div>
           </section>
           <section className="briefing">
             <div className="briefing-index">{String(state.turn).padStart(2, "0")}</div>

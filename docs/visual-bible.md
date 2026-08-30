@@ -59,11 +59,11 @@ CSS отвечает за параллакс, освещение и атмосф
 | `char-officer-1917` | `src/client/assets/characters/officer-stavka-1917.webp` | готов, v1 | голос Ставки, появляется после первого хода |
 | `char-lidia-1917` | `src/client/assets/characters/lidia-vetrova-1917.webp` | готов, v1 | журналистка, автокурьер и знаток телеграфных кодов |
 | `char-belyaev-1917` | `src/client/assets/characters/rail-belyaev-1917.webp` | готов, v1 | диспетчер Николаевской железной дороги; расписание, тоннаж и цена задержки |
+| `char-worker-1917` | `src/client/assets/characters/worker-novikova-1917.webp` | готов, v1 | Анна Новикова: фабричные смены, хлеб и цена публичного обещания |
+| `char-vorontsova-1917` | `src/client/assets/characters/industrialist-vorontsova-1917.webp` | готов, v1 | Софья Воронцова: производство, кредит и встречное условие вместо лозунга |
 | `vehicle-staff-car-1917` | `src/client/assets/vehicles/staff-car-1917.webp` | готов, v1 | штабной автомобиль: связь, эвакуация, цена топлива и маршрута |
 | `vehicle-freight-train-1917` | `src/client/assets/vehicles/freight-train-1917.webp` | готов, v1 | единственный товарный состав короткой хроники |
-| `char-worker-1917` | — | следующий | голос Петроградского Совета |
 | `char-peasant-1917` | — | следующий | реакция деревни |
-| `char-vorontsova-1917` | — | следующий | молодая промышленница и банковский переговорщик |
 | `char-diplomat-1917` | — | очередь | реакция Антанты |
 | `scene-cabinet-1917` | CSS-слои в `styles.css` | готов, v1 | первая живая сцена |
 | `scene-station-1917` | CSS-слои + `freight-train-1917.webp` | готов, v1 | перрон, телеграфная комната, вагон и стрелка для «Последнего поезда» |

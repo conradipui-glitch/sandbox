@@ -98,6 +98,12 @@ button { color: inherit; }
 .scene-desk { position: absolute; height: 79px; left: -5%; right: -5%; bottom: -25px; background: linear-gradient(#3a2b20, #160f0b); transform: perspective(500px) rotateX(58deg); border-top: 2px solid rgba(139,97,65,.5); z-index: 4; }.scene-desk span { position: absolute; background: #d1c7b3; box-shadow: 0 5px 15px rgba(0,0,0,.4); }.scene-desk span:first-child { width: 98px; height: 52px; left: 20%; top: -10px; transform: rotate(8deg); }.scene-desk span:last-child { width: 70px; height: 43px; left: 34%; top: 2px; transform: rotate(-11deg); }
 .scene-character { position: absolute; z-index: 6; height: 390px; bottom: -64px; filter: drop-shadow(-18px 14px 23px rgba(0,0,0,.55)); }.scene-character img { display: block; height: 100%; width: auto; animation: character-breathe 5.5s ease-in-out 1s infinite; transform-origin: 53% 75%; }.scene-character-minister { right: 0; animation: character-arrive .9s cubic-bezier(.2,.8,.25,1) both; }.scene-character-officer { z-index: 5; height: 355px; left: -28px; right: auto; bottom: -65px; animation: officer-arrive .8s .12s cubic-bezier(.2,.8,.25,1) both; filter: saturate(.82) drop-shadow(16px 14px 23px rgba(0,0,0,.58)); }.scene-character-officer.stance-противодействие { filter: saturate(.72) contrast(1.08) drop-shadow(16px 14px 23px rgba(0,0,0,.68)); }.scene-character-officer.stance-поддержка { filter: sepia(.08) saturate(.94) drop-shadow(16px 14px 23px rgba(0,0,0,.48)); }
 .scene-character-lidia { z-index: 5; height: 350px; left: -18px; bottom: -58px; animation: officer-arrive .75s .08s cubic-bezier(.2,.8,.25,1) both; filter: saturate(.92) drop-shadow(16px 14px 23px rgba(0,0,0,.55)); }.scene-vehicle { position: absolute; z-index: 3; width: 230px; left: 19%; bottom: 26px; opacity: .35; filter: saturate(.65) contrast(.9); transform: translateY(12px); }.scene-vehicle img { display: block; width: 100%; height: auto; }
+.scene-character-worker { height: 360px; bottom: -66px; filter: saturate(.9) drop-shadow(16px 14px 23px rgba(0,0,0,.6)); }
+.scene-character-industrialist { height: 380px; bottom: -72px; filter: saturate(.88) drop-shadow(-16px 14px 23px rgba(0,0,0,.58)); }
+.scene-character.scene-slot-left { left: -25px; right: auto; z-index: 6; animation: officer-arrive .8s .1s cubic-bezier(.2,.8,.25,1) both; }
+.scene-character.scene-slot-right { left: auto; right: -4px; z-index: 5; animation: character-arrive .9s cubic-bezier(.2,.8,.25,1) both; }
+.scene-props { position: absolute; z-index: 10; right: 16px; bottom: 19px; max-width: 47%; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.scene-props span { padding: 5px 7px; border: 1px solid rgba(222,215,200,.18); background: rgba(15,14,12,.65); color: #b9ae9e; font-size: 7px; text-transform: uppercase; letter-spacing: .08em; }
 .scene-caption { position: absolute; z-index: 9; left: 28px; bottom: 24px; display: flex; flex-direction: column; gap: 6px; max-width: 330px; }.scene-caption span { color: var(--red); text-transform: uppercase; letter-spacing: .15em; font-size: 8px; }.scene-caption strong { color: #e5ddcf; font: 18px/1.35 "Prata"; font-weight: 400; }
 .scene-caption-dialogue { left: 34%; max-width: 290px; }
 .scene-live { position: absolute; z-index: 9; right: 15px; top: 14px; padding: 6px 8px; border: 1px solid rgba(233,224,204,.16); color: #8f887d; background: rgba(15,14,12,.55); text-transform: uppercase; letter-spacing: .1em; font-size: 7px; }.scene-live i { width: 5px; height: 5px; display: inline-block; margin-right: 6px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 0 rgba(201,76,54,.5); animation: live-pulse 2s infinite; }
@@ -308,6 +314,8 @@ button { color: inherit; }
 .intro-person-lidia { left: -22px; height: 103%; filter: saturate(.92) drop-shadow(16px 14px 24px rgba(0,0,0,.58)); animation: intro-person-arrive-left .8s .08s cubic-bezier(.2,.8,.25,1) both; }
 .intro-person-minister { right: -4px; height: 112%; animation: intro-person-arrive-right .8s cubic-bezier(.2,.8,.25,1) both; }
 .intro-person-officer { left: -24px; height: 108%; filter: saturate(.82) drop-shadow(16px 14px 24px rgba(0,0,0,.62)); animation: intro-person-arrive-left .8s .12s cubic-bezier(.2,.8,.25,1) both; }
+.intro-person-worker { right: -8px; height: 106%; filter: saturate(.9) drop-shadow(-16px 14px 24px rgba(0,0,0,.58)); animation: intro-person-arrive-right .8s .16s cubic-bezier(.2,.8,.25,1) both; }
+.intro-person-industrialist { right: -7px; height: 110%; filter: saturate(.88) drop-shadow(-16px 14px 24px rgba(0,0,0,.58)); animation: intro-person-arrive-right .8s .12s cubic-bezier(.2,.8,.25,1) both; }
 .intro-train { position: absolute; z-index: 4; left: 5%; right: -11%; bottom: 7%; opacity: .78; filter: saturate(.72) contrast(.95) drop-shadow(0 15px 20px rgba(0,0,0,.52)); animation: intro-train-drift 8s ease-in-out infinite; }
 .intro-train img { display: block; width: 100%; height: auto; }
 .intro-visual-telegram .intro-train { opacity: .28; transform: scale(.9) translateY(28px); }
@@ -340,6 +348,15 @@ button { color: inherit; }
 .scene-train-world.scene-location-station-telegraph-office { background: radial-gradient(circle at 24% 20%, rgba(190,163,112,.17), transparent 30%), linear-gradient(132deg, #28221a, #11100d 80%); }
 .scene-train-world.scene-location-freight-carriage { background: radial-gradient(circle at 78% 28%, rgba(113,135,128,.17), transparent 31%), linear-gradient(132deg, #171d1b, #0d0f0e 82%); }
 .scene-train-world.scene-location-station-yard { background: radial-gradient(circle at 70% 16%, rgba(201,76,54,.15), transparent 30%), linear-gradient(132deg, #25201b, #100f0d 82%); }
+.scene-location-nikolaevsky-platform { background: radial-gradient(circle at 76% 20%, rgba(127,143,139,.18), transparent 33%), linear-gradient(132deg, #202522, #101211 80%); }
+.scene-location-station-telegraph-office { background: radial-gradient(circle at 23% 20%, rgba(190,163,112,.16), transparent 30%), linear-gradient(132deg, #28221a, #11100d 80%); }
+.scene-location-freight-carriage { background: radial-gradient(circle at 78% 28%, rgba(113,135,128,.16), transparent 31%), linear-gradient(132deg, #171d1b, #0d0f0e 82%); }
+.scene-location-station-yard { background: radial-gradient(circle at 70% 16%, rgba(201,76,54,.14), transparent 30%), linear-gradient(132deg, #25201b, #100f0d 82%); }
+.scene-location-muddy-station { background: radial-gradient(circle at 70% 18%, rgba(111,131,127,.14), transparent 29%), linear-gradient(132deg, #1c211f, #0f1110 82%); }
+.scene-location-factory-yard { background: radial-gradient(circle at 28% 18%, rgba(177,113,54,.17), transparent 31%), linear-gradient(132deg, #282018, #110f0d 82%); }
+.scene-location-factory-yard .scene-window { opacity: .42; background: linear-gradient(#807367, #3b3028 63%, #1a1511); }
+.scene-location-factory-yard .scene-map { opacity: .33; background: #3a2d23; }
+.scene-location-tauride-cabinet { background: radial-gradient(circle at 74% 28%, rgba(190,163,112,.16), transparent 33%), linear-gradient(130deg, #1e1b17 0%, #0f0e0c 78%); }
 @keyframes train-idle { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(-5px, -2px, 0) scale(1.006); } }
 
 @media (max-width: 760px) {
@@ -364,12 +381,18 @@ button { color: inherit; }
   .intro-visual-orbit-one { width: 230px; height: 230px; }
   .intro-visual-orbit-two { width: 145px; height: 145px; }
   .intro-person-belyaev, .intro-person-minister { height: 112%; }
-  .intro-person-lidia, .intro-person-officer { height: 105%; }
+  .intro-person-lidia, .intro-person-officer, .intro-person-worker { height: 105%; }
+  .intro-person-industrialist { height: 108%; }
   .intro-footer { min-height: 68px; padding: 10px 18px 14px; }
   .intro-skip { font-size: 8px; }
   .intro-next { padding: 0 13px; }
   .scene-character-belyaev { height: 290px; left: -65px; bottom: -54px; opacity: .74; }
+  .scene-character-worker, .scene-character-industrialist { height: 286px; bottom: -54px; opacity: .74; }
+  .scene-character.scene-slot-left { left: -65px; }
+  .scene-character.scene-slot-right { right: -62px; }
   .scene-train { width: 86%; left: 10%; bottom: 30px; }
+  .scene-props { right: 12px; bottom: 15px; max-width: 55%; gap: 4px; }
+  .scene-props span { padding: 4px 5px; font-size: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

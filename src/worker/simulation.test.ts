@@ -52,6 +52,19 @@ describe("history simulation", () => {
     expect(next.status).toBe("active");
   });
 
+  it("keeps the scene contract grounded in the world state", () => {
+    const train = createInitialState("train-scene-1", "last-train-1917", "chronicle");
+    const trainWorld = worldContextForTurn(train, "Показать список раненых и вызвать телеграфиста");
+    expect(trainWorld.mode.id).toBe("chronicle");
+    expect(trainWorld.entityPool.some((entity) => entity.id === "freight-train")).toBe(true);
+    expect(trainWorld.cast.map((character) => character?.id)).toContain("lidia-vetrova");
+
+    const campaign = createInitialState("campaign-scene-1", "russia-1917", "campaign");
+    const campaignWorld = worldContextForTurn(campaign, "Обсудить хлеб и рабочую смену на фабрике");
+    expect(campaignWorld.cast.map((character) => character?.id)).toContain("worker-novikova");
+    expect(campaignWorld.entityPool.length).toBeGreaterThan(0);
+  });
+
   it("keeps the open sandbox active without a turn limit", () => {
     const state = createInitialState("sandbox-1", "russia-1917", "sandbox");
     state.turn = 80;
