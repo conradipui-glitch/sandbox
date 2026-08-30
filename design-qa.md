@@ -67,3 +67,24 @@ Final result: passed.
 - `prefers-reduced-motion` is covered by CSS and existing QA; it was not toggled live in this browser session.
 
 Final result: passed; no P0, P1 or P2 issues found.
+
+## Checkpoint — character layering and story-card spacing
+
+- Live build: https://living-history-sandbox.conradipui.workers.dev/?v=f717aa5
+- Commit: https://github.com/conradipui-glitch/sandbox/commit/f717aa54eb7b3c055c793e13f07bf94c042f844f
+- Tested states: intro slide 04/05 with Belyaev and Vetrova; landing story grid at desktop width.
+
+| Area | Result | Notes |
+| --- | --- | --- |
+| Character layering | Pass | Belyaev is an explicit rear layer (`z-index: 5`), Vetrova is the foreground layer (`z-index: 6`) and is shifted right to avoid a face-on-face collision. Both alpha masks remain clean. |
+| Story-card description/meta spacing | Pass | Cards reserve a dedicated lower band; role/difficulty no longer overlaps the hook copy. |
+| «Первая хроника» label | Pass | The label now sits above the metadata band with a measured gap. |
+| Campaign wayfinding | Pass | The game briefing exposes the current act, turn range, human-choice question and act focus. |
+| Campaign fallback content | Pass | Nine tests pass; the deterministic fallback now supplies act-specific human-scale crises and three distinct choices when an AI provider is unavailable. |
+
+## Evidence limits
+
+- Desktop production layout was checked at approximately 1363 px CSS width; the mobile card height was adjusted in code but not captured in a separate browser screenshot.
+- Layering was checked on the active intro slide and by computed z-index/geometry; this does not replace a full art-direction review of every future character pair.
+
+Final result: passed; the annotated overlaps are resolved.
