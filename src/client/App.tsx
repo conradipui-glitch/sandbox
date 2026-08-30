@@ -167,6 +167,16 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale }: { scenari
             </button>
           ))}
         </div>
+        <section className="world-portal" aria-labelledby="world-portal-title">
+          <div className="world-portal-heading">
+            <span className="index">02</span>
+            <div><span className="portal-kicker">ЛАБОРАТОРИЯ МИРОВ</span><h2 id="world-portal-title">Одна механика — разные вселенные</h2></div>
+          </div>
+          <article className="world-portal-card" tabIndex={0} aria-label="Скоро: Дверь в Вальденгард">
+            <div className="portal-card-front"><span className="portal-status">СКОРО · ДРУГОЙ МИР</span><strong>Дверь в Вальденгард</strong><p>Попаданец, эльфийская архивистка и орк-курьер спорят о том, какой договор переживёт ночь.</p><span className="portal-hint">Наведи, чтобы заглянуть <ArrowRight size={16} /></span></div>
+            <div className="portal-card-reveal"><span>Сюжетная хроника · диалоги · новая палитра</span><b>Здесь слова меняют отношения, маршруты и память свидетелей.</b></div>
+          </article>
+        </section>
         <div className="launch-row">
           <div className="launch-brief"><ShieldAlert size={20} /><span><strong>Правило мира:</strong> ИИ не обязан делать ваш план успешным. Он обязан сделать ответ мира правдоподобным.</span></div>
           <button className="primary" disabled={!scenario?.available || busy} onClick={() => scenario && onStart(scenario.id, mode)}>
@@ -297,7 +307,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale }: { state: 
           </section>
           <section className="briefing">
             <div className="briefing-index">{String(state.turn).padStart(2, "0")}</div>
-            <div><span className="eyebrow-small">Оперативная обстановка</span><h1>{state.turn === 1 ? "Власть существует только до первого неверного решения" : state.lastOutcome?.headline}</h1><p>{state.briefing}</p></div>
+            <div><span className="eyebrow-small">Оперативная обстановка</span><h1>{state.turn === 1 ? "Власть существует только до первого неверного решения" : "Решение вышло из кабинета"}</h1><p>{state.briefing}</p></div>
           </section>
           <Outcome state={state} />
           {state.status === "active" ? <DecisionComposer options={state.options} onSubmit={onTurn} busy={busy} /> : <div className="end-state"><h2>{state.status === "victory" ? "Новый порядок устоял" : "Государство распалось"}</h2><p>Эта ветка истории завершена. Можно вернуться к точке разлома и попробовать другую стратегию.</p><button onClick={onExit}><RotateCcw size={18} /> Начать заново</button></div>}

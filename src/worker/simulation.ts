@@ -42,6 +42,22 @@ function keywordBias(action: string): Partial<Record<MetricId, number>> {
   return result;
 }
 
+function nextBriefing(state: GameState, effects: TurnOutcome["effects"], daysPassed: number): string {
+  const pressure = effects
+    .filter((effect) => effect.delta < 0)
+    .sort((a, b) => a.delta - b.delta)[0];
+  const opening = daysPassed === 1 ? "На следующий день" : `Через ${daysPassed} дней`;
+  const focus: Record<MetricId, string> = {
+    legitimacy: "приказ проверяют публичным признанием и правом его оспорить",
+    economy: "исполнение упирается в хлеб, топливо и расписание вагонов",
+    army: "фронт требует конкретных людей, связи и часов, а не формулировок",
+    stability: "улица ждёт не обещаний, а понятного порядка действий",
+    diplomacy: "союзники переводят поддержку в новые условия и гарантии",
+  };
+  const pressureLine = pressure ? focus[pressure.id] : "разные ведомства пытаются превратить решение в собственные инструкции";
+  return `${opening} решение выходит из кабинета: ${pressureLine}. Теперь важно не повторить приказ, а увидеть, кто первым возьмёт на себя его исполнение и какую цену потребует этот шаг.`;
+}
+
 export function simulateTurn(state: GameState, action: string): TurnOutcome {
   const seed = hash(`${state.id}:${state.turn}:${action}`);
   const world = worldContextForTurn(state, action);
@@ -99,9 +115,11 @@ export function simulateTurn(state: GameState, action: string): TurnOutcome {
     },
   ];
 
+  const daysPassed = 7 + (seed % 15);
   return {
     headline,
     summary: `${action}. Решение немедленно меняет баланс сил: ${positive} из 5 ключевых контуров государства отвечают ростом, остальные требуют платы или времени. История не остановилась, пока кабинет обсуждал детали.`,
+    nextBriefing: nextBriefing(state, effects, daysPassed),
     dispatch: pick(
       [
         "«Сегодня власть впервые сказала, чего хочет. Но пока никто не знает, сможет ли она это исполнить». — вечерний выпуск",
@@ -118,7 +136,7 @@ export function simulateTurn(state: GameState, action: string): TurnOutcome {
       { faction: "Провинция", stance: effects.find((e) => e.id === "legitimacy")!.delta > 0 ? "поддержка" : "настороженность", text: "Ждёт не деклараций, а первых исполнимых распоряжений." },
     ],
     nextOptions,
-    daysPassed: 7 + (seed % 15),
+    daysPassed,
     surprise: seed % 4 === 0 ? null : pick(surprises, seed, 4),
     scene: {
       locationId: /поезд|вагон|снабж/i.test(action) ? "muddy-station" : /рабоч|забаст|завод/i.test(action) ? "factory-yard" : "tauride-cabinet",
@@ -156,7 +174,7 @@ export function applyOutcome(state: GameState, action: string, outcome: TurnOutc
     date: nextDate,
     turn: state.turn + 1,
     status,
-    briefing: outcome.summary,
+    briefing: outcome.nextBriefing ?? `Прошло ${outcome.daysPassed} дней. Решение вышло из кабинета и теперь проверяется исполнением на местах.`,
     metrics,
     options: outcome.nextOptions,
     timeline: [

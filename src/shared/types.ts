@@ -41,6 +41,8 @@ export interface SceneCue {
 export interface TurnOutcome {
   headline: string;
   summary: string;
+  /** A fresh tactical situation for the next turn; it must not repeat summary. */
+  nextBriefing?: string;
   dispatch: string;
   effects: Array<{ id: MetricId; delta: number; reason: string }>;
   reactions: FactionReaction[];

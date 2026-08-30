@@ -6,7 +6,7 @@
   <img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare-Workers-C94C36?style=flat-square&logo=cloudflare&logoColor=F4EBDD" />
   <img alt="Workers AI" src="https://img.shields.io/badge/Workers_AI-GLM--4.7--Flash-1A1815?style=flat-square" />
   <img alt="React" src="https://img.shields.io/badge/React-TypeScript-B3A889?style=flat-square&logo=react&logoColor=1A1815" />
-  <img alt="Tests" src="https://img.shields.io/badge/tests-5_passed-556B55?style=flat-square" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-6_passed-556B55?style=flat-square" />
 </p>
 
 <p align="center">
@@ -76,6 +76,8 @@ flowchart LR
 ИИ получает не только показатели страны, но и библию мира: характеры, страхи, частичное знание, отношения, предметы, транспорт, фоновые существа и условные микросцены. Поэтому один и тот же приказ может стать разговором со Ставкой, утечкой журналистке или задержанным на станции эшелоном.
 
 → [Сценарии, персонажи и контракт ИИ-режиссёра](docs/narrative-design.md)
+
+→ [Каталог коротких историй и отдельных миров](docs/story-catalog.md)
 
 ## 03 · Мир должен быть виден
 

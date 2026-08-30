@@ -216,3 +216,33 @@ button { color: inherit; }
   .game-date .text-scale-control { display: none; }
   .scene-caption strong { font-size: calc(17px + var(--text-adjust)); }
 }
+
+.world-portal { display: grid; grid-template-columns: minmax(230px, .8fr) 1.2fr; gap: 18px; align-items: stretch; margin-top: 26px; }
+.world-portal-heading { display: flex; gap: 16px; align-items: flex-start; padding: 18px 0; }
+.world-portal-heading .index { color: #6fa0a1; font: 14px "Prata"; }
+.portal-kicker { display: block; color: #75a5a1; font-size: 11px; font-weight: 700; letter-spacing: .16em; }
+.world-portal-heading h2 { margin: 10px 0 0; color: #dce8df; font: 400 24px/1.25 "Prata"; }
+.world-portal-card { position: relative; min-height: 170px; overflow: hidden; outline: none; border: 1px solid rgba(117,165,161,.45); background: linear-gradient(115deg, #122725, #1b2524 52%, #25221a); color: #e5eee5; cursor: default; isolation: isolate; }
+.world-portal-card::before, .world-portal-card::after { content: ""; position: absolute; border: 1px solid rgba(117,165,161,.22); border-radius: 50%; pointer-events: none; }
+.world-portal-card::before { width: 270px; height: 270px; right: -75px; top: -75px; }
+.world-portal-card::after { width: 160px; height: 160px; right: -20px; top: -20px; border-color: rgba(201,178,103,.28); }
+.portal-card-front, .portal-card-reveal { position: relative; z-index: 1; min-height: 170px; padding: 23px 25px; transition: transform .35s ease, opacity .35s ease; }
+.portal-card-front { display: flex; flex-direction: column; align-items: flex-start; }
+.portal-status { color: #9cc1ad; font-size: 11px; font-weight: 700; letter-spacing: .14em; }
+.portal-card-front strong { max-width: 360px; margin-top: 13px; color: #eef2e5; font: 400 25px/1.2 "Prata"; }
+.portal-card-front p { max-width: 500px; margin: 9px 0 0; color: #b6c9bf; font-size: 13px; line-height: 1.55; }
+.portal-hint { display: inline-flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 14px; color: #d2bc75; font-size: 12px; font-weight: 700; }
+.portal-card-reveal { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; background: linear-gradient(115deg, rgba(18,39,37,.97), rgba(38,35,25,.97)); opacity: 0; transform: translateY(24px); }
+.portal-card-reveal span { color: #9cc1ad; font-size: 11px; letter-spacing: .13em; text-transform: uppercase; }
+.portal-card-reveal b { max-width: 430px; margin-top: 13px; color: #f0ead8; font: 400 20px/1.35 "Prata"; }
+.world-portal-card:hover .portal-card-front, .world-portal-card:focus .portal-card-front { opacity: 0; transform: translateY(-24px); }
+.world-portal-card:hover .portal-card-reveal, .world-portal-card:focus .portal-card-reveal { opacity: 1; transform: translateY(0); }
+.world-portal-card:focus-visible { box-shadow: 0 0 0 3px rgba(117,165,161,.3); }
+
+@media (max-width: 760px) {
+  .world-portal { grid-template-columns: 1fr; gap: 4px; }
+  .world-portal-heading { padding-bottom: 10px; }
+  .world-portal-heading h2 { font-size: 21px; }
+  .world-portal-card { min-height: 205px; }
+  .portal-card-front, .portal-card-reveal { min-height: 205px; }
+}

@@ -28,6 +28,8 @@ describe("history simulation", () => {
     expect(next.timeline.length).toBeGreaterThan(state.timeline.length);
     expect(next.metrics.every((metric) => metric.value >= 0 && metric.value <= 100)).toBe(true);
     expect(outcome.scene.activeCharacterIds.length).toBeLessThanOrEqual(2);
+    expect(next.briefing).toBe(outcome.nextBriefing);
+    expect(next.briefing).not.toContain(outcome.headline);
   });
 
   it("supports three modes and distinct voiced characters", () => {
