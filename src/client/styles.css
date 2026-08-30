@@ -280,7 +280,7 @@ button { color: inherit; }
 
 /* First playable chronicle: a five-frame, scroll-snap prologue. */
 .scenario-grid { grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); }
-.recommended { position: absolute; left: 30px; bottom: 73px; color: var(--red); font-size: 9px; text-transform: uppercase; letter-spacing: .13em; }
+.recommended { position: absolute; left: 30px; bottom: 101px; color: var(--red); font-size: 9px; text-transform: uppercase; letter-spacing: .13em; }
 
 .intro-deck { min-height: 100vh; height: 100vh; display: grid; grid-template-rows: 86px 3px minmax(0, 1fr) auto; overflow: hidden; background: radial-gradient(circle at 78% 30%, rgba(144,88,52,.14), transparent 34%), #12110f; color: #ded7c8; }
 .intro-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 20px; padding: 0 42px; border-bottom: 1px solid var(--line); }
