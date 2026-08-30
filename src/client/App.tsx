@@ -390,12 +390,13 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
   const showLidia = trainStory && ["telegram", "platform"].includes(slide.scene);
   const showMinister = !trainStory && ["cabinet", "memory"].includes(slide.scene);
   const showOfficer = !trainStory && slide.scene === "platform";
+  const sceneLabels: Record<IntroSlide["scene"], string> = { station: "перрон", telegram: "телеграф", train: "состав", platform: "разговор", departure: "отправление", cabinet: "кабинет" };
   return (
     <div className={`intro-visual intro-visual-${slide.scene}`} aria-hidden="true">
       <div className="intro-visual-grid" />
       <div className="intro-visual-orbit intro-visual-orbit-one" />
       <div className="intro-visual-orbit intro-visual-orbit-two" />
-      <span className="intro-visual-index">{slide.note}</span>
+      <span className="intro-visual-index">Сцена · {sceneLabels[slide.scene]}</span>
       {showTrain && <div className="intro-train"><img src={freightTrain1917} alt="" /></div>}
       {showBelyaev && <div className="intro-person intro-person-belyaev"><img src={belyaev1917} alt="" /></div>}
       {showLidia && <div className="intro-person intro-person-lidia"><img src={lidia1917} alt="" /></div>}
