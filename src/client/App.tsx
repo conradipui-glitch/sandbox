@@ -23,7 +23,9 @@ import minister1917 from "./assets/characters/minister-1917.webp";
 import modeSparksOverlay from "./assets/effects/mode-sparks-overlay.png";
 import officer1917 from "./assets/characters/officer-stavka-1917.webp";
 import lidia1917 from "./assets/characters/lidia-vetrova-1917.webp";
+import belyaev1917 from "./assets/characters/rail-belyaev-1917.webp";
 import staffCar1917 from "./assets/vehicles/staff-car-1917.webp";
+import freightTrain1917 from "./assets/vehicles/freight-train-1917.webp";
 
 type TextScale = "standard" | "large" | "xlarge";
 
@@ -32,6 +34,106 @@ type MusicTrack = {
   title: string;
   loop: boolean;
 };
+
+type IntroSlide = {
+  id: string;
+  kicker: string;
+  title: string;
+  body: string;
+  note: string;
+  scene: "station" | "telegram" | "train" | "platform" | "departure" | "cabinet";
+};
+
+const introDecks: Record<string, IntroSlide[]> = {
+  "last-train-1917": [
+    {
+      id: "station",
+      kicker: "Апрель 1917 · Петроград",
+      title: "Город просыпается раньше поездов",
+      body: "После отречения столица живёт по новым правилам, но железная дорога всё ещё считает старые минуты. На Николаевском вокзале осталось одно исправное окно для отправления.",
+      note: "До рассвета: 01:12",
+      scene: "station",
+    },
+    {
+      id: "telegram",
+      kicker: "Телеграмма без подписи",
+      title: "Три списка легли на один стол",
+      body: "Раненые ждут санитарный вагон. Городские котельные ждут уголь. Солдатская делегация требует добраться до штаба и быть услышанной.",
+      note: "Один состав · три очереди",
+      scene: "telegram",
+    },
+    {
+      id: "train",
+      kicker: "Материальное ограничение",
+      title: "Поезд не может спасти всех",
+      body: "Тоннаж, топливо и стрелка не знают компромиссов. Любое место, отданное одной очереди, становится задержкой для другой.",
+      note: "Цена решения видна сразу",
+      scene: "train",
+    },
+    {
+      id: "platform",
+      kicker: "Люди на перроне",
+      title: "Порядок посадки станет вашей репутацией",
+      body: "Диспетчер Тимофей Беляев отвечает за расписание. Лидия Ветрова отвечает за правду, которую увидит город. Оба запомнят не только приказ, но и способ разговора.",
+      note: "Слова меняют очередь",
+      scene: "platform",
+    },
+    {
+      id: "departure",
+      kicker: "Точка разлома",
+      title: "Кому вы дадите этот путь?",
+      body: "С этого момента мир будет отвечать задержками, встречными требованиями и памятью свидетелей. Здесь нет правильного списка — есть только тот, за который вы готовы отвечать.",
+      note: "Начало хроники · 8–12 ходов",
+      scene: "departure",
+    },
+  ],
+  "russia-1917": [
+    {
+      id: "vacuum",
+      kicker: "Март 1917 · Петроград",
+      title: "Власть освободила место",
+      body: "Император отрёкся. Временное правительство и Совет существуют одновременно, а улица проверяет каждое слово быстрее, чем кабинет успевает его напечатать.",
+      note: "Точка расхождения",
+      scene: "cabinet",
+    },
+    {
+      id: "three-fronts",
+      kicker: "Три давления",
+      title: "Фронт, земля и хлеб требуют одного ответа",
+      body: "Союзники ждут продолжения войны. Деревня ждёт передела. Город ждёт, что очередной приказ не останется бумагой.",
+      note: "Ресурсов меньше обещаний",
+      scene: "telegram",
+    },
+    {
+      id: "people",
+      kicker: "Живой кабинет",
+      title: "У каждого решения будет голос",
+      body: "Офицер принесёт карту, рабочая делегатка — список смен, журналистка — неудобный второй вопрос. Они знают только часть мира и могут отказаться вам верить.",
+      note: "До двух активных персонажей",
+      scene: "platform",
+    },
+    {
+      id: "memory",
+      kicker: "Память государства",
+      title: "Последствия возвращаются",
+      body: "Подписанный указ меняет не только показатели. Он создаёт обещания, долги, союзы и публичную версию того, что произошло.",
+      note: "Старый выбор не исчезает",
+      scene: "train",
+    },
+    {
+      id: "first-choice",
+      kicker: "Первый ход",
+      title: "С чего начнётся ваша республика?",
+      body: "Вы можете отдать свободный приказ или выбрать направление. ИИ не обязан сделать ваш план успешным — он обязан сделать ответ мира правдоподобным.",
+      note: "Кампания · 25–40 ходов",
+      scene: "cabinet",
+    },
+  ],
+};
+
+function introSlidesFor(scenarioId: string): IntroSlide[] {
+  return introDecks[scenarioId] ?? introDecks["russia-1917"];
+}
 
 const musicTracks = {
   menu: { src: "/audio/music-00-main-menu.mp3", title: "Нераскрытая книга", loop: true },
@@ -72,6 +174,16 @@ const modeOptions: Array<{ id: GameMode; title: string; duration: string; descri
 ];
 
 const fallbackScenarios: ScenarioSummary[] = [
+  {
+    id: "last-train-1917",
+    title: "Последний поезд из Петрограда",
+    period: "Апрель 1917",
+    role: "Распорядитель эвакуационного эшелона",
+    hook: "До рассвета уйдёт только один состав. Раненые, уголь и солдатская делегация требуют один и тот же путь.",
+    difficulty: "Доступно",
+    accent: "#c94c36",
+    available: true,
+  },
   {
     id: "russia-1917",
     title: "Россия после отречения",
@@ -155,8 +267,8 @@ function MusicToggle({ muted, onToggle, trackTitle }: { muted: boolean; onToggle
 }
 
 function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { scenarios: ScenarioSummary[]; onStart: (id: string, mode: GameMode) => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
-  const [selected, setSelected] = useState(scenarios.find((item) => item.available)?.id ?? scenarios[0]?.id);
-  const [mode, setMode] = useState<GameMode>("campaign");
+  const [selected, setSelected] = useState(scenarios.find((item) => item.id === "last-train-1917")?.id ?? scenarios.find((item) => item.available)?.id ?? scenarios[0]?.id);
+  const [mode, setMode] = useState<GameMode>("chronicle");
   const scenario = scenarios.find((item) => item.id === selected) ?? scenarios[0];
   const moveModeSparks = (event: React.PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -213,7 +325,7 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
       <section className="scenario-section">
         <div className="section-heading">
           <div><span className="index">01</span><h2>Выберите точку разлома</h2></div>
-          <p>Первая глава доступна уже сейчас. Остальные покажут направление вселенной продукта.</p>
+          <p>Первая короткая история доступна уже сейчас. Остальные покажут, как одна механика меняется вместе с миром.</p>
         </div>
         <div className="scenario-grid">
           {scenarios.map((item, index) => (
@@ -221,7 +333,7 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
               type="button"
               key={item.id}
               className={`scenario-card ${selected === item.id ? "selected" : ""} ${!item.available ? "locked" : ""}`}
-              onClick={() => setSelected(item.id)}
+              onClick={() => { setSelected(item.id); if (item.id === "last-train-1917") setMode("chronicle"); }}
               style={{ "--accent": item.accent } as React.CSSProperties}
             >
               <span className="card-number">0{index + 1}</span>
@@ -229,6 +341,7 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
               <h3>{item.title}</h3>
               <p>{item.hook}</p>
               <div className="scenario-meta"><span>{item.role}</span><span>{item.difficulty}</span></div>
+              {item.id === "last-train-1917" && <span className="recommended">Первая хроника</span>}
               {!item.available && <span className="coming">Скоро</span>}
               {selected === item.id && <span className="selection-mark"><ChevronRight size={18} /></span>}
             </button>
@@ -266,6 +379,104 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
           </button>
         </div>
       </section>
+    </main>
+  );
+}
+
+function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: string }) {
+  const trainStory = scenarioId === "last-train-1917";
+  const showTrain = trainStory && ["train", "departure", "telegram"].includes(slide.scene);
+  const showBelyaev = trainStory && ["station", "platform", "departure"].includes(slide.scene);
+  const showLidia = trainStory && ["telegram", "platform"].includes(slide.scene);
+  const showMinister = !trainStory && ["cabinet", "memory"].includes(slide.scene);
+  const showOfficer = !trainStory && slide.scene === "platform";
+  return (
+    <div className={`intro-visual intro-visual-${slide.scene}`} aria-hidden="true">
+      <div className="intro-visual-grid" />
+      <div className="intro-visual-orbit intro-visual-orbit-one" />
+      <div className="intro-visual-orbit intro-visual-orbit-two" />
+      <span className="intro-visual-index">{slide.note}</span>
+      {showTrain && <div className="intro-train"><img src={freightTrain1917} alt="" /></div>}
+      {showBelyaev && <div className="intro-person intro-person-belyaev"><img src={belyaev1917} alt="" /></div>}
+      {showLidia && <div className="intro-person intro-person-lidia"><img src={lidia1917} alt="" /></div>}
+      {showMinister && <div className="intro-person intro-person-minister"><img src={minister1917} alt="" /></div>}
+      {showOfficer && <div className="intro-person intro-person-officer"><img src={officer1917} alt="" /></div>}
+      <div className="intro-visual-line" />
+      <span className="intro-visual-caption">{trainStory ? "Николаевский вокзал · живая хроника" : "Таврический дворец · живая история"}</span>
+    </div>
+  );
+}
+
+function IntroDeck({ scenarioId, mode, onCancel, onBegin, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { scenarioId: string; mode: GameMode; onCancel: () => void; onBegin: () => void; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
+  const slides = introSlidesFor(scenarioId);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const [active, setActive] = useState(0);
+  const modeTitle = modeOptions.find((item) => item.id === mode)?.title ?? "Хроника";
+
+  const scrollToSlide = (index: number) => {
+    const next = Math.max(0, Math.min(slides.length - 1, index));
+    const track = trackRef.current;
+    const slide = track?.children[next] as HTMLElement | undefined;
+    if (track && slide) track.scrollTo({ top: slide.offsetTop, behavior: "smooth" });
+    setActive(next);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCancel();
+      if (event.key === "ArrowDown" || event.key === "ArrowRight") { event.preventDefault(); scrollToSlide(active + 1); }
+      if (event.key === "ArrowUp" || event.key === "ArrowLeft") { event.preventDefault(); scrollToSlide(active - 1); }
+      if (event.key === "Enter" && active === slides.length - 1) onBegin();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [active, slides.length, onBegin, onCancel]);
+
+  const onScroll = () => {
+    const track = trackRef.current;
+    if (!track || !track.clientHeight) return;
+    const index = Math.round(track.scrollTop / track.clientHeight);
+    setActive(Math.max(0, Math.min(slides.length - 1, index)));
+  };
+
+  return (
+    <main className="intro-deck">
+      <header className="intro-header">
+        <button type="button" className="intro-back" onClick={onCancel}><ArrowLeft size={18} /> К выбору истории</button>
+        <div className="intro-identity"><Seal>ИИ</Seal><div><span>Вводная хроника</span><small>{modeTitle} · {active + 1} из {slides.length}</small></div></div>
+        <div className="intro-tools"><MusicToggle muted={musicMuted} onToggle={onMusicToggle} trackTitle={trackTitle} /><TextScaleControl value={textScale} onChange={onTextScale} /></div>
+      </header>
+      <div className="intro-progress" aria-label={`Слайд ${active + 1} из ${slides.length}`}>
+        <i style={{ width: `${((active + 1) / slides.length) * 100}%` }} />
+      </div>
+      <div className="intro-track" ref={trackRef} onScroll={onScroll} tabIndex={0} aria-label="Вводные слайды истории">
+        {slides.map((slide, index) => (
+          <article className={`intro-slide ${index === active ? "active" : ""}`} key={slide.id}>
+            <div className="intro-slide-inner">
+              <div className="intro-slide-copy">
+                <span className="intro-slide-count">0{index + 1} / {slides.length}</span>
+                <span className="intro-slide-kicker">{slide.kicker}</span>
+                <h1>{slide.title}</h1>
+                <p>{slide.body}</p>
+                <div className="intro-slide-note"><span />{slide.note}</div>
+              </div>
+              <IntroVisual slide={slide} scenarioId={scenarioId} />
+            </div>
+          </article>
+        ))}
+      </div>
+      <footer className="intro-footer">
+        <button type="button" className="intro-skip" onClick={onBegin}>Пропустить вступление</button>
+        <div className="intro-controls">
+          <button type="button" className="intro-arrow" aria-label="Предыдущий слайд" disabled={active === 0} onClick={() => scrollToSlide(active - 1)}><ArrowLeft size={18} /></button>
+          {active < slides.length - 1 ? (
+            <button type="button" className="intro-next" onClick={() => scrollToSlide(active + 1)}>Дальше <ArrowRight size={18} /></button>
+          ) : (
+            <button type="button" className="intro-next intro-begin" onClick={onBegin}>Начать историю <Crown size={18} /></button>
+          )}
+          <button type="button" className="intro-arrow" aria-label="Следующий слайд" disabled={active === slides.length - 1} onClick={() => scrollToSlide(active + 1)}><ArrowRight size={18} /></button>
+        </div>
+      </footer>
     </main>
   );
 }
@@ -335,11 +546,27 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
   const armyReaction = state.lastOutcome?.reactions.find((reaction) => reaction.faction.includes("Став"));
   const activeCharacters = state.lastOutcome?.scene.activeCharacterIds ?? [];
   const sceneProps = state.lastOutcome?.scene.propIds ?? [];
+  const trainStory = state.scenarioId === "last-train-1917";
+  const sceneLocation = state.lastOutcome?.scene.locationId ?? (trainStory ? "nikolaevsky-platform" : "tauride-cabinet");
   const showLidia = activeCharacters.includes("lidia-vetrova");
-  const showOfficer = Boolean(state.lastOutcome) && !showLidia && (activeCharacters.includes("colonel-argunov") || activeCharacters.length === 0);
+  const showBelyaev = trainStory && (activeCharacters.includes("rail-belyaev") || activeCharacters.length === 0);
+  const showOfficer = !trainStory && Boolean(state.lastOutcome) && !showLidia && (activeCharacters.includes("colonel-argunov") || activeCharacters.length === 0);
+  const showMinister = !trainStory;
   const showCar = sceneProps.includes("staff-renault");
+  const showTrain = trainStory && sceneProps.includes("freight-train");
   const modeTitle = modeOptions.find((mode) => mode.id === state.mode)?.title ?? "Кампания";
-  const guestCaption = showLidia ? "Лидия привезла перехваченную телеграмму" : showOfficer ? "Ставка требует ответа кабинета" : "Кабинет ждёт вашего решения";
+  const locationNames: Record<string, string> = {
+    "nikolaevsky-platform": "Петроград · Николаевский перрон",
+    "station-telegraph-office": "Петроград · телеграфная комната",
+    "freight-carriage": "Путь на север · товарный вагон",
+    "station-yard": "Петроград · стрелка у станции",
+    "muddy-station": "Петроград · вокзальный перрон",
+    "factory-yard": "Петроград · фабричный двор",
+    "tauride-cabinet": "Петроград · Таврический дворец",
+  };
+  const guestCaption = trainStory
+    ? showLidia ? "Лидия держит копию спорной телеграммы" : showBelyaev ? "Беляев считает минуты до стрелки" : "Станция ждёт вашего решения"
+    : showLidia ? "Лидия привезла перехваченную телеграмму" : showOfficer ? "Ставка требует ответа кабинета" : "Кабинет ждёт вашего решения";
   const briefingText = state.turn === 1
     ? state.briefing
     : state.lastOutcome?.nextBriefing ?? `Прошло ${state.lastOutcome?.daysPassed ?? 7} дней. Решение вышло из кабинета и теперь проверяется исполнением на местах.`;
@@ -363,12 +590,13 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
         </aside>
 
         <div className="main-stage">
-          <section className={`scene-tableau ${stability < 30 ? "scene-unrest" : ""}`} aria-label="Кабинет Временного правительства">
+          <section className={`scene-tableau ${stability < 30 ? "scene-unrest" : ""} ${trainStory ? "scene-train-world" : ""} scene-location-${sceneLocation}`} aria-label={trainStory ? "Живая сцена на Николаевском вокзале" : "Кабинет Временного правительства"}>
             <div className="scene-grid" />
             <div className="scene-window"><i /><i /><i /></div>
             <div className="scene-map"><span>ПЕТРОГРАД</span><i /><i /><i /></div>
             <div className="scene-desk"><span /><span /></div>
             {showCar && <div className="scene-vehicle"><img src={staffCar1917} alt="Штабной автомобиль у входа" /></div>}
+            {showTrain && <div className="scene-train"><img src={freightTrain1917} alt="Товарный паровоз у станции" /></div>}
             {showOfficer && (
               <div className={`scene-character scene-character-officer stance-${armyReaction?.stance ?? "настороженность"}`}>
                 <img src={officer1917} alt="Офицер Ставки с оперативной картой" />
@@ -379,11 +607,16 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
                 <img src={lidia1917} alt="Журналистка и автокурьер Лидия Ветрова с телеграммами" />
               </div>
             )}
-            <div className="scene-character scene-character-minister">
+            {showBelyaev && (
+              <div className="scene-character scene-character-belyaev">
+                <img src={belyaev1917} alt="Диспетчер Тимофей Беляев с маршрутными бирками" />
+              </div>
+            )}
+            {showMinister && <div className="scene-character scene-character-minister">
               <img src={minister1917} alt="Министр Аркадий Левицкий с красным портфелем" />
-            </div>
-            <div className={`scene-caption ${showOfficer || showLidia ? "scene-caption-dialogue" : ""}`}>
-              <span>Петроград · Таврический дворец</span>
+            </div>}
+            <div className={`scene-caption ${showOfficer || showLidia || showBelyaev ? "scene-caption-dialogue" : ""}`}>
+              <span>{locationNames[sceneLocation] ?? (trainStory ? "Петроград · железнодорожная линия" : "Петроград · Таврический дворец")}</span>
               <strong>{guestCaption}</strong>
             </div>
             <div className="scene-live"><i /> Живая сцена</div>
@@ -411,6 +644,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
 export default function App() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>(fallbackScenarios);
   const [game, setGame] = useState<GameState | null>(null);
+  const [intro, setIntro] = useState<{ scenarioId: string; mode: GameMode } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -427,6 +661,7 @@ export default function App() {
   }, []);
 
   const start = async (id: string, mode: GameMode) => {
+    setIntro(null);
     setBusy(true); setError(null);
     try {
       const state = await api.createGame(id, mode);
@@ -445,6 +680,9 @@ export default function App() {
   };
 
   const exit = () => { localStorage.removeItem("living-history-session"); setGame(null); setError(null); };
+  const requestStart = (scenarioId: string, mode: GameMode) => {
+    setIntro({ scenarioId, mode: scenarioId === "last-train-1917" ? "chronicle" : mode });
+  };
   const changeTextScale = (value: TextScale) => {
     setTextScale(value);
     localStorage.setItem("living-history-text-scale", value);
@@ -477,8 +715,10 @@ export default function App() {
 
   const content = useMemo(() => game
     ? <Game state={game} onTurn={playTurn} onExit={exit} busy={busy} textScale={textScale} onTextScale={changeTextScale} musicMuted={musicMuted} onMusicToggle={toggleMusic} trackTitle={activeTrack.title} />
-    : <Landing scenarios={scenarios} onStart={start} busy={busy} textScale={textScale} onTextScale={changeTextScale} musicMuted={musicMuted} onMusicToggle={toggleMusic} trackTitle={activeTrack.title} />,
-  [game, scenarios, busy, textScale, musicMuted, activeTrack]);
+    : intro
+      ? <IntroDeck scenarioId={intro.scenarioId} mode={intro.mode} onCancel={() => setIntro(null)} onBegin={() => void start(intro.scenarioId, intro.mode)} textScale={textScale} onTextScale={changeTextScale} musicMuted={musicMuted} onMusicToggle={toggleMusic} trackTitle={activeTrack.title} />
+      : <Landing scenarios={scenarios} onStart={requestStart} busy={busy} textScale={textScale} onTextScale={changeTextScale} musicMuted={musicMuted} onMusicToggle={toggleMusic} trackTitle={activeTrack.title} />,
+  [game, intro, scenarios, busy, textScale, musicMuted, activeTrack]);
 
   return <div className={`app-root text-scale-${textScale}`} onPointerDown={unlockMusic}><audio ref={audioRef} src={activeTrack.src} preload="auto" aria-hidden="true" />{content}{error && <div className="error-toast"><ShieldAlert size={18} /><span>{error}</span><button onClick={() => setError(null)}>×</button></div>}</div>;
 }

@@ -254,6 +254,10 @@ export const worldEntities: WorldEntity[] = [
   { id: "tauride-garden", kind: "background", title: "голые липы Таврического сада", function: "укрытие наблюдателей и индикатор сезона" },
   { id: "factory-yard", kind: "background", title: "фабричный двор", function: "толпа, дым, объявления и ритм смены показывают настроение рабочих" },
   { id: "muddy-station", kind: "background", title: "грязный вокзальный перрон", function: "визуализирует сбой снабжения и движение беженцев" },
+  { id: "nikolaevsky-platform", kind: "background", title: "Николаевский перрон", function: "срок отправления, списки пассажиров и конфликт очередей становятся видимыми" },
+  { id: "station-telegraph-office", kind: "background", title: "телеграфная комната", function: "показывает, кто владеет исходной информацией и кто может её переписать" },
+  { id: "freight-carriage", kind: "background", title: "товарный вагон", function: "сводит людей, груз и тесноту в один физический выбор" },
+  { id: "station-yard", kind: "background", title: "стрелка у станции", function: "материализует цену задержки, маршрута и чужого состава" },
 ];
 
 export const microEncounters: MicroEncounter[] = [
@@ -279,6 +283,28 @@ function weakestMetric(state: GameState): MetricId {
 
 export function worldContextForTurn(state: GameState, action: string) {
   const weak = weakestMetric(state);
+  if (state.scenarioId === "last-train-1917") {
+    const ids = new Set(["rail-belyaev"]);
+    if (/телег|список|публик|маршрут|тайн/i.test(action) || state.turn >= 2) ids.add("lidia-vetrova");
+    if (/солдат|делегац|ранен|санитар|штаб/i.test(action)) ids.add("soldier-saveliev");
+    if (/город|угол|котел|хлеб|очеред/i.test(action)) ids.add("worker-novikova");
+    return {
+      mode: gameModes.chronicle,
+      act: "Последний поезд · ночь отправления",
+      weakestMetric: weak,
+      cast: [...ids].slice(0, 4).map((id) => characterById.get(id)),
+      entityPool: worldEntities.filter((entity) =>
+        ["freight-train", "coded-telegram", "bread-cards", "field-telephone", "sealed-decree", "nikolaevsky-platform", "station-telegraph-office", "freight-carriage", "station-yard", "station-crows"].includes(entity.id),
+      ),
+      microEncounters: microEncounters.filter((encounter) => ["car-will-not-start", "pickpocket-crowd", "dog-with-order"].includes(encounter.id)),
+      contract: [
+        "Это короткая хроника о цене ограниченного места: один состав, три очереди, один срок.",
+        "Персонажи знают только то, что могли узнать на станции; они могут спорить, ошибаться и менять условия.",
+        "Каждый ответ обязан показать материальную причину: тоннаж, минуты, маршрут, топливо или доступ к телеграфу.",
+        "Не более двух заметных анимационных действий в одной сцене.",
+      ],
+    };
+  }
   const ids = new Set(["minister-levitsky"]);
   if (/арм|фронт|мир|солдат/i.test(action) || weak === "army") ids.add("colonel-argunov");
   if (/газет|телеграф|утеч|авто|публич|лидия|ветров/i.test(action) || weak === "diplomacy") ids.add("lidia-vetrova");

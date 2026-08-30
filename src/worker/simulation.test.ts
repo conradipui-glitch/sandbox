@@ -38,6 +38,20 @@ describe("history simulation", () => {
     expect(worldCharacters.find((character) => character.id === "lidia-vetrova")?.voice).toContain("вопрос");
   });
 
+  it("opens the first short chronicle with a concrete human tradeoff", () => {
+    const state = createInitialState("train-1", "last-train-1917", "campaign");
+    expect(state.mode).toBe("chronicle");
+    expect(state.scenarioTitle).toContain("Последний поезд");
+    expect(state.options.map((option) => option.id)).toEqual(["train-wounded", "train-coal", "train-delegation"]);
+    const outcome = simulateTurn(state, "Посадить раненых первыми");
+    expect(outcome.scene.locationId).toBe("nikolaevsky-platform");
+    expect(outcome.scene.activeCharacterIds).toContain("rail-belyaev");
+    expect(outcome.nextBriefing).not.toContain(outcome.headline);
+    const next = applyOutcome(state, "Посадить раненых первыми", outcome);
+    expect(next.turn).toBe(2);
+    expect(next.status).toBe("active");
+  });
+
   it("keeps the open sandbox active without a turn limit", () => {
     const state = createInitialState("sandbox-1", "russia-1917", "sandbox");
     state.turn = 80;

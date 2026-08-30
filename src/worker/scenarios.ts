@@ -26,6 +26,16 @@ const initialOptions: DecisionOption[] = [
 
 export const scenarioSummaries = [
   {
+    id: "last-train-1917",
+    title: "Последний поезд из Петрограда",
+    period: "Апрель 1917",
+    role: "Распорядитель эвакуационного эшелона",
+    hook: "До рассвета уйдёт только один состав. Раненые, уголь и солдатская делегация требуют один и тот же путь.",
+    difficulty: "Доступно",
+    accent: "#c94c36",
+    available: true,
+  },
+  {
     id: "russia-1917",
     title: "Россия после отречения",
     period: "Март 1917",
@@ -57,12 +67,89 @@ export const scenarioSummaries = [
   },
 ] as const;
 
+const trainOptions: DecisionOption[] = [
+  {
+    id: "train-wounded",
+    title: "Посадить раненых первыми",
+    description: "Отдать первые вагоны тем, кто не может ждать на платформе, даже если уголь останется в городе.",
+    risk: "средний",
+    intent: "Посадить раненых и санитарную бригаду первыми, а уголь отправить следующим составом",
+  },
+  {
+    id: "train-coal",
+    title: "Отправить уголь",
+    description: "Спасти котельные и мастерские: поезд уйдёт тяжёлым, а несколько десятков людей останутся на станции.",
+    risk: "высокий",
+    intent: "Загрузить в состав уголь для городских котельных и мастерских, людей оставить в списке ожидания",
+  },
+  {
+    id: "train-delegation",
+    title: "Взять солдатскую делегацию",
+    description: "Дать солдатам добраться до штаба и услышать их требования, рискуя сорвать эвакуацию.",
+    risk: "средний",
+    intent: "Взять в поезд солдатскую делегацию и отправить её к штабу до закрытия линии",
+  },
+];
+
+export const lastTrainOptions = trainOptions;
+
+function createLastTrainState(id: string, now: string): GameState {
+  return {
+    id,
+    scenarioId: "last-train-1917",
+    mode: "chronicle",
+    scenarioTitle: "Последний поезд из Петрограда",
+    role: "Распорядитель эвакуационного эшелона",
+    date: "1917-04-16",
+    turn: 1,
+    status: "active",
+    briefing:
+      "Петроград, 16 апреля 1917 года. На Николаевском вокзале остался один исправный состав. До рассвета он может вывезти раненых, доставить уголь или вернуть в штаб солдатскую делегацию — но не всё одновременно.",
+    objective:
+      "Отправить состав до рассвета, сохранив людей и доверие станции. В этой хронике нет правильного списка пассажиров — есть только цена порядка посадки.",
+    metrics: [
+      { id: "legitimacy", label: "Доверие станции", value: 48, trend: 0 },
+      { id: "economy", label: "Запас угля", value: 34, trend: -2 },
+      { id: "army", label: "Лояльность солдат", value: 42, trend: -1 },
+      { id: "stability", label: "Порядок на перроне", value: 37, trend: -2 },
+      { id: "diplomacy", label: "Связь со штабом", value: 55, trend: 0 },
+    ],
+    factions: [
+      { name: "Железнодорожники", power: 76, mood: "Считают минуты" },
+      { name: "Санитарная бригада", power: 55, mood: "Ждёт места" },
+      { name: "Солдатский комитет", power: 67, mood: "Требует разговора" },
+      { name: "Городские котельные", power: 61, mood: "Угля на двое суток" },
+    ],
+    options: trainOptions,
+    timeline: [
+      {
+        id: "train-origin-1",
+        date: "1917-04-16",
+        title: "Телеграмма без подписи",
+        description: "Штаб требует отправить состав до рассвета, но не сообщает, какой груз считать первоочередным.",
+        kind: "origin",
+      },
+      {
+        id: "train-origin-2",
+        date: "1917-04-16",
+        title: "На станции остался один состав",
+        description: "Три списка пассажиров лежат на одном столе. Расписание допускает только один маршрут.",
+        kind: "origin",
+      },
+    ],
+    lastOutcome: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export function createInitialState(id: string, scenarioId: string, mode: GameMode = "campaign"): GameState {
+  const now = new Date().toISOString();
+  if (scenarioId === "last-train-1917") return createLastTrainState(id, now);
   if (scenarioId !== "russia-1917") {
     throw new Error("Этот сценарий ещё не открыт");
   }
 
-  const now = new Date().toISOString();
   const metrics: Metric[] = [
     { id: "legitimacy", label: "Легитимность", value: 54, trend: 0 },
     { id: "economy", label: "Экономика", value: 31, trend: -2 },
