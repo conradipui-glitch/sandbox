@@ -94,7 +94,7 @@ const sceneLocationAliases: Record<string, string> = {
 
 const sceneCharacterAliases: Record<string, string> = {
   minister: "minister-levitsky",
-  minister-1917: "minister-levitsky",
+  "minister-1917": "minister-levitsky",
   levitsky: "minister-levitsky",
   officer: "colonel-argunov",
   "officer-stavka": "colonel-argunov",
