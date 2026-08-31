@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Переиграть историю — презентация проекта</title>
+  <style>
+    @page { size: 16in 9in; margin: 0; }
+
+    :root {
+      --bg: #0b0c0d;
+      --surface: #151412;
+      --surface-2: #1d1a17;
+      --paper: #f3ecdf;
+      --muted: #aaa297;
+      --dim: #686159;
+      --line: #39342e;
+      --red: #dc4b33;
+      --gold: #cfa96a;
+      --green: #86b698;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: #050505; }
+    body {
+      margin: 0;
+      color: var(--paper);
+      background: #050505;
+      font-family: Inter, Arial, Helvetica, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .deck { width: 100%; }
+    .slide {
+      position: relative;
+      width: 1600px;
+      height: 900px;
+      overflow: hidden;
+      margin: 28px auto;
+      padding: 52px 70px 58px;
+      background:
+        radial-gradient(circle at 90% 4%, rgba(220, 75, 51, .13), transparent 26%),
+        radial-gradient(circle at 3% 110%, rgba(207, 169, 106, .08), transparent 28%),
+        linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+        var(--bg);
+      background-size: auto, auto, 100% 64px, auto;
+      border: 1px solid var(--line);
+      page-break-after: always;
+      break-after: page;
+    }
+
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+      font-weight: 750;
+      letter-spacing: .11em;
+    }
+    .num { color: var(--red); }
+    .brand { color: var(--muted); }
+    .eyebrow {
+      margin: 52px 0 26px;
+      color: var(--gold);
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p { margin: 0; }
+    h1 {
+      max-width: 900px;
+      font-size: 106px;
+      line-height: .9;
+      letter-spacing: -.07em;
+    }
+    h2 {
+      max-width: 960px;
+      font-size: 70px;
+      line-height: .98;
+      letter-spacing: -.055em;
+    }
+    h3 { font-size: 22px; line-height: 1.12; }
+    .lead {
+      max-width: 740px;
+      margin-top: 34px;
+      color: var(--muted);
+      font-size: 23px;
+      line-height: 1.43;
+    }
+    .small { color: var(--muted); font-size: 16px; line-height: 1.42; }
+    .accent { color: var(--red); }
+    .gold { color: var(--gold); }
+    .green { color: var(--green); }
+
+    .pill {
+      display: inline-block;
+      padding: 9px 15px 8px;
+      border: 1px solid currentColor;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      color: var(--red);
+      background: rgba(220,75,51,.1);
+    }
+    .pill.green { background: rgba(134,182,152,.1); }
+
+    .grid { display: grid; gap: 22px; }
+    .cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card {
+      min-height: 154px;
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(21,20,18,.92);
+    }
+    .card.red { border-color: rgba(220,75,51,.8); }
+    .card.gold { border-color: rgba(207,169,106,.75); }
+    .card.green { border-color: rgba(134,182,152,.75); }
+    .card h3 { margin-bottom: 15px; }
+    .card p { color: var(--muted); font-size: 17px; line-height: 1.38; }
+    .card .metric {
+      margin-bottom: 11px;
+      font-size: 54px;
+      font-weight: 800;
+      line-height: .9;
+      letter-spacing: -.05em;
+    }
+
+    .side-panel {
+      position: absolute;
+      right: 110px;
+      top: 170px;
+      width: 500px;
+      min-height: 500px;
+      padding: 36px;
+      border: 1px solid rgba(220,75,51,.8);
+      border-radius: 24px;
+      background: rgba(12,12,11,.85);
+    }
+    .dial { position: absolute; border: 1px solid; border-radius: 50%; }
+    .d1 { width: 330px; height: 330px; top: 60px; left: 84px; border-color: rgba(220,75,51,.7); }
+    .d2 { width: 230px; height: 230px; top: 110px; left: 134px; border-color: rgba(207,169,106,.75); }
+    .d3 { width: 96px; height: 96px; top: 177px; left: 201px; border-color: rgba(243,236,223,.72); }
+    .hand-a, .hand-b { position: absolute; left: 248px; top: 226px; height: 2px; transform-origin: 0 50%; }
+    .hand-a { width: 104px; background: var(--red); transform: rotate(-24deg); }
+    .hand-b { width: 72px; background: var(--gold); transform: rotate(238deg); }
+    .side-copy { position: absolute; left: 38px; right: 38px; bottom: 38px; }
+    .side-copy h3 { max-width: 360px; font-size: 33px; }
+
+    .flow { display: flex; align-items: stretch; gap: 16px; margin-top: 72px; }
+    .flow .step { flex: 1; min-height: 260px; padding: 26px; border: 1px solid var(--line); border-radius: 18px; background: rgba(21,20,18,.9); }
+    .flow .step:first-child { border-color: var(--red); }
+    .flow .index { display: block; margin-bottom: 30px; color: var(--gold); font-size: 42px; font-weight: 800; letter-spacing: -.05em; }
+    .arrow { display: flex; align-items: center; color: var(--red); font-size: 38px; }
+
+    .screen {
+      position: relative;
+      min-height: 390px;
+      padding: 32px;
+      overflow: hidden;
+      border: 1px dashed rgba(207,169,106,.82);
+      border-radius: 20px;
+      background: linear-gradient(130deg, rgba(207,169,106,.08), rgba(0,0,0,.55));
+    }
+    .screen::before, .screen::after {
+      position: absolute;
+      content: "";
+      border: 1px solid rgba(220,75,51,.33);
+      border-radius: 50%;
+    }
+    .screen::before { width: 250px; height: 250px; right: 48px; top: 54px; }
+    .screen::after { width: 130px; height: 130px; right: 108px; top: 114px; border-color: rgba(207,169,106,.43); }
+    .screen h3 { position: absolute; left: 34px; bottom: 76px; max-width: 350px; font-size: 34px; }
+    .screen p { position: absolute; left: 34px; bottom: 34px; color: var(--muted); font-size: 16px; }
+
+    .story { margin-top: 52px; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+    .quote { padding: 28px 0 28px 28px; border-left: 3px solid var(--red); color: var(--paper); font-family: Georgia, serif; font-size: 29px; line-height: 1.3; }
+
+    .timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; margin-top: 82px; }
+    .timeline-item { padding-top: 22px; border-top: 1px solid var(--line); }
+    .timeline-item:first-child { border-color: var(--red); }
+    .timeline-item time { display: block; margin-bottom: 25px; color: var(--gold); font-size: 14px; font-weight: 800; letter-spacing: .1em; }
+    .timeline-item h3 { margin-bottom: 16px; font-size: 28px; }
+
+    .link-box {
+      display: block;
+      margin-top: 22px;
+      padding: 25px 28px;
+      color: var(--paper);
+      text-decoration: none;
+      border: 1px solid var(--red);
+      border-radius: 18px;
+      background: rgba(220,75,51,.08);
+    }
+    .link-box span { display: block; margin-bottom: 9px; color: var(--gold); font-size: 13px; font-weight: 800; letter-spacing: .11em; }
+    .link-box strong { font-size: 21px; overflow-wrap: anywhere; }
+    .footer-note { position: absolute; bottom: 55px; color: var(--dim); font-size: 14px; }
+
+    .print-tip {
+      width: 1600px;
+      margin: 24px auto 48px;
+      padding: 22px;
+      color: #d6cdbf;
+      border: 1px solid #39342e;
+      border-radius: 16px;
+      background: #141313;
+      font-size: 16px;
+    }
+
+    @media print {
+      html, body { background: transparent; }
+      .slide { margin: 0; border: 0; }
+      .print-tip { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="slide">
+      <header class="top"><span class="num">01 / 10</span><span class="brand">ПЕРЕИГРАТЬ ИСТОРИЮ</span></header>
+      <div class="eyebrow"><span class="pill">Заявка на программу</span></div>
+      <h1>Переиграть<br>историю</h1>
+      <p class="lead">Живая песочница решений: игрок принимает на себя последствия, а мир отвечает новой сценой, реакциями людей и изменившимся ходом событий.</p>
+      <aside class="side-panel">
+        <div class="dial d1"></div><div class="dial d2"></div><div class="dial d3"></div>
+        <div class="hand-a"></div><div class="hand-b"></div>
+        <div class="side-copy"><p class="eyebrow">Работающий прототип</p><h3>Не три кнопки по рельсам. Мир, который помнит.</h3></div>
+      </aside>
+      <p class="footer-note">Живая хроника · персонажи · последствия · повторное прохождение</p>
+    </section>
+
+    <section class="slide">
+      <header class="top"><span class="num">02 / 10</span><span class="brand">ПРОБЛЕМА</span></header>
+      <p class="eyebrow accent">Что ломает жанр</p>
+      <h2>Игроку обещают<br>власть над историей.<br>Но ведут по рельсам.</h2>
+      <p class="lead">После первого прохождения известна «правильная» кнопка. Персонажи не помнят обращение игрока, а повторный запуск пересказывает тот же сценарий.</p>
+      <div class="grid cols-3" style="margin-top:64px">
+        <article class="card red"><h3>Заранее известный исход</h3><p>Разные реплики часто приводят к одной следующей сцене.</p></article>
+        <article class="card gold"><h3>Персонажи без памяти</h3><p>Герой говорит эффектно, но не меняется от отношения игрока.</p></article>
+        <article class="card"><h3>Нет повода вернуться</h3><p>Второй запуск повторяет контент вместо новой жизни мира.</p></article>
+      </div>
+    </section>
+
+    <section class="slide">
+      <header class="top"><span class="num">03 / 10</span><span class="brand">РЕШЕНИЕ</span></header>
+      <p class="eyebrow green">Игровой принцип</p>
+      <h2>Не разговор с пустотой.<br>А решение, которое<br>становится историей.</h2>
+      <div class="flow">
+        <article class="step"><span class="index accent">01</span><h3>Игрок выбирает</h3><p class="small" style="margin-top:16px">Приказ, риск, союзника, ресурс или правду, которую готов сказать вслух.</p></article>
+        <div class="arrow">→</div>
+        <article class="step"><span class="index gold">02</span><h3>Мир перестраивается</h3><p class="small" style="margin-top:16px">Меняются доверие, дефицит, отношения фракций и доступные возможности.</p></article>
+        <div class="arrow">→</div>
+        <article class="step"><span class="index green">03</span><h3>Возникает новая ставка</h3><p class="small" style="margin-top:16px">Следующая сцена не повторяет приказ, а проверяет его цену на людях.</p></article>
+      </div>
+    </section>
+
+    <section class="slide">
+      <header class="top"><span class="num">04 / 10</span><span class="brand">ГОТОВЫЙ ПРОТОТИП</span></header>
+      <p class="eyebrow green">Уже можно попробовать</p>
+      <h2>Играбельный продукт,<br>а не только идея.</h2>
+      <p class="lead">Выбор истории → вводная хроника → решение → последствия → новый ход.</p>
+      <div class="grid cols-2" style="margin-top:52px">
+        <div class="screen"><span class="pill gold">Вставить скриншот</span><h3>Экран выбора истории</h3><p>Здесь можно вставить скрин с карточками режимов.</p></div>
+        <div class="screen"><span class="pill">Вставить скриншот</span><h3>Мир отвечает на решение</h3><p>Здесь можно вставить сцену или экран перехода.</p></div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <header class="top"><span class="num">05 / 10</span><span class="brand">ПЕРВАЯ ХРОНИКА</span></header>
+      <p class="eyebrow accent">Короткий игровой опыт</p>
+      <div class="story">
+        <div>
+          <h2>Последний поезд<br>из Петрограда</h2>
+          <p class="lead">Апрель 1917-го. До рассвета есть один исправный состав. Раненые, уголь и солдатская делегация претендуют на один маршрут.</p>
+        </div>
+        <div class="quote">«Порядок посадки станет вашей репутацией. Но кому вы готовы честно сказать, что он останется на платформе?»</div>
+      </div>
+      <div class="grid cols-3" style="margin-top:74px">
+        <article class="card red"><h3>8–12 ходов</h3><p>Законченная история, которую можно прожить за одну сессию.</p></article>
+        <article class="card gold"><h3>Один дефицит</h3><p>Один поезд превращает абстрактную власть в выбор между реальными людьми.</p></article>
+        <article class="card green"><h3>Разный итог</h3><p>Список пассажиров, отношения и память мира меняются от решения.</p></article>
+      </div>
+    </section>
+
+    <section class="slide">
+      <header class="top"><span class="num">06 / 10</span><span class="brand">ФОРМАТЫ</span></header>
+      <p class="eyebrow gold">Один мир — несколько способов прожить его</p>
+      <h2>От короткого кризиса<br>до собственной ветки.</h2>
+      <div class="grid cols-2" style="margin-top:66px">
+        <article class="card red"><h3>Кампания</h3><p>Длинная дуга: решение возвращается через несколько ходов и меняет устройство мира.</p></article>
+        <article class="card gold"><h3>Хроника</h3><p>Короткая история с одной сильной человеческой ставкой и завершённым финалом.</p></article>
+        <article class="card green"><h3>Песочница</h3><p>Продолжающийся мир, который не требует заранее назначенного финального экрана.</p></article>
+        <article class="card"><h3>Живая сцена</h3><p>Локация, персонажи, предметы и атмосфера меняются вслед за принятыми решениями.</p></article>
+      </div>
+    </section>
+
+    <section class="slide">
+      <header class="top"><span class="num">07 / 10</span><span class="brand">ПЕТЛЯ ВОЗВРАЩЕНИЯ</span></header>
+      <p class="eyebrow gold">Проверяемая гипотеза</p>
+      <h2>Не 25 долгих ожиданий.<br>25 осмысленных действий.</h2>
+      <p class="lead">Короткие действия идут быстро: найти факт, выбрать союзника, передать предмет, рискнуть ресурсом, сказать правду. Затем мир выдаёт крупный новый поворот.</p>
+      <div class="grid cols-4" style="margin-top:66px">
+        <article class="card"><div class="metric accent">01</div><h3>Найти факт</h3></article>
+        <article class="card"><div class="metric gold">02</div><h3>Выбрать союзника</h3></article>
+        <article class="card"><div class="metric gold">03</div><h3>Рискнуть ресурсом</h3></article>
+        <article class="card red"><div class="metric accent">04</div><h3>Получить новый поворот</h3></article>
+      </div>
+      <p class="footer-note">Главный вопрос: какая тема и эмоциональная ставка дадут человеку естественную причину возвращаться ежедневно?</p>
+    </section>
+
+    <section class="slide">
+      <header class="top"><span class="num">08 / 10</span><span class="brand">ИССЛЕДОВАНИЕ АУДИТОРИИ</span></header>
+      <p class="eyebrow green">Не держимся за тему из упрямства</p>
+      <h2>1917-й — первая точка<br>входа, а не клетка.</h2>
+      <p class="lead">Мы проверяем, какой эмоциональный двигатель лучше создаёт возвращение: тайна, привязанность к персонажам, фэнтези, выживание, власть над последствиями или принадлежность к сообществу.</p>
+      <div class="grid cols-3" style="margin-top:58px">
+        <article class="card gold"><h3>Что удерживает</h3><p>Сериализация, отношения с героями, ожидание следующей главы, личная ветка и разговор игроков друг с другом.</p></article>
+        <article class="card red"><h3>Что нам важно дать иначе</h3><p>Не фиксированные развилки, а последствия, которые действительно принадлежат конкретному игроку.</p></article>
+        <article class="card green"><h3>Что выберем по тестам</h3><p>Первый мир должен быть понятным за минуту, быстро производиться и давать повод вернуться завтра.</p></article>
+      </div>
+    </section>
+
+    <section class="slide">
+      <header class="top"><span class="num">09 / 10</span><span class="brand">ПРОВЕРКА СПРОСА</span></header>
+      <p class="eyebrow green">Измеряем поведение, а не красивую презентацию</p>
+      <h2>Рост — это реальные<br>игроки и их решения.</h2>
+      <div class="grid cols-3" style="margin-top:72px">
+        <article class="card green"><div class="metric green">1 000</div><h3>Целевой дневной охват</h3><p>Уникальные игроки, а не рекламные клики и не загрузки страницы.</p></article>
+        <article class="card red"><div class="metric accent">10–25</div><h3>Действий за день</h3><p>Осмысленные выборы внутри коротких ежедневных историй.</p></article>
+        <article class="card gold"><div class="metric gold">0</div><h3>Терпимость к накрутке</h3><p>Защита от автоматических действий, ограничения и проверка аномалий.</p></article>
+      </div>
+      <p class="footer-note">Отслеживаем: первый запуск · завершение истории · возвращение на следующий день · глубину прохождения · приглашения друзей</p>
+    </section>
+
+    <section class="slide">
+      <header class="top"><span class="num">10 / 10</span><span class="brand">ПЛАН И ССЫЛКИ</span></header>
+      <p class="eyebrow accent">Маршрут программы</p>
+      <h2>Сначала живой продукт.<br>Потом доказанный спрос.</h2>
+      <div class="timeline">
+        <article class="timeline-item"><time>01 СЕНТЯБРЯ</time><h3>Заявка</h3><p class="small">Гипотеза, команда и уже работающий прототип.</p></article>
+        <article class="timeline-item"><time>15 ОКТЯБРЯ</time><h3>MVP</h3><p class="small">Первая история, первые тестеры и подтверждённый игровой цикл.</p></article>
+        <article class="timeline-item"><time>04 ДЕКАБРЯ</time><h3>Рынок</h3><p class="small">Рост, реклама, измеримые показатели и защита от накрутки.</p></article>
+        <article class="timeline-item"><time>10 МАРТА</time><h3>Итоги</h3><p class="small">Оценка продукта, дизайна, кода и достигнутых результатов.</p></article>
+      </div>
+      <div class="grid cols-2" style="margin-top:66px">
+        <a class="link-box" href="https://living-history-sandbox.conradipui.workers.dev/"><span>ПОПРОБОВАТЬ ПРОТОТИП</span><strong>living-history-sandbox.conradipui.workers.dev</strong></a>
+        <a class="link-box" href="https://github.com/conradipui-glitch/sandbox"><span>РЕПОЗИТОРИЙ</span><strong>github.com/conradipui-glitch/sandbox</strong></a>
+      </div>
+    </section>
+  </main>
+  <div class="print-tip">Экспорт в PDF: открой файл в Chrome → Ctrl/Cmd+P → «Сохранить как PDF» → включи «Фоновая графика» → поля: «Нет» → масштаб: 100%.</div>
+</body>
+</html>
