@@ -624,6 +624,54 @@ function Outcome({ state }: { state: GameState }) {
   );
 }
 
+const thinkingVariants = [
+  { id: "clockwise", label: "Ход времени собирается в узор" },
+  { id: "counterflow", label: "Хроника ищет другой путь" },
+  { id: "eclipse", label: "Несколько будущих спорят между собой" },
+] as const;
+
+function WorldThinking() {
+  const [elapsed, setElapsed] = useState(0);
+  const [variant] = useState(() => thinkingVariants[Math.floor(Math.random() * thinkingVariants.length)]);
+  useEffect(() => {
+    const startedAt = performance.now();
+    const timer = window.setInterval(() => setElapsed(Math.floor((performance.now() - startedAt) / 1000)), 250);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const phase = elapsed < 5
+    ? "Приказ покидает кабинет"
+    : elapsed < 10
+      ? "Фракции сверяют интересы"
+      : elapsed < 15
+        ? "Слухи меняют траекторию"
+        : "Последствия складываются в хронику";
+
+  return (
+    <div className="world-thinking" role="status" aria-live="polite" aria-label="Мир отвечает на ваше решение">
+      <div className={`world-thinking-card thinking-variant-${variant.id}`}>
+        <div className="thinking-engine" aria-hidden="true">
+          <span className="thinking-ring thinking-ring-outer" />
+          <span className="thinking-ring thinking-ring-middle" />
+          <span className="thinking-ring thinking-ring-inner" />
+          <span className="thinking-clock"><i /><b /></span>
+          <span className="thinking-tick thinking-tick-one" />
+          <span className="thinking-tick thinking-tick-two" />
+          <span className="thinking-tick thinking-tick-three" />
+          <span className="thinking-spark thinking-spark-one" />
+          <span className="thinking-spark thinking-spark-two" />
+          <span className="thinking-spark thinking-spark-three" />
+        </div>
+        <span className="thinking-kicker">{variant.label}</span>
+        <strong>Мир отвечает на ваше решение</strong>
+        <p>{phase}</p>
+        <div className="thinking-track" aria-hidden="true"><i /></div>
+        <div className="thinking-meta"><span aria-live="off">Прошло {elapsed} сек.</span><span>ИИ разыгрывает последствия</span></div>
+      </div>
+    </div>
+  );
+}
+
 function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { state: GameState; onTurn: (action: string) => void; onExit: () => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
   const stability = state.metrics.find((metric) => metric.id === "stability")?.value ?? 50;
   const armyReaction = state.lastOutcome?.reactions.find((reaction) => reaction.faction.includes("Став"));
@@ -730,7 +778,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
           </div>
         </aside>
       </div>
-      {busy && <div className="world-thinking"><div><LoaderCircle className="spin" /><strong>Мир отвечает на ваше решение</strong><span>Фракции пересчитывают интересы. История ищет новую траекторию.</span></div></div>}
+      {busy && <WorldThinking />}
     </main>
   );
 }
