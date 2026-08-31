@@ -48,12 +48,30 @@ function parseAiJson(text: string): Partial<TurnOutcome> | null {
   }
 }
 
+interface WorkersAiUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+}
+
 interface WorkersAiChatResponse {
   response?: string;
+  usage?: WorkersAiUsage;
   choices?: Array<{
     text?: string;
     message?: { content?: string | Array<{ type?: string; text?: string }> };
   }>;
+}
+
+function usageFromResponse(usage?: WorkersAiUsage): TurnOutcome["usage"] | undefined {
+  if (!usage) return undefined;
+  const inputTokens = Number(usage.prompt_tokens ?? usage.input_tokens ?? 0);
+  const outputTokens = Number(usage.completion_tokens ?? usage.output_tokens ?? 0);
+  const totalTokens = Number(usage.total_tokens ?? inputTokens + outputTokens);
+  if (!Number.isFinite(inputTokens) || !Number.isFinite(outputTokens) || inputTokens < 0 || outputTokens < 0) return undefined;
+  return { inputTokens: Math.round(inputTokens), outputTokens: Math.round(outputTokens), totalTokens: Math.round(totalTokens) };
 }
 
 export function extractAiText(result: WorkersAiChatResponse): string {
@@ -185,7 +203,7 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
       if (!response.ok) throw new Error(`DeepSeek API ${response.status}: ${(await response.text()).slice(0, 240)}`);
       const result = (await response.json()) as WorkersAiChatResponse;
       const outcome = validateAiOutcome(parseAiJson(extractAiText(result)), fallback, "deepseek");
-      if (outcome.source === "ai") return outcome;
+      if (outcome.source === "ai") return { ...outcome, usage: usageFromResponse(result.usage) };
       console.warn("DeepSeek returned an invalid game outcome");
     } catch (error) {
       console.warn("DeepSeek fallback", error instanceof Error ? error.message : error);
@@ -201,7 +219,8 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
       response_format: { type: "json_object" },
       temperature: 0.72,
     })) as WorkersAiChatResponse;
-    return validateAiOutcome(parseAiJson(extractAiText(result)), fallback, "cloudflare");
+    const outcome = validateAiOutcome(parseAiJson(extractAiText(result)), fallback, "cloudflare");
+    return { ...outcome, usage: usageFromResponse(result.usage) };
   } catch (error) {
     console.warn("Workers AI fallback", error instanceof Error ? error.message : error);
     return fallback;
