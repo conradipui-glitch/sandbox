@@ -38,6 +38,12 @@ export interface SceneCue {
   atmosphere: string;
 }
 
+export interface ModelUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
 export interface TurnOutcome {
   headline: string;
   summary: string;
@@ -52,6 +58,7 @@ export interface TurnOutcome {
   scene: SceneCue;
   source: "ai" | "simulation";
   provider?: "deepseek" | "cloudflare" | "simulation";
+  usage?: ModelUsage;
 }
 
 export interface GameState {
