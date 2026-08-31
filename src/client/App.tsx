@@ -79,6 +79,48 @@ const scenePropLabels: Record<string, string> = {
   "station-crows": "вороны у станции",
 };
 
+const sceneLocationAliases: Record<string, string> = {
+  "tauride-garden": "tauride-cabinet",
+  "tauride-palace": "tauride-cabinet",
+  "tauride-square": "muddy-station",
+  "palace-square": "muddy-station",
+  "city-square": "muddy-station",
+  "telegraph-office": "station-telegraph-office",
+  "railway-yard": "station-yard",
+  "station-platform": "nikolaevsky-platform",
+  "train-carriage": "freight-carriage",
+  factory: "factory-yard",
+};
+
+const sceneCharacterAliases: Record<string, string> = {
+  minister: "minister-levitsky",
+  minister-1917: "minister-levitsky",
+  levitsky: "minister-levitsky",
+  officer: "colonel-argunov",
+  "officer-stavka": "colonel-argunov",
+  argunov: "colonel-argunov",
+  lidia: "lidia-vetrova",
+  vetrova: "lidia-vetrova",
+  belyaev: "rail-belyaev",
+  dispatcher: "rail-belyaev",
+  novikova: "worker-novikova",
+  worker: "worker-novikova",
+  vorontsova: "industrialist-vorontsova",
+  industrialist: "industrialist-vorontsova",
+};
+
+function normalizeSceneLocation(id: string, trainStory: boolean): string {
+  const normalized = sceneLocationAliases[id] ?? id;
+  if (normalized === id && !sceneLocationAliases[id]) {
+    return trainStory ? "nikolaevsky-platform" : "tauride-cabinet";
+  }
+  return normalized;
+}
+
+function normalizeSceneCharacter(id: string): string {
+  return sceneCharacterAliases[id] ?? id;
+}
+
 const introDecks: Record<string, IntroSlide[]> = {
   "last-train-1917": [
     {
@@ -584,10 +626,11 @@ function Outcome({ state }: { state: GameState }) {
 function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { state: GameState; onTurn: (action: string) => void; onExit: () => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
   const stability = state.metrics.find((metric) => metric.id === "stability")?.value ?? 50;
   const armyReaction = state.lastOutcome?.reactions.find((reaction) => reaction.faction.includes("Став"));
-  const activeCharacters = state.lastOutcome?.scene.activeCharacterIds ?? [];
+  const activeCharacters = (state.lastOutcome?.scene.activeCharacterIds ?? []).map(normalizeSceneCharacter);
   const sceneProps = state.lastOutcome?.scene.propIds ?? [];
   const trainStory = state.scenarioId === "last-train-1917";
-  const sceneLocation = state.lastOutcome?.scene.locationId ?? (trainStory ? "nikolaevsky-platform" : "tauride-cabinet");
+  const rawSceneLocation = state.lastOutcome?.scene.locationId ?? (trainStory ? "nikolaevsky-platform" : "tauride-cabinet");
+  const sceneLocation = normalizeSceneLocation(rawSceneLocation, trainStory);
   const showCar = sceneProps.includes("staff-renault");
   const showTrain = sceneProps.includes("freight-train");
   const modeTitle = modeOptions.find((mode) => mode.id === state.mode)?.title ?? "Кампания";
