@@ -483,7 +483,7 @@ button { color: inherit; }
 @keyframes temporal-slot-scroll { to { transform: translateY(-70px); } }
 @keyframes temporal-resolution { 0% { filter: brightness(1); } 42% { filter: brightness(1.8); } 100% { filter: brightness(1); } }
 @keyframes temporal-card-flash { 0% { transform: scale(1); } 48% { transform: scale(1.018); } 100% { transform: scale(1); } }
-@keyframes temporal-release { to { transform: translate3d(calc((50vw - var(--x)) * 1.13), calc((50vh - var(--y)) * 1.13), 0) scale(.1); opacity: 0; } }
+@keyframes temporal-release { to { transform: translate3d(calc(50vw - var(--x)), calc(50vh - var(--y)), 0) scale(.1); opacity: 0; } }
 @media (max-width: 760px) {
   .chronometer-mandala-main { width: 650px; height: 650px; opacity: .25; }
   .chronometer-mandala-left, .chronometer-mandala-right { display: none; }
