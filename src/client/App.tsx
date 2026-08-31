@@ -464,8 +464,8 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
   const trainStory = scenarioId === "last-train-1917";
   const showTrain = trainStory && ["train", "departure", "telegram"].includes(slide.scene);
   const showBelyaev = trainStory && ["station", "platform", "departure"].includes(slide.scene);
-  const showLidia = trainStory && ["telegram", "platform"].includes(slide.scene);
-  const showMinister = !trainStory && ["cabinet", "memory"].includes(slide.scene);
+  const showLidia = (trainStory && ["telegram", "platform"].includes(slide.scene)) || (!trainStory && slide.scene === "telegram");
+  const showMinister = !trainStory && ["cabinet", "memory", "telegram"].includes(slide.scene);
   const showOfficer = !trainStory && slide.scene === "platform";
   const showWorker = !trainStory && slide.scene === "platform";
   const showIndustrialist = !trainStory && slide.scene === "train";
@@ -483,6 +483,7 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
       {showOfficer && <div className="intro-person intro-person-officer"><img src={officer1917} alt="" /></div>}
       {showWorker && <div className="intro-person intro-person-worker"><img src={novikova1917} alt="" /></div>}
       {showIndustrialist && <div className="intro-person intro-person-industrialist"><img src={vorontsova1917} alt="" /></div>}
+      {!trainStory && slide.scene === "telegram" && <div className="intro-pressure-tags"><span>ФРОНТ</span><span>ЗЕМЛЯ</span><span>ХЛЕБ</span></div>}
       <div className="intro-visual-line" />
       <span className="intro-visual-caption">{trainStory ? "Николаевский вокзал · живая хроника" : "Таврический дворец · живая история"}</span>
     </div>
