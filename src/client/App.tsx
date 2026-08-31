@@ -584,8 +584,10 @@ function DecisionComposer({ options, onSubmit, busy }: { options: DecisionOption
   }, [options]);
 
   const pick = (option: DecisionOption) => {
+    const intent = option.intent.trim();
+    const genericIntent = /^(полное\s+действие|действие|команда|action|full\s+action)$/i.test(intent);
     setSelected(option.id);
-    setText(option.intent);
+    setText(genericIntent ? `${option.title}: ${option.description}` : intent);
   };
 
   return (
