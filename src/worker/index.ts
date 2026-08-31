@@ -1,4 +1,4 @@
-import type { GameMode, GameState, MetricId, SceneCue, TurnOutcome } from "../shared/types";
+import type { DecisionOption, GameMode, GameState, MetricId, SceneCue, TurnOutcome } from "../shared/types";
 import { campaignActForTurn } from "../shared/campaign";
 import { createInitialState, scenarioSummaries } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
@@ -66,6 +66,37 @@ export function extractAiText(result: WorkersAiChatResponse): string {
   return "";
 }
 
+function normalizeAiOptions(candidate: unknown, fallback: DecisionOption[]): DecisionOption[] {
+  if (!Array.isArray(candidate) || candidate.length !== 3) return fallback;
+  const genericIntent = /^(полное\s+действие|действие|команда|action|full\s+action)$/i;
+
+  return candidate.map((item, index) => {
+    const safeFallback = fallback[index];
+    if (!item || typeof item !== "object") return safeFallback;
+    const option = item as Partial<DecisionOption>;
+    const title = cleanAction(option.title);
+    const description = cleanAction(option.description);
+    const intent = cleanAction(option.intent);
+    const risk = option.risk === "низкий" || option.risk === "средний" || option.risk === "высокий"
+      ? option.risk
+      : safeFallback.risk;
+    const id = typeof option.id === "string" && /^[a-z0-9-]{2,80}$/i.test(option.id)
+      ? option.id
+      : safeFallback.id;
+
+    if (title.length < 3 || description.length < 8) return safeFallback;
+    return {
+      id,
+      title: title.slice(0, 100),
+      description: description.slice(0, 280),
+      risk,
+      intent: intent.length >= 4 && !genericIntent.test(intent)
+        ? intent.slice(0, 700)
+        : `${title}: ${description}`,
+    };
+  });
+}
+
 function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: TurnOutcome, provider: "deepseek" | "cloudflare"): TurnOutcome {
   if (!candidate || typeof candidate.headline !== "string" || typeof candidate.summary !== "string") return fallback;
   const validIds = new Set<MetricId>(["legitimacy", "economy", "army", "stability", "diplomacy"]);
@@ -96,7 +127,7 @@ function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: Tur
     dispatch: typeof candidate.dispatch === "string" ? candidate.dispatch.slice(0, 420) : fallback.dispatch,
     effects: effects.length ? effects : fallback.effects,
     reactions: Array.isArray(candidate.reactions) && candidate.reactions.length ? candidate.reactions.slice(0, 4) : fallback.reactions,
-    nextOptions: Array.isArray(candidate.nextOptions) && candidate.nextOptions.length === 3 ? candidate.nextOptions : fallback.nextOptions,
+    nextOptions: normalizeAiOptions(candidate.nextOptions, fallback.nextOptions),
     daysPassed: Number.isFinite(candidate.daysPassed) ? Math.max(2, Math.min(45, Math.round(candidate.daysPassed!))) : fallback.daysPassed,
     surprise: typeof candidate.surprise === "string" ? candidate.surprise.slice(0, 450) : fallback.surprise,
     scene,
@@ -128,7 +159,7 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
     },
     {
       role: "user" as const,
-      content: `${scenarioBrief}\nСостояние: ${JSON.stringify(compactState)}\nРежиссёрский контекст мира: ${JSON.stringify(world)}\nРешение игрока: ${action}\n\nВыбери максимум двух активных персонажей из контекста. Дай каждому характерную реакцию в пределах его знаний. Микросцену используй только при выполненном триггере. Предмет или техника должны иметь цену/ограничение. Для короткой хроники держи причинную дугу вокруг одного состава и не расширяй конфликт до общей истории страны. Для кампании держи вопрос текущего акта в центре, а три nextOptions делай разными человеческими ставками: прозрачность, скорость исполнения и передача полномочий. Не превращай акт в пересказ учебника — покажи исполнителя, ресурс, задержку и цену.\n\nВажно: summary описывает последствия уже принятого решения. nextBriefing — это новая оперативная ситуация следующего хода; не повторяй в нём headline, summary, dispatch или формулировку приказа. Пиши о том, что теперь стало узким местом и кто должен первым действовать.\n\nВерни JSON: {"headline":"до 100 знаков","summary":"2-4 конкретных абзаца","nextBriefing":"новая вводка следующего хода, 1-2 конкретных предложения без повтора последствий","dispatch":"короткая газетная или телеграфная цитата","effects":[{"id":"legitimacy|economy|army|stability|diplomacy","delta":целое от -10 до 10,"reason":"почему"}],"reactions":[{"faction":"название или имя персонажа","stance":"поддержка|настороженность|противодействие","text":"характерная конкретная реакция"}],"nextOptions":[ровно 3 объекта {"id":"латиница","title":"название","description":"что именно","risk":"низкий|средний|высокий","intent":"полное действие"}],"daysPassed":число 1..45,"surprise":"непредвиденный, но причинный эффект или null","scene":{"locationId":"id места","activeCharacterIds":["до 2 id персонажей"],"propIds":["до 3 id предметов"],"ambientId":"id микросцены или null","atmosphere":"свет, погода и один фоновый звук"}}`,
+      content: `${scenarioBrief}\nСостояние: ${JSON.stringify(compactState)}\nРежиссёрский контекст мира: ${JSON.stringify(world)}\nРешение игрока: ${action}\n\nВыбери максимум двух активных персонажей из контекста. Дай каждому характерную реакцию в пределах его знаний. Микросцену используй только при выполненном триггере. Предмет или техника должны иметь цену/ограничение. Для короткой хроники держи причинную дугу вокруг одного состава и не расширяй конфликт до общей истории страны. Для кампании держи вопрос текущего акта в центре, а три nextOptions делай разными человеческими ставками: прозрачность, скорость исполнения и передача полномочий. Не превращай акт в пересказ учебника — покажи исполнителя, ресурс, задержку и цену.\n\nВажно: summary описывает последствия уже принятого решения. nextBriefing — это новая оперативная ситуация следующего хода; не повторяй в нём headline, summary, dispatch или формулировку приказа. Пиши о том, что теперь стало узким местом и кто должен первым действовать.\n\nВ каждом nextOptions.intent напиши готовую конкретную команду игрока длиной 8–180 знаков. Никогда не пиши туда слова «полное действие», «действие» или «команда» — это поле сразу подставляется в редактор приказа.\n\nВерни JSON: {"headline":"до 100 знаков","summary":"2-4 конкретных абзаца","nextBriefing":"новая вводка следующего хода, 1-2 конкретных предложения без повтора последствий","dispatch":"короткая газетная или телеграфная цитата","effects":[{"id":"legitimacy|economy|army|stability|diplomacy","delta":целое от -10 до 10,"reason":"почему"}],"reactions":[{"faction":"название или имя персонажа","stance":"поддержка|настороженность|противодействие","text":"характерная конкретная реакция"}],"nextOptions":[ровно 3 объекта {"id":"латиница","title":"название","description":"что именно","risk":"низкий|средний|высокий","intent":"конкретная команда игрока"}],"daysPassed":число 1..45,"surprise":"непредвиденный, но причинный эффект или null","scene":{"locationId":"id места","activeCharacterIds":["до 2 id персонажей"],"propIds":["до 3 id предметов"],"ambientId":"id микросцены или null","atmosphere":"свет, погода и один фоновый звук"}}`,
     },
   ];
 
