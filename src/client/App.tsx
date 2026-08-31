@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -626,20 +626,116 @@ function Outcome({ state }: { state: GameState }) {
   );
 }
 
+const temporalParticleSeeds = [
+  { x: "8vw", y: "12vh", delay: "-1.8s", size: "3px" },
+  { x: "18vw", y: "28vh", delay: "-4.2s", size: "2px" },
+  { x: "33vw", y: "10vh", delay: "-.7s", size: "4px" },
+  { x: "68vw", y: "14vh", delay: "-3.1s", size: "2px" },
+  { x: "86vw", y: "22vh", delay: "-5.4s", size: "3px" },
+  { x: "93vw", y: "46vh", delay: "-2.4s", size: "2px" },
+  { x: "8vw", y: "63vh", delay: "-4.8s", size: "4px" },
+  { x: "20vw", y: "78vh", delay: "-1.1s", size: "2px" },
+  { x: "36vw", y: "87vh", delay: "-3.7s", size: "3px" },
+  { x: "63vw", y: "86vh", delay: "-.4s", size: "2px" },
+  { x: "78vw", y: "74vh", delay: "-4.5s", size: "4px" },
+  { x: "91vw", y: "84vh", delay: "-2.9s", size: "2px" },
+  { x: "4vw", y: "42vh", delay: "-5.1s", size: "3px" },
+  { x: "48vw", y: "6vh", delay: "-1.4s", size: "2px" },
+  { x: "56vw", y: "95vh", delay: "-3.3s", size: "3px" },
+  { x: "74vw", y: "36vh", delay: "-.9s", size: "2px" },
+] as const;
+
+const monthNames = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+
+function temporalDateParts(value: string) {
+  const date = new Date(`${value}T12:00:00Z`);
+  return {
+    day: String(date.getUTCDate()).padStart(2, "0"),
+    month: monthNames[date.getUTCMonth()] ?? "времени",
+    year: String(date.getUTCFullYear()),
+  };
+}
+
+function ChronometerMandala({ className }: { className: string }) {
+  const ticks = Array.from({ length: 24 }, (_, index) => index * 15);
+  return (
+    <svg className={`chronometer-mandala ${className}`} viewBox="0 0 400 400" fill="none" aria-hidden="true">
+      <g className="mandala-outer">
+        <circle cx="200" cy="200" r="178" />
+        <circle cx="200" cy="200" r="163" strokeDasharray="2 11" />
+        {ticks.map((angle) => <line key={angle} x1="200" y1="16" x2="200" y2="31" transform={`rotate(${angle} 200 200)`} />)}
+      </g>
+      <g className="mandala-middle">
+        <circle cx="200" cy="200" r="132" />
+        <circle cx="200" cy="200" r="116" strokeDasharray="48 13 4 13" />
+        <path d="M200 64v24M200 312v24M64 200h24M312 200h24" />
+        <path d="M116 116l17 17M267 267l17 17M116 284l17-17M267 133l17-17" />
+      </g>
+      <g className="mandala-inner">
+        <circle cx="200" cy="200" r="84" />
+        <path d="M200 128c40 0 72 32 72 72s-32 72-72 72-72-32-72-72 32-72 72-72Z" strokeDasharray="7 10" />
+        <path d="M200 151v49l36 20" />
+        <circle cx="200" cy="200" r="5" />
+      </g>
+    </svg>
+  );
+}
+
+function TemporalBackdrop({ fromDate, toDate, resolved }: { fromDate: string; toDate: string | null; resolved: boolean }) {
+  const from = temporalDateParts(fromDate);
+  const to = toDate ? temporalDateParts(toDate) : null;
+  const yearReel = [Number(from.year) - 1, Number(from.year), Number(from.year) + 1, Number(from.year) + 2, Number(from.year) + 3];
+
+  return (
+    <div className={`temporal-backdrop ${resolved ? "is-resolved" : ""}`} aria-hidden="true">
+      <div className="temporal-vortex">
+        {temporalParticleSeeds.map((particle, index) => (
+          <i
+            className="temporal-particle"
+            key={index}
+            style={{ "--x": particle.x, "--y": particle.y, "--delay": particle.delay, "--size": particle.size } as CSSProperties}
+          />
+        ))}
+      </div>
+      <ChronometerMandala className="chronometer-mandala-main" />
+      <ChronometerMandala className="chronometer-mandala-left" />
+      <ChronometerMandala className="chronometer-mandala-right" />
+      <div className="temporal-date-dial">
+        <span className="temporal-date-label">временной срез</span>
+        <div className="temporal-date-readout">
+          <span>{from.day} {from.month}</span><b>{from.year}</b><i>→</i><b>{to?.year ?? "····"}</b>
+        </div>
+        <div className="temporal-slot-window">
+          <div className="temporal-slot-reel">
+            {[...yearReel, ...yearReel].map((year, index) => <span key={`${year}-${index}`}>{year}</span>)}
+          </div>
+        </div>
+        <small>{to ? `${to.day} ${to.month} — новая линия готова` : "перебор вариантов будущего"}</small>
+      </div>
+    </div>
+  );
+}
+
 const thinkingVariants = [
   { id: "clockwise", label: "Ход времени собирается в узор" },
   { id: "counterflow", label: "Хроника ищет другой путь" },
   { id: "eclipse", label: "Несколько будущих спорят между собой" },
 ] as const;
 
-function WorldThinking() {
+function WorldThinking({ date }: { date: string }) {
   const [elapsed, setElapsed] = useState(0);
   const [variant] = useState(() => thinkingVariants[Math.floor(Math.random() * thinkingVariants.length)]);
+  const startingDate = useRef(date);
+  const [resolved, setResolved] = useState(false);
   useEffect(() => {
     const startedAt = performance.now();
     const timer = window.setInterval(() => setElapsed(Math.floor((performance.now() - startedAt) / 1000)), 250);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (date !== startingDate.current) setResolved(true);
+  }, [date]);
 
   const phase = elapsed < 5
     ? "Приказ покидает кабинет"
@@ -651,7 +747,8 @@ function WorldThinking() {
 
   return (
     <div className="world-thinking" role="status" aria-live="polite" aria-label="Мир отвечает на ваше решение">
-      <div className={`world-thinking-card thinking-variant-${variant.id}`}>
+      <TemporalBackdrop fromDate={startingDate.current} toDate={resolved ? date : null} resolved={resolved} />
+      <div className={`world-thinking-card thinking-variant-${variant.id} ${resolved ? "is-resolving" : ""}`}>
         <div className="thinking-engine" aria-hidden="true">
           <span className="thinking-ring thinking-ring-outer" />
           <span className="thinking-ring thinking-ring-middle" />
@@ -780,7 +877,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
           </div>
         </aside>
       </div>
-      {busy && <WorldThinking />}
+      {busy && <WorldThinking date={state.date} />}
     </main>
   );
 }
@@ -818,7 +915,11 @@ export default function App() {
   const playTurn = async (action: string) => {
     if (!game) return;
     setBusy(true); setError(null);
-    try { setGame(await api.playTurn(game.id, action)); }
+    try {
+      const nextState = await api.playTurn(game.id, action);
+      setGame(nextState);
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 360));
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Мир не ответил на ход"); }
     finally { setBusy(false); }
   };
