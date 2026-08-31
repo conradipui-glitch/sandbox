@@ -449,3 +449,46 @@ button { color: inherit; }
   .intro-pressure-tags { right: 14px; top: 48%; gap: 5px; }
   .intro-pressure-tags span { font-size: 8px; padding: 4px 6px; }
 }
+
+
+.temporal-backdrop { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.temporal-vortex { position: absolute; inset: 0; }
+.temporal-particle { position: absolute; left: var(--x); top: var(--y); display: block; width: var(--size); height: var(--size); border-radius: 50%; background: #d2b97d; box-shadow: 0 0 11px rgba(210,185,125,.86), 0 0 22px rgba(201,76,54,.38); opacity: 0; animation: temporal-vortex 6.4s cubic-bezier(.38,.03,.38,1) var(--delay) infinite; }
+.chronometer-mandala { position: absolute; display: block; overflow: visible; transform: translate(-50%, -50%); opacity: .34; filter: drop-shadow(0 0 22px rgba(201,76,54,.22)); }
+.chronometer-mandala-main { width: min(78vw, 860px); height: min(78vw, 860px); left: 50%; top: 50%; opacity: .37; }
+.chronometer-mandala-left { width: clamp(170px, 22vw, 300px); height: clamp(170px, 22vw, 300px); left: 15%; top: 29%; opacity: .32; }
+.chronometer-mandala-right { width: clamp(180px, 22vw, 316px); height: clamp(180px, 22vw, 316px); left: 84%; top: 34%; opacity: .32; }
+.chronometer-mandala .mandala-outer, .chronometer-mandala .mandala-middle, .chronometer-mandala .mandala-inner { transform-origin: 200px 200px; }
+.chronometer-mandala .mandala-outer { stroke: rgba(201,76,54,.86); stroke-width: 1.4; animation: mandala-turn 18s linear infinite; }
+.chronometer-mandala .mandala-middle { stroke: rgba(210,185,125,.82); stroke-width: 1.15; animation: mandala-turn-reverse 13s linear infinite; }
+.chronometer-mandala .mandala-inner { stroke: rgba(222,215,200,.66); stroke-width: 1.05; animation: mandala-turn 8.8s linear infinite; }
+.chronometer-mandala .mandala-inner circle { fill: rgba(201,76,54,.7); stroke: none; }
+.temporal-date-dial { position: absolute; left: clamp(28px, 7vw, 132px); bottom: clamp(30px, 8vh, 92px); width: 225px; padding: 12px 14px 10px; border-left: 1px solid rgba(201,76,54,.75); background: linear-gradient(90deg, rgba(15,13,11,.8), rgba(15,13,11,.16)); text-align: left; }
+.temporal-date-label { display: block; color: #c94c36; font-size: 8px; letter-spacing: .18em; text-transform: uppercase; }
+.temporal-date-readout { display: flex; align-items: baseline; gap: 7px; margin-top: 7px; color: #d8cfbd; white-space: nowrap; }
+.temporal-date-readout span { color: #aaa294; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
+.temporal-date-readout b { color: #d2b97d; font: 24px "Prata"; }
+.temporal-date-readout i { color: #c94c36; font: 17px "Prata"; font-style: normal; }
+.temporal-slot-window { width: 54px; height: 15px; margin-top: 8px; overflow: hidden; border-top: 1px solid rgba(222,215,200,.14); border-bottom: 1px solid rgba(222,215,200,.14); }
+.temporal-slot-reel { animation: temporal-slot-scroll 2.65s steps(5, end) infinite; }
+.temporal-slot-reel span { display: block; height: 14px; color: rgba(210,185,125,.76); font: 10px/14px "Prata"; letter-spacing: .08em; }
+.temporal-date-dial small { display: block; margin-top: 7px; color: #817a6e; font-size: 8px; letter-spacing: .04em; }
+.temporal-backdrop.is-resolved { animation: temporal-resolution .34s ease-out both; }
+.temporal-backdrop.is-resolved .temporal-slot-reel { animation-play-state: paused; }
+.temporal-backdrop.is-resolved .temporal-particle { animation: temporal-release .32s ease-out both; }
+.world-thinking-card.is-resolving { border-color: rgba(210,185,125,.7); box-shadow: 0 0 0 1px rgba(210,185,125,.15), 0 0 56px rgba(201,76,54,.38), inset 0 0 80px rgba(210,185,125,.1); animation: temporal-card-flash .34s ease-out both; }
+@keyframes mandala-turn { to { transform: rotate(360deg); } }
+@keyframes mandala-turn-reverse { to { transform: rotate(-360deg); } }
+@keyframes temporal-vortex { 0% { transform: translate3d(0,0,0) scale(.4); opacity: 0; } 16% { opacity: .92; } 70% { transform: translate3d(calc(50vw - var(--x)), calc(50vh - var(--y)), 0) scale(1.5); opacity: 1; } 100% { transform: translate3d(calc(50vw - var(--x)), calc(50vh - var(--y)), 0) scale(.1); opacity: 0; } }
+@keyframes temporal-slot-scroll { to { transform: translateY(-70px); } }
+@keyframes temporal-resolution { 0% { filter: brightness(1); } 42% { filter: brightness(1.8); } 100% { filter: brightness(1); } }
+@keyframes temporal-card-flash { 0% { transform: scale(1); } 48% { transform: scale(1.018); } 100% { transform: scale(1); } }
+@keyframes temporal-release { to { transform: translate3d(calc((50vw - var(--x)) * 1.13), calc((50vh - var(--y)) * 1.13), 0) scale(.1); opacity: 0; } }
+@media (max-width: 760px) {
+  .chronometer-mandala-main { width: 650px; height: 650px; opacity: .25; }
+  .chronometer-mandala-left, .chronometer-mandala-right { display: none; }
+  .temporal-date-dial { left: 50%; bottom: 24px; transform: translateX(-50%); width: min(88vw, 300px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .temporal-particle, .chronometer-mandala .mandala-outer, .chronometer-mandala .mandala-middle, .chronometer-mandala .mandala-inner, .temporal-slot-reel, .temporal-backdrop.is-resolved, .world-thinking-card.is-resolving { animation: none; }
+}
