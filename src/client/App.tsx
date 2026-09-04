@@ -112,10 +112,10 @@ const sceneCharacterAliases: Record<string, string> = {
   industrialist: "industrialist-vorontsova",
 };
 
-function normalizeSceneLocation(id: string, trainStory: boolean): string {
+function normalizeSceneLocation(id: string, trainStory: boolean, florenceStory = false): string {
   const normalized = sceneLocationAliases[id] ?? id;
   if (normalized === id && !sceneLocationAliases[id]) {
-    return trainStory ? "nikolaevsky-platform" : "tauride-cabinet";
+    return trainStory ? "nikolaevsky-platform" : florenceStory ? "florence-workshop" : "tauride-cabinet";
   }
   return normalized;
 }
@@ -125,6 +125,13 @@ function normalizeSceneCharacter(id: string): string {
 }
 
 const introDecks: Record<string, IntroSlide[]> = {
+  "florence-workshop": [
+    { id: "workshop", kicker: "Флоренция · 1512", title: "Фреска не знает приказов", body: "Кардинал ждёт роспись до заката. В мастерской не хватает синего пигмента, а Джулиано почти не держит кисть.", note: "До заката: одна ночь", scene: "cabinet" },
+    { id: "people", kicker: "Люди — не ресурс", title: "Усталость тоже имеет цену", body: "Можно переложить работу на ученика, скрыть болезнь или самому взять ночную смену. Мир запомнит не только срок, но и то, кому достался риск.", note: "Силы людей ограничены", scene: "platform" },
+    { id: "contract", kicker: "Договор с условием", title: "Аванс требует подписи", body: "Секретарь предлагает деньги, но работа должна выйти без имени мастерской. Можно торговаться, отказаться или предложить свой путь.", note: "Право на своё имя", scene: "telegram" },
+    { id: "condition", kicker: "Свободный ход", title: "Мир проверит, что возможно", body: "Ваш приказ не обязан сработать буквально. Он может быть исполнен, потребовать согласия другого человека или упереться в факт, который нельзя отменить словами.", note: "Исполнимо · условно · невозможно", scene: "train" },
+    { id: "signature", kicker: "Ночь мастерской", title: "Что останется после подписи?", body: "Здесь нет хорошего или плохого решения. Есть мастерская, люди, договор и цена, которую вы готовы назвать вслух.", note: "Короткая хроника · 6 ходов", scene: "departure" },
+  ],
   "last-train-1917": [
     {
       id: "station",
@@ -255,6 +262,16 @@ const modeOptions: Array<{ id: GameMode; title: string; duration: string; descri
 
 const fallbackScenarios: ScenarioSummary[] = [
   {
+    id: "florence-workshop",
+    title: "Флоренция: Мастерская под давлением",
+    period: "1512 · Флоренция",
+    role: "Мастер городской мастерской",
+    hook: "Кардинал требует роспись до заката. Подмастерье болен, гильдия ждёт взнос, а деньги предлагают ценой вашей подписи.",
+    difficulty: "Доступно",
+    accent: "#ba7650",
+    available: true,
+  },
+  {
     id: "last-train-1917",
     title: "Последний поезд из Петрограда",
     period: "Апрель 1917",
@@ -347,7 +364,7 @@ function MusicToggle({ muted, onToggle, trackTitle }: { muted: boolean; onToggle
 }
 
 function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { scenarios: ScenarioSummary[]; onStart: (id: string, mode: GameMode) => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
-  const [selected, setSelected] = useState(scenarios.find((item) => item.id === "last-train-1917")?.id ?? scenarios.find((item) => item.available)?.id ?? scenarios[0]?.id);
+  const [selected, setSelected] = useState(scenarios.find((item) => item.id === "florence-workshop")?.id ?? scenarios.find((item) => item.id === "last-train-1917")?.id ?? scenarios.find((item) => item.available)?.id ?? scenarios[0]?.id);
   const [mode, setMode] = useState<GameMode>("chronicle");
   const scenario = scenarios.find((item) => item.id === selected) ?? scenarios[0];
   const moveModeSparks = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -413,7 +430,7 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
               type="button"
               key={item.id}
               className={`scenario-card ${selected === item.id ? "selected" : ""} ${!item.available ? "locked" : ""}`}
-              onClick={() => { setSelected(item.id); if (item.id === "last-train-1917") setMode("chronicle"); }}
+              onClick={() => { setSelected(item.id); if (["last-train-1917", "florence-workshop"].includes(item.id)) setMode("chronicle"); }}
               style={{ "--accent": item.accent } as React.CSSProperties}
             >
               <span className="card-number">0{index + 1}</span>
@@ -421,7 +438,7 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
               <h3>{item.title}</h3>
               <p>{item.hook}</p>
               <div className="scenario-meta"><span>{item.role}</span><span>{item.difficulty}</span></div>
-              {item.id === "last-train-1917" && <span className="recommended">Первая хроника</span>}
+              {["last-train-1917", "florence-workshop"].includes(item.id) && <span className="recommended">Доступна для теста</span>}
               {!item.available && <span className="coming">Скоро</span>}
               {selected === item.id && <span className="selection-mark"><ChevronRight size={18} /></span>}
             </button>
@@ -454,7 +471,7 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
           <div className="launch-brief"><ShieldAlert size={20} /><span><strong>Правило мира:</strong> ИИ не обязан делать ваш план успешным. Он обязан сделать ответ мира правдоподобным.</span></div>
           <button className="primary" disabled={!scenario?.available || busy} onClick={() => scenario && onStart(scenario.id, mode)}>
             {busy ? <LoaderCircle className="spin" size={20} /> : <Crown size={20} />}
-            Начать правление
+            {scenario?.id === "florence-workshop" ? "Открыть мастерскую" : "Начать правление"}
             <ArrowRight size={20} />
           </button>
         </div>
@@ -465,16 +482,17 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
 
 function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: string }) {
   const trainStory = scenarioId === "last-train-1917";
+  const florenceStory = scenarioId === "florence-workshop";
   const showTrain = trainStory && ["train", "departure", "telegram"].includes(slide.scene);
   const showBelyaev = trainStory && ["station", "platform", "departure"].includes(slide.scene);
-  const showLidia = (trainStory && ["telegram", "platform"].includes(slide.scene)) || (!trainStory && slide.scene === "telegram");
-  const showMinister = !trainStory && ["cabinet", "memory", "telegram"].includes(slide.scene);
-  const showOfficer = !trainStory && slide.scene === "platform";
-  const showWorker = !trainStory && slide.scene === "platform";
-  const showIndustrialist = !trainStory && slide.scene === "train";
+  const showLidia = (trainStory && ["telegram", "platform"].includes(slide.scene)) || (!trainStory && !florenceStory && slide.scene === "telegram");
+  const showMinister = !trainStory && !florenceStory && ["cabinet", "memory", "telegram"].includes(slide.scene);
+  const showOfficer = !trainStory && !florenceStory && slide.scene === "platform";
+  const showWorker = !trainStory && !florenceStory && slide.scene === "platform";
+  const showIndustrialist = !trainStory && !florenceStory && slide.scene === "train";
   const sceneLabels: Record<IntroSlide["scene"], string> = { station: "перрон", telegram: "телеграф", train: "состав", platform: "разговор", departure: "отправление", cabinet: "кабинет" };
   return (
-    <div className={`intro-visual intro-visual-${slide.scene}`} aria-hidden="true">
+    <div className={`intro-visual intro-visual-${slide.scene} ${florenceStory ? "intro-visual-florence" : ""}`} aria-hidden="true">
       <div className="intro-visual-grid" />
       <div className="intro-visual-orbit intro-visual-orbit-one" />
       <div className="intro-visual-orbit intro-visual-orbit-two" />
@@ -486,9 +504,10 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
       {showOfficer && <div className="intro-person intro-person-officer"><img src={officer1917} alt="" /></div>}
       {showWorker && <div className="intro-person intro-person-worker"><img src={novikova1917} alt="" /></div>}
       {showIndustrialist && <div className="intro-person intro-person-industrialist"><img src={vorontsova1917} alt="" /></div>}
+      {florenceStory && <div className="florence-intro-still"><i className="florence-fresco" /><i className="florence-scaffold" /><i className="florence-candle" /><i className="florence-figure florence-figure-apprentice" /><i className="florence-figure florence-figure-patron" /></div>}
       {!trainStory && slide.scene === "telegram" && <div className="intro-pressure-tags"><span>ФРОНТ</span><span>ЗЕМЛЯ</span><span>ХЛЕБ</span></div>}
       <div className="intro-visual-line" />
-      <span className="intro-visual-caption">{trainStory ? "Николаевский вокзал · живая хроника" : "Таврический дворец · живая история"}</span>
+      <span className="intro-visual-caption">{trainStory ? "Николаевский вокзал · живая хроника" : florenceStory ? "Флоренция · ночь мастерской" : "Таврический дворец · живая история"}</span>
     </div>
   );
 }
@@ -620,6 +639,12 @@ function Outcome({ state }: { state: GameState }) {
       <div className="outcome-kicker"><Radio size={15} /> Последствия предыдущего решения <span>{outcome.provider === "deepseek" ? "DeepSeek" : outcome.provider === "cloudflare" ? "Cloudflare AI" : outcome.source === "ai" ? "ИИ" : "симулятор"}</span></div>
       <h2>{outcome.headline}</h2>
       <p>{outcome.summary}</p>
+      {outcome.resolution && <div className={`action-resolution action-resolution-${outcome.resolution.status}`}>
+        <span>{outcome.resolution.status === "executed" ? "Ход выполнен" : outcome.resolution.status === "conditional" ? "Ход требует условия" : "Ход невозможен сейчас"}</span>
+        <strong>{outcome.resolution.explanation}</strong>
+        {outcome.resolution.requirement && <p><b>Нужно:</b> {outcome.resolution.requirement}</p>}
+        <small><b>Цена:</b> {outcome.resolution.cost}</small>
+      </div>}
       <blockquote>{outcome.dispatch}</blockquote>
       {outcome.surprise && <div className="surprise"><ShieldAlert size={20} /><div><strong>Непредвиденное последствие</strong><p>{outcome.surprise}</p></div></div>}
       <div className="reaction-grid">
@@ -780,8 +805,9 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
   const activeCharacters = (state.lastOutcome?.scene.activeCharacterIds ?? []).map(normalizeSceneCharacter);
   const sceneProps = state.lastOutcome?.scene.propIds ?? [];
   const trainStory = state.scenarioId === "last-train-1917";
-  const rawSceneLocation = state.lastOutcome?.scene.locationId ?? (trainStory ? "nikolaevsky-platform" : "tauride-cabinet");
-  const sceneLocation = normalizeSceneLocation(rawSceneLocation, trainStory);
+  const florenceStory = state.scenarioId === "florence-workshop";
+  const rawSceneLocation = state.lastOutcome?.scene.locationId ?? (trainStory ? "nikolaevsky-platform" : florenceStory ? "florence-workshop" : "tauride-cabinet");
+  const sceneLocation = normalizeSceneLocation(rawSceneLocation, trainStory, florenceStory);
   const showCar = sceneProps.includes("staff-renault");
   const showTrain = sceneProps.includes("freight-train");
   const modeTitle = modeOptions.find((mode) => mode.id === state.mode)?.title ?? "Кампания";
@@ -794,10 +820,13 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
     "muddy-station": "Петроград · вокзальный перрон",
     "factory-yard": "Петроград · фабричный двор",
     "tauride-cabinet": "Петроград · Таврический дворец",
+    "florence-workshop": "Флоренция · мастерская",
+    "florence-guildhall": "Флоренция · зал гильдии",
+    "florence-square": "Флоренция · ночная площадь",
   };
-  const requestedSceneCharacters = activeCharacters.filter((id) => sceneCharacterAssets[id]);
+  const requestedSceneCharacters = florenceStory ? [] : activeCharacters.filter((id) => sceneCharacterAssets[id]);
   const fallbackSceneCharacter = trainStory ? "rail-belyaev" : "minister-levitsky";
-  const sceneCharacterIds = (requestedSceneCharacters.length ? requestedSceneCharacters : [fallbackSceneCharacter]).slice(0, 2);
+  const sceneCharacterIds = florenceStory ? [] : (requestedSceneCharacters.length ? requestedSceneCharacters : [fallbackSceneCharacter]).slice(0, 2);
   const sceneCharacters = sceneCharacterIds.map((id, index) => {
     const asset = sceneCharacterAssets[id];
     const side = sceneCharacterIds.length === 1 ? asset.defaultSide : index === 0 ? "left" : "right";
@@ -811,10 +840,15 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
     "rail-belyaev": "Беляев считает минуты до стрелки",
     "worker-novikova": "Анна принесла список фабричных смен",
     "industrialist-vorontsova": "Софья ждёт встречного условия",
+    "florence-juliano": "Джулиано ждёт, назовёте ли вы предел его сил",
+    "florence-guildmaster": "Гильдия ждёт условия, которое можно записать",
+    "florence-secretary": "Секретарь ждёт срок и подпись",
+    "florence-cardinal": "Кардинал ждёт результат, который можно предъявить городу",
   };
-  const guestCaption = guestCaptions[leadCharacter ?? ""] ?? (trainStory ? "Станция ждёт вашего решения" : "Кабинет ждёт вашего решения");
+  const florenceLead = activeCharacters[0];
+  const guestCaption = guestCaptions[florenceStory ? florenceLead ?? "" : leadCharacter ?? ""] ?? (trainStory ? "Станция ждёт вашего решения" : florenceStory ? "Мастерская ждёт вашего решения" : "Кабинет ждёт вашего решения");
   const visibleSceneProps = sceneProps.map((id) => ({ id, label: scenePropLabels[id] })).filter((item): item is { id: string; label: string } => Boolean(item.label)).slice(0, 3);
-  const locationLabel = locationNames[sceneLocation] ?? (trainStory ? "Петроград · железнодорожная линия" : "Петроград · Таврический дворец");
+  const locationLabel = locationNames[sceneLocation] ?? (trainStory ? "Петроград · железнодорожная линия" : florenceStory ? "Флоренция · мастерская" : "Петроград · Таврический дворец");
   const briefingText = state.turn === 1
     ? state.briefing
     : state.lastOutcome?.nextBriefing ?? `Прошло ${state.lastOutcome?.daysPassed ?? 7} дней. Решение вышло из кабинета и теперь проверяется исполнением на местах.`;
@@ -828,23 +862,24 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
 
       <div className="game-layout">
         <aside className="state-rail">
-          <div className="rail-heading"><Gauge size={17} /> Состояние страны</div>
+          <div className="rail-heading"><Gauge size={17} /> {florenceStory ? "Состояние мастерской" : "Состояние страны"}</div>
           <div className="metrics-list">{state.metrics.map((metric) => <MetricGauge key={metric.id} {...metric} />)}</div>
           <div className="factions">
             <div className="rail-heading"><Landmark size={17} /> Центры силы</div>
             {state.factions.map((faction) => <div className="faction" key={faction.name}><div><strong>{faction.name}</strong><span>{faction.mood}</span></div><b>{faction.power}</b></div>)}
           </div>
-          <div className="objective"><span>Цель правления</span><p>{state.objective}</p></div>
+          <div className="objective"><span>{florenceStory ? "Цель ночи" : "Цель правления"}</span><p>{state.objective}</p></div>
         </aside>
 
         <div className="main-stage">
-          <section className={`scene-tableau ${stability < 30 ? "scene-unrest" : ""} ${trainStory ? "scene-train-world" : ""} scene-location-${sceneLocation}`} aria-label={`Живая сцена: ${locationLabel}`}>
+          <section className={`scene-tableau ${stability < 30 ? "scene-unrest" : ""} ${trainStory ? "scene-train-world" : ""} ${florenceStory ? "scene-florence-world" : ""} scene-location-${sceneLocation}`} aria-label={`Живая сцена: ${locationLabel}`}>
             <div className="scene-grid" />
             <div className="scene-window"><i /><i /><i /></div>
-            <div className="scene-map"><span>ПЕТРОГРАД</span><i /><i /><i /></div>
+            <div className="scene-map"><span>{florenceStory ? "FIRENZE" : "ПЕТРОГРАД"}</span><i /><i /><i /></div>
             <div className="scene-desk"><span /><span /></div>
             {showCar && <div className="scene-vehicle"><img src={staffCar1917} alt="Штабной автомобиль у входа" /></div>}
             {showTrain && <div className="scene-train"><img src={freightTrain1917} alt="Товарный паровоз у станции" /></div>}
+            {florenceStory && <div className="florence-scene-still" aria-hidden="true"><i className="florence-fresco" /><i className="florence-scaffold" /><i className="florence-candle" /><i className="florence-figure florence-figure-apprentice" /><i className="florence-figure florence-figure-patron" /></div>}
             {sceneCharacters.map(({ id, asset, side }) => (
               <div key={id} className={`scene-character scene-character-${asset.className} scene-slot-${side} ${id === "colonel-argunov" ? `stance-${armyReaction?.stance ?? "настороженность"}` : ""}`} data-character-id={id}>
                 <img src={asset.src} alt={asset.alt} />
@@ -866,11 +901,11 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
                 <strong>{campaignAct.title}</strong>
                 <p>{campaignAct.question} <em>{campaignAct.focus}</em></p>
               </div>}
-              <h1>{state.turn === 1 ? "Власть существует только до первого неверного решения" : "Решение вышло из кабинета"}</h1><p>{briefingText}</p>
+              <h1>{state.turn === 1 ? florenceStory ? "Работа не становится возможной от приказа" : "Власть существует только до первого неверного решения" : florenceStory ? "Условия сделки изменились" : "Решение вышло из кабинета"}</h1><p>{briefingText}</p>
             </div>
           </section>
           <Outcome state={state} />
-          {state.status === "active" ? <DecisionComposer options={state.options} onSubmit={onTurn} busy={busy} /> : <div className="end-state"><h2>{state.status === "victory" ? "Новый порядок устоял" : "Государство распалось"}</h2><p>Эта ветка истории завершена. Можно вернуться к точке разлома и попробовать другую стратегию.</p><button onClick={onExit}><RotateCcw size={18} /> Начать заново</button></div>}
+          {state.status === "active" ? <DecisionComposer options={state.options} onSubmit={onTurn} busy={busy} /> : <div className="end-state"><h2>{state.status === "victory" ? florenceStory ? "Мастерская пережила эту ночь" : "Новый порядок устоял" : florenceStory ? "Мастерская закрыла заказ" : "Государство распалось"}</h2><p>Эта ветка истории завершена. Можно вернуться к точке давления и попробовать другой способ сохранить работу, людей или своё имя.</p><button onClick={onExit}><RotateCcw size={18} /> Начать заново</button></div>}
         </div>
 
         <aside className="chronicle">
@@ -1010,7 +1045,7 @@ function GameApp() {
 
   const exit = () => { localStorage.removeItem("living-history-session"); setGame(null); setError(null); };
   const requestStart = (scenarioId: string, mode: GameMode) => {
-    setIntro({ scenarioId, mode: scenarioId === "last-train-1917" ? "chronicle" : mode });
+    setIntro({ scenarioId, mode: ["last-train-1917", "florence-workshop"].includes(scenarioId) ? "chronicle" : mode });
   };
   const changeTextScale = (value: TextScale) => {
     setTextScale(value);
