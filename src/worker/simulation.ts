@@ -1,8 +1,8 @@
-import type { DecisionOption, GameState, MetricId, TurnOutcome } from "../shared/types";
+import type { DecisionOption, DialogueLine, GameState, MetricId, TurnOutcome } from "../shared/types";
 import { gameModes, worldContextForTurn } from "./world";
 import { lastTrainOptions } from "./scenarios";
 import { russia1917CampaignBeatForTurn } from "./scenario-beats";
-import { florenceBeatForTurn } from "./florence";
+import { florenceBeatForTurn, florenceDialogueForTurn, type FlorenceResponseTone } from "./florence";
 
 const metricIds: MetricId[] = ["legitimacy", "economy", "army", "stability", "diplomacy"];
 
@@ -232,6 +232,28 @@ function simulateLastTrainTurn(state: GameState, action: string): TurnOutcome {
   };
 }
 
+function florenceMemoryLine(state: GameState): DialogueLine | null {
+  const priorActions = state.timeline
+    .filter((entry) => entry.kind === "decision")
+    .map((entry) => entry.title.replace(/^Ваш ход:\s*/i, ""))
+    .join(" ")
+    .toLowerCase();
+  if (!priorActions) return null;
+  if (/джулиан|подмастер|лекар|отдых|сон|ученик/.test(priorActions)) {
+    return { speaker: "Джулиано", line: "Вы уже сняли меня с лесов, когда это стоило срока. Не отдавайте теперь ту же ночь кому-то молча." };
+  }
+  if (/кардинал|отсроч|аванс|договор|гильди|подпис/.test(priorActions)) {
+    return { speaker: "Лука Орсини", line: "Вы просили, чтобы условия были записаны. Теперь не оставляйте самую дорогую строку без имени." };
+  }
+  if (/отказ|не пуск|закры|пауз|не отвеч|останов|сво(ё|е) услов/.test(priorActions)) {
+    return { speaker: "Бартоломео Риччи", line: "Вы уже выбрали границу. Площадь помнит не слова на ней, а то, что вы отказались переступить." };
+  }
+  if (/смет|пигмент|краск|картон|рассчит|письмен/.test(priorActions)) {
+    return { speaker: "Кардинал Веттори", line: "Вы принесли мне доказательство, а не заверение. Не превращайте его теперь в новую красивую речь." };
+  }
+  return null;
+}
+
 function simulateFlorenceTurn(state: GameState, action: string): TurnOutcome {
   const seed = hash(`${state.id}:${state.turn}:${action}`);
   const value = action.toLowerCase();
@@ -280,9 +302,20 @@ function simulateFlorenceTurn(state: GameState, action: string): TurnOutcome {
     return { id, delta, reason };
   });
 
+  const tone: FlorenceResponseTone = resolution.status === "blocked"
+    ? "blocked"
+    : resolution.status === "conditional"
+      ? "terms"
+      : care
+        ? "care"
+        : agency
+          ? "agency"
+          : "craft";
+  const authoredDialogue = florenceDialogueForTurn(state.turn, tone);
+  const memoryLine = florenceMemoryLine(state);
   const summary = resolution.status === "blocked"
-    ? `Этот приказ не может произойти в нынешних условиях. ${resolution.explanation} ${resolution.requirement}`
-    : `${beat.summary} Ваш ход: «${action}». ${resolution.status === "conditional" ? "Мир не отвергает идею, но переносит её в конкретный торг." : "Мастерская начинает исполнять решение немедленно."}`;
+    ? `${authoredDialogue.narration}\n\nЭтот приказ не может произойти в нынешних условиях. ${resolution.explanation} ${resolution.requirement}`
+    : `${authoredDialogue.narration}\n\nВаш ход: «${action}». ${beat.summary}`;
   const activeCharacterIds = practical || conditional
     ? ["florence-secretary", "florence-guildmaster"]
     : care ? ["florence-juliano"]
@@ -307,6 +340,7 @@ function simulateFlorenceTurn(state: GameState, action: string): TurnOutcome {
       { faction: "Гильдия живописцев", stance: effects.find((effect) => effect.id === "army")!.delta >= 0 ? "поддержка" : "настороженность", text: "Признаёт только те условия, которые можно записать в книгу и предъявить заказчику." },
       { faction: "Дом кардинала", stance: effects.find((effect) => effect.id === "diplomacy")!.delta >= 0 ? "настороженность" : "противодействие", text: "Считает не красоту замысла, а сроки, подписи и право потребовать отчёт." },
     ],
+    sceneDialogue: memoryLine ? [...authoredDialogue.lines, memoryLine] : authoredDialogue.lines,
     nextOptions,
     daysPassed: 1,
     surprise: resolution.status === "blocked" ? null : seed % 4 === 0 ? null : beat.surprise,

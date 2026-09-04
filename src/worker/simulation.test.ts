@@ -4,7 +4,7 @@ import { applyOutcome, simulateTurn } from "./simulation";
 import { gameModes, worldCharacters, worldContextForTurn } from "./world";
 import { campaignActForTurn } from "../shared/campaign";
 import { russia1917CampaignBeatForTurn, russia1917CampaignBeats } from "./scenario-beats";
-import { florenceBeatForTurn } from "./florence";
+import { florenceBeatForTurn, florenceDialogueForTurn } from "./florence";
 import { extractAiText } from "./index";
 
 describe("history simulation", () => {
@@ -64,14 +64,32 @@ describe("history simulation", () => {
     const care = simulateTurn(state, "Отправить Джулиано к лекарю и взять растирку красок на себя");
     expect(care.resolution?.status).toBe("executed");
     expect(care.resolution?.cost).toMatch(/срок|мастерской/i);
+    expect(care.sceneDialogue?.map((line) => line.speaker)).toEqual(["Джулиано", "Лука Орсини"]);
+    expect(care.summary).toMatch(/снимает фартук/i);
+    const afterCare = applyOutcome(state, "Отправить Джулиано к лекарю и взять растирку красок на себя", care);
+    const careContinues = simulateTurn(afterCare, "Пересчитать смету красок и представить гильдии выполнимый план оплаты");
+    expect(careContinues.sceneDialogue?.at(-1)?.line).toMatch(/сняли меня с лесов/i);
 
     const negotiate = simulateTurn(state, "Попросить кардинала принять черновой картон и дать мастерской отсрочку");
     expect(negotiate.resolution?.status).toBe("conditional");
     expect(negotiate.resolution?.requirement).toMatch(/кардинал|подпись|аванс/i);
+    expect(negotiate.sceneDialogue?.[0]?.speaker).toBe("Лука Орсини");
 
     const impossible = simulateTurn(state, "Приказать закончить фреску за час без красок, денег и людей");
     expect(impossible.resolution?.status).toBe("blocked");
     expect(impossible.summary).toMatch(/не может/i);
+    expect(impossible.sceneDialogue).toHaveLength(2);
+  });
+
+  it("gives every Florence pressure point authored dialogue for each response tone", () => {
+    for (let turn = 1; turn <= 6; turn += 1) {
+      for (const tone of ["terms", "care", "agency", "craft", "blocked"] as const) {
+        const exchange = florenceDialogueForTurn(turn, tone);
+        expect(exchange.narration.length).toBeGreaterThan(70);
+        expect(exchange.lines).toHaveLength(2);
+        expect(exchange.lines.every((line) => line.speaker.length > 0 && line.line.length > 30)).toBe(true);
+      }
+    }
   });
 
   it("moves Florence to the next pressure point and ends after six turns", () => {

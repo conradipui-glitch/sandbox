@@ -12,6 +12,8 @@ export interface DecisionOption {
   id: string;
   title: string;
   description: string;
+  /** A character line that frames a prepared move in authored scenarios. */
+  voice?: string;
   risk: "низкий" | "средний" | "высокий";
   intent: string;
 }
@@ -28,6 +30,11 @@ export interface FactionReaction {
   faction: string;
   stance: "поддержка" | "настороженность" | "противодействие";
   text: string;
+}
+
+export interface DialogueLine {
+  speaker: string;
+  line: string;
 }
 
 export interface SceneCue {
@@ -116,6 +123,8 @@ export interface TurnOutcome {
   dispatch: string;
   effects: Array<{ id: MetricId; delta: number; reason: string }>;
   reactions: FactionReaction[];
+  /** Authored character exchange for scenarios that need a dramatic reply, not just a status card. */
+  sceneDialogue?: DialogueLine[];
   nextOptions: DecisionOption[];
   daysPassed: number;
   surprise: string | null;

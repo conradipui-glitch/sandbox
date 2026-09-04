@@ -665,6 +665,7 @@ function DecisionComposer({ options, onSubmit, busy }: { options: DecisionOption
           <button key={option.id} className={selected === option.id ? "picked" : ""} onClick={() => pick(option)}>
             <div><span className={`risk risk-${option.risk}`}>{option.risk}</span><ArrowRight size={15} /></div>
             <strong>{option.title}</strong><p>{option.description}</p>
+            {option.voice && <small className="option-voice">{option.voice}</small>}
           </button>
         ))}
       </div>
@@ -692,9 +693,12 @@ function Outcome({ state }: { state: GameState }) {
       </div>}
       <blockquote>{outcome.dispatch}</blockquote>
       {outcome.surprise && <div className="surprise"><ShieldAlert size={20} /><div><strong>Непредвиденное последствие</strong><p>{outcome.surprise}</p></div></div>}
-      <div className="reaction-grid">
+      {outcome.sceneDialogue?.length ? <div className="scene-dialogue" aria-label="Разговор в сцене">
+        <span>Голоса сцены</span>
+        {outcome.sceneDialogue.map((line, index) => <p key={`${line.speaker}-${index}`}><strong>{line.speaker}:</strong> {line.line}</p>)}
+      </div> : <div className="reaction-grid">
         {outcome.reactions.map((reaction) => <div key={reaction.faction}><span className={`stance stance-${reaction.stance}`}>{reaction.stance}</span><strong>{reaction.faction}</strong><p>{reaction.text}</p></div>)}
-      </div>
+      </div>}
     </section>
   );
 }
