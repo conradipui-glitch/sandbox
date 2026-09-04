@@ -32,6 +32,12 @@ import novikova1917 from "./assets/characters/worker-novikova-1917.webp";
 import vorontsova1917 from "./assets/characters/industrialist-vorontsova-1917.webp";
 import staffCar1917 from "./assets/vehicles/staff-car-1917.webp";
 import freightTrain1917 from "./assets/vehicles/freight-train-1917.webp";
+import florenceWorkshop1512 from "./assets/backgrounds/florence-workshop-1512.webp";
+import florenceGuildhall1512 from "./assets/backgrounds/florence-guildhall-1512.webp";
+import florencePiazza1512 from "./assets/backgrounds/florence-piazza-1512.webp";
+import florenceJuliano1512 from "./assets/characters/florence-juliano-1512.webp";
+import florenceGuildmaster1512 from "./assets/characters/florence-guildmaster-1512.webp";
+import florenceSecretary1512 from "./assets/characters/florence-secretary-1512.webp";
 
 type TextScale = "standard" | "large" | "xlarge";
 
@@ -64,6 +70,15 @@ const sceneCharacterAssets: Record<string, SceneCharacterAsset> = {
   "rail-belyaev": { src: belyaev1917, alt: "Диспетчер Тимофей Беляев с маршрутными бирками", className: "belyaev", defaultSide: "left" },
   "worker-novikova": { src: novikova1917, alt: "Делегатка Анна Новикова с фабричным журналом", className: "worker", defaultSide: "left" },
   "industrialist-vorontsova": { src: vorontsova1917, alt: "Переговорщица Софья Воронцова с техническими чертежами", className: "industrialist", defaultSide: "right" },
+  "florence-juliano": { src: florenceJuliano1512, alt: "Ученик Джулиано с кистью и палитрой", className: "florence-juliano", defaultSide: "left" },
+  "florence-guildmaster": { src: florenceGuildmaster1512, alt: "Старшина флорентийской гильдии с книгой договоров", className: "florence-guildmaster", defaultSide: "right" },
+  "florence-secretary": { src: florenceSecretary1512, alt: "Секретарь кардинала с договором и пером", className: "florence-secretary", defaultSide: "right" },
+};
+
+const florenceBackgroundAssets: Record<string, string> = {
+  "florence-workshop": florenceWorkshop1512,
+  "florence-guildhall": florenceGuildhall1512,
+  "florence-square": florencePiazza1512,
 };
 
 const scenePropLabels: Record<string, string> = {
@@ -493,6 +508,7 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
   const sceneLabels: Record<IntroSlide["scene"], string> = { station: "перрон", telegram: "телеграф", train: "состав", platform: "разговор", departure: "отправление", cabinet: "кабинет" };
   return (
     <div className={`intro-visual intro-visual-${slide.scene} ${florenceStory ? "intro-visual-florence" : ""}`} aria-hidden="true">
+      {florenceStory && <img className="florence-location-background" src={florenceWorkshop1512} alt="" />}
       <div className="intro-visual-grid" />
       <div className="intro-visual-orbit intro-visual-orbit-one" />
       <div className="intro-visual-orbit intro-visual-orbit-two" />
@@ -504,7 +520,7 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
       {showOfficer && <div className="intro-person intro-person-officer"><img src={officer1917} alt="" /></div>}
       {showWorker && <div className="intro-person intro-person-worker"><img src={novikova1917} alt="" /></div>}
       {showIndustrialist && <div className="intro-person intro-person-industrialist"><img src={vorontsova1917} alt="" /></div>}
-      {florenceStory && <div className="florence-intro-still"><i className="florence-fresco" /><i className="florence-scaffold" /><i className="florence-candle" /><i className="florence-figure florence-figure-apprentice" /><i className="florence-figure florence-figure-patron" /></div>}
+      {florenceStory && <div className="intro-person intro-person-florence-juliano"><img src={florenceJuliano1512} alt="" /></div>}
       {!trainStory && slide.scene === "telegram" && <div className="intro-pressure-tags"><span>ФРОНТ</span><span>ЗЕМЛЯ</span><span>ХЛЕБ</span></div>}
       <div className="intro-visual-line" />
       <span className="intro-visual-caption">{trainStory ? "Николаевский вокзал · живая хроника" : florenceStory ? "Флоренция · ночь мастерской" : "Таврический дворец · живая история"}</span>
@@ -809,6 +825,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
   const florenceStory = state.scenarioId === "florence-workshop";
   const rawSceneLocation = state.lastOutcome?.scene.locationId ?? (trainStory ? "nikolaevsky-platform" : florenceStory ? "florence-workshop" : "tauride-cabinet");
   const sceneLocation = normalizeSceneLocation(rawSceneLocation, trainStory, florenceStory);
+  const florenceBackground = florenceStory ? florenceBackgroundAssets[sceneLocation] ?? florenceWorkshop1512 : null;
   const showCar = sceneProps.includes("staff-renault");
   const showTrain = sceneProps.includes("freight-train");
   const modeTitle = modeOptions.find((mode) => mode.id === state.mode)?.title ?? "Кампания";
@@ -825,9 +842,9 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
     "florence-guildhall": "Флоренция · зал гильдии",
     "florence-square": "Флоренция · ночная площадь",
   };
-  const requestedSceneCharacters = florenceStory ? [] : activeCharacters.filter((id) => sceneCharacterAssets[id]);
-  const fallbackSceneCharacter = trainStory ? "rail-belyaev" : "minister-levitsky";
-  const sceneCharacterIds = florenceStory ? [] : (requestedSceneCharacters.length ? requestedSceneCharacters : [fallbackSceneCharacter]).slice(0, 2);
+  const requestedSceneCharacters = activeCharacters.filter((id) => sceneCharacterAssets[id]);
+  const fallbackSceneCharacter = trainStory ? "rail-belyaev" : florenceStory ? "florence-juliano" : "minister-levitsky";
+  const sceneCharacterIds = (requestedSceneCharacters.length ? requestedSceneCharacters : [fallbackSceneCharacter]).slice(0, 2);
   const sceneCharacters = sceneCharacterIds.map((id, index) => {
     const asset = sceneCharacterAssets[id];
     const side = sceneCharacterIds.length === 1 ? asset.defaultSide : index === 0 ? "left" : "right";
@@ -874,13 +891,13 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
 
         <div className="main-stage">
           <section className={`scene-tableau ${stability < 30 ? "scene-unrest" : ""} ${trainStory ? "scene-train-world" : ""} ${florenceStory ? "scene-florence-world" : ""} scene-location-${sceneLocation}`} aria-label={`Живая сцена: ${locationLabel}`}>
+            {florenceBackground && <img className="scene-location-background" src={florenceBackground} alt="" />}
             <div className="scene-grid" />
             <div className="scene-window"><i /><i /><i /></div>
             <div className="scene-map"><span>{florenceStory ? "FIRENZE" : "ПЕТРОГРАД"}</span><i /><i /><i /></div>
             <div className="scene-desk"><span /><span /></div>
             {showCar && <div className="scene-vehicle"><img src={staffCar1917} alt="Штабной автомобиль у входа" /></div>}
             {showTrain && <div className="scene-train"><img src={freightTrain1917} alt="Товарный паровоз у станции" /></div>}
-            {florenceStory && <div className="florence-scene-still" aria-hidden="true"><i className="florence-fresco" /><i className="florence-scaffold" /><i className="florence-candle" /><i className="florence-figure florence-figure-apprentice" /><i className="florence-figure florence-figure-patron" /></div>}
             {sceneCharacters.map(({ id, asset, side }) => (
               <div key={id} className={`scene-character scene-character-${asset.className} scene-slot-${side} ${id === "colonel-argunov" ? `stance-${armyReaction?.stance ?? "настороженность"}` : ""}`} data-character-id={id}>
                 <img src={asset.src} alt={asset.alt} />

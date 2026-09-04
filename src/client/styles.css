@@ -590,6 +590,11 @@ button { color: inherit; }
     linear-gradient(132deg, #d7b573 0%, #b86745 48%, #315f76 100%);
   box-shadow: 0 24px 55px rgba(85, 48, 25, .22);
 }
+.florence-location-background,
+.scene-location-background { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.florence-location-background { z-index: 0; object-position: center; filter: saturate(.9) contrast(.96); }
+.scene-location-background { z-index: 0; object-position: center 48%; filter: saturate(.9) contrast(.96); }
+.intro-person-florence-juliano { z-index: 6; left: 4%; bottom: -14%; height: 108%; filter: saturate(.94) drop-shadow(17px 14px 24px rgba(64,35,20,.46)); animation: intro-person-arrive-left .8s .08s cubic-bezier(.2,.8,.25,1) both; }
 .intro-visual-florence::after { background: linear-gradient(90deg, rgba(64,35,20,.36), transparent 53%), linear-gradient(0deg, rgba(48,31,23,.34), transparent 52%); box-shadow: inset 0 0 65px rgba(73,38,21,.22); }
 .intro-visual-florence .intro-visual-grid { opacity: .16; background-image: linear-gradient(rgba(255,239,201,.25) 1px, transparent 1px), linear-gradient(90deg, rgba(255,239,201,.25) 1px, transparent 1px); }
 .intro-visual-florence .intro-visual-orbit { border-color: rgba(248,221,157,.52); }
@@ -646,13 +651,17 @@ button { color: inherit; }
 .game-shell-florence .scene-caption span { color: #f0bd67; }
 .game-shell-florence .scene-live { border-color: rgba(255,235,193,.4); color: #f2dab0; background: rgba(65,39,24,.58); }
 .game-shell-florence .action-resolution { background: rgba(248,229,189,.58); }
-.scene-florence-world { background: radial-gradient(circle at 74% 14%, rgba(255,238,178,.78), transparent 24%), linear-gradient(132deg, #d5ae68 0%, #b66543 48%, #315f76 100%); }
+.scene-florence-world { background: #8d633f; }
 .scene-florence-world::after { background: linear-gradient(90deg, rgba(63,35,21,.38), transparent 51%), linear-gradient(0deg, rgba(52,33,23,.36), transparent 50%); box-shadow: inset 0 0 60px rgba(77,39,22,.25); }
-.scene-florence-world .scene-window { opacity: .82; border-color: #7e4f2b; background: linear-gradient(#fff0b7, #dd9d55 62%, #8e4d36); box-shadow: 0 0 55px rgba(255,224,147,.48); }
-.scene-florence-world .scene-map { opacity: .52; background: #ddc28c; border-color: rgba(77,46,25,.3); }
-.scene-florence-world .scene-map span { color: #77533a; }
-.scene-florence-world .scene-desk { background: linear-gradient(#895432, #3f2417); }
-.scene-florence-world .scene-grid { opacity: .15; }
+.scene-florence-world .scene-window,
+.scene-florence-world .scene-map,
+.scene-florence-world .scene-desk,
+.scene-florence-world .scene-grid { display: none; }
+.scene-florence-world .scene-character { height: 350px; bottom: -71px; filter: saturate(.94) drop-shadow(16px 14px 23px rgba(55,30,18,.52)); }
+.scene-florence-world .scene-character-florence-guildmaster { height: 365px; }
+.scene-florence-world .scene-character-florence-secretary { height: 355px; }
+.scene-florence-world .scene-character.scene-slot-left { left: -18px; }
+.scene-florence-world .scene-character.scene-slot-right { right: -12px; }
 .scene-location-florence-guildhall { background: radial-gradient(circle at 25% 13%, rgba(255,235,177,.66), transparent 28%), linear-gradient(132deg, #c5a46f, #7b835f 55%, #315a68); }
 .scene-location-florence-square { background: radial-gradient(circle at 70% 13%, rgba(243,177,94,.58), transparent 27%), linear-gradient(132deg, #b75a40, #655a50 53%, #264c62); }
 .action-resolution { margin: 19px 0; padding: 14px 16px; border-left: 2px solid #c8a561; background: rgba(213,169,91,.08); display: grid; gap: 6px; }
@@ -664,3 +673,9 @@ button { color: inherit; }
 .action-resolution-conditional { border-color: #d2b55e; }
 @keyframes florence-flame { 0%,100% { transform: rotate(-5deg) scale(.92); opacity: .78; } 50% { transform: rotate(6deg) scale(1.12); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .florence-candle::before { animation: none; } }
+@media (max-width: 760px) {
+  .intro-person-florence-juliano { left: -8%; height: 104%; }
+  .scene-florence-world .scene-character { height: 282px; bottom: -56px; }
+  .scene-florence-world .scene-character.scene-slot-left { left: -58px; }
+  .scene-florence-world .scene-character.scene-slot-right { right: -58px; }
+}
