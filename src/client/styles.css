@@ -508,3 +508,31 @@ button { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .temporal-particle, .chronometer-mandala .mandala-outer, .chronometer-mandala .mandala-middle, .chronometer-mandala .mandala-inner, .temporal-slot-reel, .temporal-backdrop.is-resolved, .world-thinking-card.is-resolving { animation: none; }
 }
+
+/* Florence prototype: architectural atmosphere before final illustrated assets arrive. */
+.intro-visual-florence { background: radial-gradient(circle at 69% 25%, rgba(214,162,86,.24), transparent 27%), linear-gradient(132deg, #3a231a 0%, #17100d 76%); }
+.intro-visual-florence .intro-visual-orbit { border-color: rgba(220,154,78,.34); }
+.florence-intro-still, .florence-scene-still { position: absolute; inset: 0; z-index: 5; overflow: hidden; pointer-events: none; }
+.florence-fresco { position: absolute; width: 55%; height: 70%; right: 12%; top: 9%; border: 9px solid rgba(204,164,104,.44); border-radius: 47% 47% 7% 7%; background: radial-gradient(circle at 48% 26%, rgba(234,207,151,.54) 0 3%, transparent 3.5%), linear-gradient(150deg, rgba(159,95,55,.76), rgba(55,35,27,.82)); box-shadow: inset 0 0 70px rgba(22,12,9,.8), 0 16px 35px rgba(0,0,0,.45); transform: perspective(700px) rotateY(-7deg); }
+.florence-scaffold { position: absolute; right: 7%; bottom: 9%; width: 58%; height: 67%; opacity: .64; background: linear-gradient(73deg, transparent 46%, rgba(161,116,74,.82) 47% 49%, transparent 50%), linear-gradient(107deg, transparent 46%, rgba(161,116,74,.82) 47% 49%, transparent 50%), repeating-linear-gradient(0deg, transparent 0 22%, rgba(161,116,74,.74) 23% 25%, transparent 26% 47%); border-bottom: 7px solid rgba(112,72,46,.84); }
+.florence-candle { position: absolute; z-index: 3; left: 24%; bottom: 15%; width: 9px; height: 73px; border-radius: 7px; background: linear-gradient(#f4d89a, #8d5534); box-shadow: 0 -17px 23px 10px rgba(239,162,72,.3); }
+.florence-candle::before { content: ""; position: absolute; width: 18px; height: 29px; left: -5px; top: -21px; border-radius: 70% 30% 65% 35%; background: radial-gradient(circle at 40% 75%, #fff4bf 0 17%, #efa94f 31%, transparent 66%); filter: blur(.15px); animation: florence-flame 2.1s ease-in-out infinite; }
+.florence-figure { position: absolute; bottom: 7%; width: 57px; height: 188px; border-radius: 48% 48% 14% 14%; background: linear-gradient(90deg, rgba(12,9,8,.94), rgba(109,61,42,.85)); box-shadow: 0 -44px 0 -15px #21130e, 0 12px 18px rgba(0,0,0,.52); }
+.florence-figure-apprentice { left: 18%; transform: scale(.76); transform-origin: bottom; }
+.florence-figure-patron { right: 18%; height: 216px; background: linear-gradient(90deg, rgba(33,12,12,.97), rgba(134,48,41,.84)); }
+.scene-florence-world { background: radial-gradient(circle at 67% 23%, rgba(222,164,78,.22), transparent 27%), linear-gradient(132deg, #311d16 0%, #120d0b 80%); }
+.scene-florence-world .scene-window { opacity: .45; background: linear-gradient(#e0b165, #71442d 62%, #1e130f); }
+.scene-florence-world .scene-map { opacity: .31; background: #5c3725; }
+.scene-florence-world .scene-desk { background: linear-gradient(#684027, #1a0f0a); }
+.scene-florence-world .scene-grid { opacity: .08; }
+.scene-location-florence-guildhall { background: radial-gradient(circle at 23% 20%, rgba(195,166,113,.19), transparent 31%), linear-gradient(132deg, #2b231c, #100d0b 80%); }
+.scene-location-florence-square { background: radial-gradient(circle at 68% 17%, rgba(201,76,54,.18), transparent 31%), linear-gradient(132deg, #241817, #0e0a0a 80%); }
+.action-resolution { margin: 19px 0; padding: 14px 16px; border-left: 2px solid #c8a561; background: rgba(213,169,91,.08); display: grid; gap: 6px; }
+.action-resolution > span { color: #d9b96d; font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.action-resolution strong { color: #e8dcc8; font-size: 13px; line-height: 1.45; }
+.action-resolution p, .action-resolution small { margin: 0; color: #b8ac9a; font-size: 12px; line-height: 1.5; }
+.action-resolution-blocked { border-color: #c9574a; background: rgba(201,76,54,.1); }
+.action-resolution-blocked > span { color: #e18072; }
+.action-resolution-conditional { border-color: #d2b55e; }
+@keyframes florence-flame { 0%,100% { transform: rotate(-5deg) scale(.92); opacity: .78; } 50% { transform: rotate(6deg) scale(1.12); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .florence-candle::before { animation: none; } }
