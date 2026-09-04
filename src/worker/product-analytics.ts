@@ -1,4 +1,4 @@
-import type { ActionSource, GameMode, ModelUsage, ProductAnalyticsDay, ProductAnalyticsOverview } from "../shared/types";
+import type { ActionResolution, ActionSource, GameMode, ModelUsage, ProductAnalyticsDay, ProductAnalyticsOverview } from "../shared/types";
 
 const schemaVersion = 1 as const;
 const retentionDays = 35;
@@ -14,6 +14,7 @@ export interface ProductAnalyticsEvent {
   provider?: "deepseek" | "cloudflare" | "simulation";
   usage?: ModelUsage;
   resolutionMs?: number;
+  resolutionStatus?: ActionResolution["status"];
   statusAfterTurn?: "active" | "collapsed" | "victory";
 }
 
