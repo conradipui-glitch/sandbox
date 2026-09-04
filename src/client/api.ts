@@ -1,4 +1,4 @@
-import type { GameMode, GameState, ScenarioSummary, SessionAnalyticsSummary, TurnSubmission } from "../shared/types";
+import type { GameMode, GameState, ProductAnalyticsOverview, ScenarioSummary, SessionAnalyticsSummary, TurnSubmission } from "../shared/types";
 
 const visitorStorageKey = "living-history-anonymous-visitor";
 
@@ -26,6 +26,7 @@ export const api = {
     request<GameState>("/api/games", { method: "POST", body: JSON.stringify({ scenarioId, mode, visitorId: anonymousVisitorId() }) }),
   getGame: (id: string) => request<GameState>(`/api/games/${id}`, { headers: { "x-lh-visitor-id": anonymousVisitorId() } }),
   getGameMetrics: (id: string) => request<SessionAnalyticsSummary>(`/api/games/${id}/metrics`),
+  analyticsOverview: (token: string) => request<ProductAnalyticsOverview>("/api/analytics/overview", { headers: { "x-lh-analytics-token": token } }),
   playTurn: (id: string, submission: TurnSubmission) =>
     request<GameState>(`/api/games/${id}/turn`, {
       method: "POST",

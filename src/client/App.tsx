@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   BookOpen,
   ChevronRight,
   Clock3,
@@ -11,13 +12,15 @@ import {
   Landmark,
   LoaderCircle,
   Radio,
+  RefreshCw,
   RotateCcw,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   Volume2,
   VolumeX,
 } from "lucide-react";
-import type { DecisionOption, GameMode, GameState, ScenarioSummary, TurnSubmission } from "../shared/types";
+import type { DecisionOption, GameMode, GameState, ProductAnalyticsOverview, ScenarioSummary, TurnSubmission } from "../shared/types";
 import { campaignActForTurn } from "../shared/campaign";
 import { api } from "./api";
 import minister1917 from "./assets/characters/minister-1917.webp";
@@ -882,7 +885,88 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
   );
 }
 
-export default function App() {
+function percentage(numerator: number, denominator: number): string {
+  return denominator > 0 ? `${Math.round((numerator / denominator) * 100)}%` : "—";
+}
+
+function shortAnalyticsDay(day: string): string {
+  return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "short", timeZone: "UTC" }).format(new Date(`${day}T00:00:00.000Z`));
+}
+
+function AnalyticsMetric({ label, value, detail }: { label: string; value: string | number; detail: string }) {
+  return <article className="analytics-metric"><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>;
+}
+
+function AnalyticsDashboard() {
+  const [token, setToken] = useState(() => sessionStorage.getItem("living-history-analytics-token") ?? "");
+  const [draftToken, setDraftToken] = useState(() => sessionStorage.getItem("living-history-analytics-token") ?? "");
+  const [overview, setOverview] = useState<ProductAnalyticsOverview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const loadOverview = async (accessToken = token) => {
+    if (!accessToken.trim()) return;
+    setLoading(true); setError(null);
+    try {
+      const result = await api.analyticsOverview(accessToken.trim());
+      sessionStorage.setItem("living-history-analytics-token", accessToken.trim());
+      setToken(accessToken.trim());
+      setOverview(result);
+    } catch (cause) {
+      setOverview(null);
+      setError(cause instanceof Error ? cause.message : "Не удалось загрузить отчёт");
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { if (token) void loadOverview(token); }, []);
+
+  const latest = overview?.days.at(-1);
+  const totals = overview?.totals;
+  const recentDays = overview?.days.slice(-14) ?? [];
+  const maxActions = Math.max(1, ...recentDays.map((day) => day.meaningfulActions));
+  const averageResolution = totals && totals.resolutionCount > 0 ? Math.round(totals.resolutionMsTotal / totals.resolutionCount) : 0;
+
+  return (
+    <main className="analytics-page shell">
+      <nav className="topbar">
+        <a className="brand analytics-back" href="/"><Seal>ИИ</Seal><span>Переиграть историю</span></a>
+        <div className="topbar-note"><ShieldCheck size={15} /> Внутренний продуктовый обзор</div>
+      </nav>
+      <section className="analytics-hero">
+        <div><div className="eyebrow"><span>PRODUCT ANALYTICS · V1</span><i /></div><h1>Поведение до<br /><em>следующей гипотезы.</em></h1><p>Считаются только подтверждённые сервером игровые ходы. Данные накапливаются с момента включения общего агрегатора.</p></div>
+        <div className="analytics-access">
+          <label htmlFor="analytics-token">Токен команды</label>
+          <form onSubmit={(event) => { event.preventDefault(); void loadOverview(draftToken); }}>
+            <input id="analytics-token" type="password" value={draftToken} onChange={(event) => setDraftToken(event.target.value)} placeholder="ANALYTICS_DASHBOARD_TOKEN" autoComplete="current-password" />
+            <button type="submit" disabled={loading || !draftToken.trim()}>{loading ? <RefreshCw className="spin" size={17} /> : <BarChart3 size={17} />} Открыть</button>
+          </form>
+          <small>Токен хранится только до закрытия вкладки.</small>
+        </div>
+      </section>
+
+      {error && <section className="analytics-message"><ShieldAlert size={19} /><div><strong>Отчёт пока недоступен</strong><p>{error}</p>{error.includes("ANALYTICS_DASHBOARD_TOKEN") && <p>Добавь этот секрет в Cloudflare Worker — после этого тот же экран станет доступен без нового релиза.</p>}</div></section>}
+
+      {overview && totals && latest && <>
+        <section className="analytics-meta"><span>Период: {overview.firstDataDay ? shortAnalyticsDay(overview.firstDataDay) : "—"} — {overview.lastDataDay ? shortAnalyticsDay(overview.lastDataDay) : "—"}</span><span>Обновлено: {new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(overview.generatedAt))}</span><button onClick={() => void loadOverview()} disabled={loading}>{loading ? <RefreshCw className="spin" size={14} /> : <RefreshCw size={14} />} Обновить</button></section>
+        <section className="analytics-grid">
+          <AnalyticsMetric label="DAU" value={latest.activatedVisitors} detail={`игроков с ходом · ${shortAnalyticsDay(latest.day)}`} />
+          <AnalyticsMetric label="Действий / игрока" value={latest.activatedVisitors ? (latest.meaningfulActions / latest.activatedVisitors).toFixed(1) : "—"} detail="подтверждённые ходы за день" />
+          <AnalyticsMetric label="D1" value={percentage(overview.d1ReturnedVisitors, overview.d1EligibleVisitors)} detail={`${overview.d1ReturnedVisitors} из ${overview.d1EligibleVisitors} доступных когорт`} />
+          <AnalyticsMetric label="Завершение" value={percentage(totals.finishedSessions, totals.startedSessions)} detail={`${totals.finishedSessions} финалов из ${totals.startedSessions} стартов`} />
+          <AnalyticsMetric label="Средний ход" value={averageResolution ? `${(averageResolution / 1000).toFixed(1)} с` : "—"} detail="полное время ответа мира" />
+          <AnalyticsMetric label="Fallback" value={percentage(totals.simulationTurns, totals.meaningfulActions)} detail={`${totals.simulationTurns} из ${totals.meaningfulActions} ходов`} />
+        </section>
+        <section className="analytics-panels">
+          <article className="analytics-panel analytics-panel-wide"><div className="analytics-panel-heading"><div><span className="index">01</span><h2>Темп осмысленных действий</h2></div><p>Последние {recentDays.length} дней</p></div><div className="analytics-chart">{recentDays.map((day) => <div className="analytics-bar" key={day.day}><i style={{ height: `${Math.max(4, (day.meaningfulActions / maxActions) * 100)}%` }} title={`${day.meaningfulActions} действий`} /><strong>{day.meaningfulActions}</strong><span>{shortAnalyticsDay(day.day)}</span></div>)}</div></article>
+          <article className="analytics-panel"><div className="analytics-panel-heading"><div><span className="index">02</span><h2>Качество и цена</h2></div></div><dl className="analytics-breakdown"><div><dt>Свободные ходы</dt><dd>{percentage(totals.freeformActions, totals.meaningfulActions)}</dd></div><div><dt>Готовые варианты</dt><dd>{percentage(totals.preparedActions, totals.meaningfulActions)}</dd></div><div><dt>AI-ходы</dt><dd>{totals.aiTurns}</dd></div><div><dt>Всего токенов</dt><dd>{totals.totalTokens.toLocaleString("ru-RU")}</dd></div><div><dt>Макс. задержка</dt><dd>{totals.maxResolutionMs ? `${(totals.maxResolutionMs / 1000).toFixed(1)} с` : "—"}</dd></div></dl></article>
+        </section>
+        <section className="analytics-panel analytics-table-panel"><div className="analytics-panel-heading"><div><span className="index">03</span><h2>Дневная детализация</h2></div><p>DAU — только игроки, сделавшие хотя бы один ход</p></div><div className="analytics-table-wrap"><table><thead><tr><th>День</th><th>DAU</th><th>Ходы</th><th>Ходов / игрока</th><th>AI / fallback</th><th>Токены</th><th>Средний ход</th></tr></thead><tbody>{[...recentDays].reverse().map((day) => <tr key={day.day}><td>{shortAnalyticsDay(day.day)}</td><td>{day.activatedVisitors}</td><td>{day.meaningfulActions}</td><td>{day.activatedVisitors ? (day.meaningfulActions / day.activatedVisitors).toFixed(1) : "—"}</td><td>{day.aiTurns} / {day.simulationTurns}</td><td>{day.totalTokens.toLocaleString("ru-RU")}</td><td>{day.resolutionCount ? `${(day.resolutionMsTotal / day.resolutionCount / 1000).toFixed(1)} с` : "—"}</td></tr>)}</tbody></table></div></section>
+      </>}
+    </main>
+  );
+}
+
+function GameApp() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>(fallbackScenarios);
   const [game, setGame] = useState<GameState | null>(null);
   const [intro, setIntro] = useState<{ scenarioId: string; mode: GameMode } | null>(null);
@@ -966,4 +1050,8 @@ export default function App() {
   [game, intro, scenarios, busy, textScale, musicMuted, activeTrack]);
 
   return <div className={`app-root text-scale-${textScale}`} onPointerDown={unlockMusic}><audio ref={audioRef} src={activeTrack.src} preload="auto" aria-hidden="true" />{content}{error && <div className="error-toast"><ShieldAlert size={18} /><span>{error}</span><button onClick={() => setError(null)}>×</button></div>}</div>;
+}
+
+export default function App() {
+  return window.location.pathname === "/analytics" ? <AnalyticsDashboard /> : <GameApp />;
 }
