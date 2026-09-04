@@ -44,6 +44,31 @@ export interface ModelUsage {
   totalTokens: number;
 }
 
+export type ActionSource = "prepared" | "freeform";
+
+export interface TurnSubmission {
+  action: string;
+  source: ActionSource;
+  optionId?: string;
+}
+
+export interface SessionAnalyticsSummary {
+  schemaVersion: 1;
+  startedAt: string;
+  lastActiveAt: string;
+  activeDays: string[];
+  meaningfulActions: number;
+  preparedActions: number;
+  freeformActions: number;
+  aiTurns: number;
+  simulationTurns: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  averageResolutionMs: number;
+  maxResolutionMs: number;
+}
+
 export interface TurnOutcome {
   headline: string;
   summary: string;

@@ -17,7 +17,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import type { DecisionOption, GameMode, GameState, ScenarioSummary } from "../shared/types";
+import type { DecisionOption, GameMode, GameState, ScenarioSummary, TurnSubmission } from "../shared/types";
 import { campaignActForTurn } from "../shared/campaign";
 import { api } from "./api";
 import minister1917 from "./assets/characters/minister-1917.webp";
@@ -574,7 +574,7 @@ function MetricGauge({ value, trend, label }: { value: number; trend: number; la
   );
 }
 
-function DecisionComposer({ options, onSubmit, busy }: { options: DecisionOption[]; onSubmit: (value: string) => void; busy: boolean }) {
+function DecisionComposer({ options, onSubmit, busy }: { options: DecisionOption[]; onSubmit: (submission: TurnSubmission) => void; busy: boolean }) {
   const [text, setText] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -602,8 +602,8 @@ function DecisionComposer({ options, onSubmit, busy }: { options: DecisionOption
         ))}
       </div>
       <div className="freeform">
-        <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Или отдайте собственный приказ: что именно вы делаете, с кем договариваетесь, чем готовы рискнуть…" maxLength={700} />
-        <div className="composer-footer"><span>{text.length}/700 · мир ответит последствиями</span><button disabled={busy || text.trim().length < 4} onClick={() => onSubmit(text)}>{busy ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />} Разыграть ход</button></div>
+        <textarea value={text} onChange={(event) => { setText(event.target.value); setSelected(null); }} placeholder="Или отдайте собственный приказ: что именно вы делаете, с кем договариваетесь, чем готовы рискнуть…" maxLength={700} />
+        <div className="composer-footer"><span>{text.length}/700 · мир ответит последствиями</span><button disabled={busy || text.trim().length < 4} onClick={() => onSubmit({ action: text, source: selected ? "prepared" : "freeform", optionId: selected ?? undefined })}>{busy ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />} Разыграть ход</button></div>
       </div>
     </section>
   );
@@ -771,7 +771,7 @@ function WorldThinking({ date }: { date: string }) {
   );
 }
 
-function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { state: GameState; onTurn: (action: string) => void; onExit: () => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
+function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { state: GameState; onTurn: (submission: TurnSubmission) => void; onExit: () => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
   const stability = state.metrics.find((metric) => metric.id === "stability")?.value ?? 50;
   const armyReaction = state.lastOutcome?.reactions.find((reaction) => reaction.faction.includes("Став"));
   const activeCharacters = (state.lastOutcome?.scene.activeCharacterIds ?? []).map(normalizeSceneCharacter);
@@ -912,11 +912,11 @@ export default function App() {
     finally { setBusy(false); }
   };
 
-  const playTurn = async (action: string) => {
+  const playTurn = async (submission: TurnSubmission) => {
     if (!game) return;
     setBusy(true); setError(null);
     try {
-      const nextState = await api.playTurn(game.id, action);
+      const nextState = await api.playTurn(game.id, submission);
       setGame(nextState);
       await new Promise<void>((resolve) => window.setTimeout(resolve, 360));
     }

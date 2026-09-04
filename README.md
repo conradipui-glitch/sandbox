@@ -6,7 +6,7 @@
   <img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare-Workers-C94C36?style=flat-square&logo=cloudflare&logoColor=F4EBDD" />
   <img alt="Workers AI" src="https://img.shields.io/badge/Workers_AI-GLM--4.7--Flash-1A1815?style=flat-square" />
   <img alt="React" src="https://img.shields.io/badge/React-TypeScript-B3A889?style=flat-square&logo=react&logoColor=1A1815" />
-  <img alt="Tests" src="https://img.shields.io/badge/tests-9_passed-556B55?style=flat-square" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-13_passed-556B55?style=flat-square" />
 </p>
 
 <p align="center">
@@ -129,6 +129,7 @@ Workers AI моделирует основной ход. Если модель �
 - [x] Cloudflare Workers AI и Durable Objects bindings;
 - [x] адаптивный интерфейс;
 - [x] production-сборка и автоматические тесты;
+- [x] базовая продуктовая аналитика подтверждённых ходов, источника решения, задержки, AI/fallback и токенов;
 - [x] первый пакет персонажей и сцен: министр, офицер, журналистка-автокурьер, диспетчер, поезд и штабной автомобиль;
 - [x] три режима: хроника, кампания и открытая песочница;
 - [x] библия мира из 12 озвучиваемых персонажей и системных микросцен;
@@ -164,6 +165,20 @@ npm run deploy
 ```
 
 Bindings `AI`, `HISTORY_SESSIONS` и `ASSETS` уже описаны в `wrangler.jsonc`. Секреты, локальные переменные и Cloudflare-ключи исключены из Git. Push в `main` запускает тесты, сборку и автоматический деплой через GitHub Actions.
+
+## 08 · Базовые продуктовые метрики
+
+Одно **осмысленное действие** — один ход, который сервер успешно разыграл и сохранил. Открытие экранов, выбор карточки без отправки, повтор idempotency-запроса и неуспешная генерация не увеличивают счётчик.
+
+Для каждой игровой сессии Durable Object хранит:
+
+- число подтверждённых действий и разделение на готовые / свободно сформулированные;
+- AI-ходы и срабатывания локального причинного симулятора;
+- входные, выходные и общие токены;
+- среднее и максимальное время полного разрешения хода;
+- активные UTC-дни для проверки возвращения к этой ветке истории.
+
+Сводка доступна по `GET /api/games/:id/metrics`. В Cloudflare observability отправляются структурированные события `session_started`, `session_opened` и `meaningful_action_completed`. Текст приказа и другие пользовательские тексты в эти события не попадают; для связи сессий используется только случайный идентификатор браузера. Полноценный D1 рассчитывается позднее агрегацией событий по этому идентификатору, а не по одному сохранению игры.
 
 ---
 
