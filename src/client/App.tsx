@@ -249,10 +249,27 @@ const musicTracks = {
   intrigue: { src: "/audio/music-08-intrigue-surveillance.mp3", title: "Стол землемера", loop: true },
   reveal: { src: "/audio/music-09-decision-reveal.mp3", title: "Закрывая книгу", loop: false },
   finale: { src: "/audio/music-10-fragile-victory.mp3", title: "Последняя телеграмма", loop: true },
+  florenceThreshold: { src: "/audio/music-11-florence-threshold.mp3", title: "Пыль в солнечном луче", loop: true },
+  florenceWorkshop: { src: "/audio/music-12-florence-workshop-night.mp3", title: "Ночь мастерской", loop: true },
+  florenceGuildhall: { src: "/audio/music-13-florence-guildhall.mp3", title: "Книга гильдии", loop: true },
+  florenceDeadline: { src: "/audio/music-14-florence-deadline.mp3", title: "Колокола до рассвета", loop: true },
+  florenceReveal: { src: "/audio/music-15-florence-decision-reveal.mp3", title: "Цена подписи", loop: false },
+  florenceFinale: { src: "/audio/music-16-florence-dawn-finale.mp3", title: "Свет на фреске", loop: true },
 } satisfies Record<string, MusicTrack>;
 
-function selectMusic(game: GameState | null, busy: boolean): MusicTrack {
-  if (!game) return musicTracks.menu;
+function selectMusic(game: GameState | null, busy: boolean, introScenarioId?: string): MusicTrack {
+  if (!game) return introScenarioId === "florence-workshop" ? musicTracks.florenceThreshold : musicTracks.menu;
+
+  if (game.scenarioId === "florence-workshop") {
+    if (busy) return musicTracks.florenceReveal;
+    if (game.status !== "active") return musicTracks.florenceFinale;
+
+    const location = game.lastOutcome?.scene.locationId;
+    if (location === "florence-guildhall") return musicTracks.florenceGuildhall;
+    if (location === "florence-square" || game.turn >= 4) return musicTracks.florenceDeadline;
+    return musicTracks.florenceWorkshop;
+  }
+
   if (busy) return musicTracks.reveal;
   if (game.status !== "active") return musicTracks.finale;
 
@@ -1069,7 +1086,7 @@ function GameApp() {
     setTextScale(value);
     localStorage.setItem("living-history-text-scale", value);
   };
-  const activeTrack = useMemo(() => selectMusic(game, busy), [game, busy]);
+  const activeTrack = useMemo(() => selectMusic(game, busy, intro?.scenarioId), [game, busy, intro?.scenarioId]);
   const toggleMusic = () => {
     const nextMuted = !musicMuted;
     setMusicMuted(nextMuted);
