@@ -3,6 +3,7 @@ import { createInitialState } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
 import { gameModes, worldCharacters, worldContextForTurn } from "./world";
 import { campaignActForTurn } from "../shared/campaign";
+import { russia1917CampaignBeatForTurn, russia1917CampaignBeats } from "./scenario-beats";
 import { extractAiText } from "./index";
 
 describe("history simulation", () => {
@@ -67,6 +68,9 @@ describe("history simulation", () => {
   });
 
   it("guides the long campaign with an act question and human-scale fallback beat", () => {
+    expect(russia1917CampaignBeats).toHaveLength(8);
+    expect(russia1917CampaignBeatForTurn(1).headline).toBe("Мандат попросили показать вслух");
+    expect(russia1917CampaignBeatForTurn(27).headline).toBe("Институт пережил кабинет");
     expect(campaignActForTurn(1).number).toBe(1);
     expect(campaignActForTurn(8).number).toBe(2);
     expect(campaignActForTurn(17).number).toBe(3);
