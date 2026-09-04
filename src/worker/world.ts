@@ -236,6 +236,62 @@ export const worldCharacters: WorldCharacter[] = [
     triggers: ["автономия", "язык", "границы", "федерация", "армейские части региона"],
     relations: ["союзничает с Левицким по процедуре", "спорит с Аргуновым", "делится документами с Ветровой"],
   },
+  {
+    id: "florence-juliano",
+    name: "Джулиано Белли",
+    age: 19,
+    role: "подмастерье",
+    allegiance: "мастерская и собственное ремесло",
+    appearance: "рубашка в синей пыли, перевязанная кисть, следы краски на пальцах",
+    publicMask: "старательный ученик, который всегда успеет",
+    privateDrive: "не стать расходным материалом чужой славы",
+    fear: "что признание слабости лишит его будущего в мастерской",
+    voice: "говорит тихо и конкретно; сначала спрашивает о работе, потом о себе",
+    triggers: ["ночная работа", "лекарь", "вина", "подпись"],
+    relations: ["уважает мастера", "боится гильдии", "доверяет ученикам"],
+  },
+  {
+    id: "florence-guildmaster",
+    name: "Бартоломео Риччи",
+    age: 58,
+    role: "старший гильдии живописцев",
+    allegiance: "правила цеха и его репутация",
+    appearance: "тёмный суконный плащ, латунные очки, книга взносов под рукой",
+    publicMask: "ровный хранитель порядка",
+    privateDrive: "не дать одному заказу превратить правила гильдии в пустой звук",
+    fear: "что влиятельные дома будут покупать исключения напрямую",
+    voice: "говорит формулами договоров; уступку всегда называет исключением",
+    triggers: ["взнос", "договор", "репутация", "срок"],
+    relations: ["должен кардиналу услугу", "не доверяет секретарю", "ценит хорошую работу"],
+  },
+  {
+    id: "florence-secretary",
+    name: "Лука Орсини",
+    age: 37,
+    role: "секретарь дома кардинала",
+    allegiance: "интересы заказчика",
+    appearance: "чёрный камзол, тонкая цепь с печатью, сухие чернила на манжете",
+    publicMask: "учтивый посредник",
+    privateDrive: "закрыть заказ без скандала и показать кардиналу управляемый результат",
+    fear: "выйти из переговоров без подписи и без объяснения",
+    voice: "вежливо сужает разговор до срока, подписи и суммы",
+    triggers: ["аванс", "подпись", "кардинал", "отсрочка"],
+    relations: ["давит на гильдию через заказ", "не считает Джулиано стороной договора", "боится публичной сцены"],
+  },
+  {
+    id: "florence-cardinal",
+    name: "кардинал Веттори",
+    age: 49,
+    role: "заказчик росписи",
+    allegiance: "дом, репутация и публичный результат",
+    appearance: "тёмно-алый плащ, перстень с печатью, дорожная пыль на подоле",
+    publicMask: "покровитель искусств",
+    privateDrive: "получить фреску вовремя и без истории о слабости своего дома",
+    fear: "стать посмешищем площади из-за сорванного заказа",
+    voice: "говорит мягко, пока не слышит слова «нет»; затем оставляет только условие",
+    triggers: ["публичность", "срок", "подпись", "отказ"],
+    relations: ["держит гильдию заказами", "доверяет Луке", "не замечает цену учеников"],
+  },
 ];
 
 export const worldEntities: WorldEntity[] = [
@@ -259,6 +315,14 @@ export const worldEntities: WorldEntity[] = [
   { id: "station-telegraph-office", kind: "background", title: "телеграфная комната", function: "показывает, кто владеет исходной информацией и кто может её переписать" },
   { id: "freight-carriage", kind: "background", title: "товарный вагон", function: "сводит людей, груз и тесноту в один физический выбор" },
   { id: "station-yard", kind: "background", title: "стрелка у станции", function: "материализует цену задержки, маршрута и чужого состава" },
+  { id: "florence-cartoon", kind: "prop", title: "черновой картон", function: "показывает то, что можно честно предъявить до завершения фрески" },
+  { id: "florence-pigment", kind: "prop", title: "дорогой синий пигмент", function: "связывает качество работы с деньгами, сроком и проверкой материала" },
+  { id: "florence-ledger", kind: "prop", title: "книга взносов", function: "фиксирует долг, обещание и право гильдии требовать объяснение" },
+  { id: "florence-contract", kind: "prop", title: "договор с домом кардинала", function: "превращает разговор о вкусе в срок, подпись и ответственность" },
+  { id: "florence-seal", kind: "prop", title: "печать заказчика", function: "делает встречное условие публично исполнимым или публично опасным" },
+  { id: "florence-workshop", kind: "background", title: "мастерская под фреской", function: "соединяет работу, здоровье людей и авторский контроль" },
+  { id: "florence-guildhall", kind: "background", title: "зал гильдии", function: "делает правила, долги и исключения видимыми" },
+  { id: "florence-square", kind: "background", title: "ночная площадь", function: "превращает слух о частном заказе в публичную репутацию" },
 ];
 
 export const microEncounters: MicroEncounter[] = [
@@ -282,6 +346,25 @@ function weakestMetric(state: GameState): MetricId {
 
 export function worldContextForTurn(state: GameState, action: string) {
   const weak = weakestMetric(state);
+  if (state.scenarioId === "florence-workshop") {
+    const ids = new Set(["florence-juliano"]);
+    if (/кардинал|аванс|подпис|договор|отсроч/i.test(action)) ids.add("florence-secretary");
+    if (/гильди|смет|долг|взнос/i.test(action)) ids.add("florence-guildmaster");
+    if (/отказ|публич|не пуск/i.test(action) || state.turn >= 4) ids.add("florence-cardinal");
+    return {
+      mode: gameModes.chronicle,
+      act: "Флоренция · ночь мастерской",
+      weakestMetric: weak,
+      cast: [...ids].slice(0, 4).map((id) => characterById.get(id)),
+      entityPool: worldEntities.filter((entity) => ["florence-cartoon", "florence-pigment", "florence-ledger", "florence-contract", "florence-seal", "florence-workshop", "florence-guildhall", "florence-square"].includes(entity.id)),
+      microEncounters: [],
+      contract: [
+        "Это камерная хроника о ремесле под давлением: срок, договор, здоровье людей и право на авторскую работу.",
+        "Нет морально правильного решения. Есть исполнимость, согласие другой стороны и цена, которую несут конкретные люди.",
+        "Нельзя создать материалы, время или согласие из воздуха. Отказ и пауза — полноценные ходы с последствиями.",
+      ],
+    };
+  }
   if (state.scenarioId === "last-train-1917") {
     const ids = new Set(["rail-belyaev"]);
     if (/телег|список|публик|маршрут|тайн/i.test(action) || state.turn >= 2) ids.add("lidia-vetrova");
