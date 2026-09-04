@@ -1,4 +1,5 @@
 import type { DecisionOption, GameMode, GameState, Metric } from "../shared/types";
+import { createFlorenceState } from "./florence";
 
 const initialOptions: DecisionOption[] = [
   {
@@ -25,6 +26,16 @@ const initialOptions: DecisionOption[] = [
 ];
 
 export const scenarioSummaries = [
+  {
+    id: "florence-workshop",
+    title: "Флоренция: Мастерская под давлением",
+    period: "1512 · Флоренция",
+    role: "Мастер городской мастерской",
+    hook: "Кардинал требует роспись до заката. Подмастерье болен, гильдия ждёт взнос, а деньги предлагают ценой вашей подписи.",
+    difficulty: "Доступно",
+    accent: "#ba7650",
+    available: true,
+  },
   {
     id: "last-train-1917",
     title: "Последний поезд из Петрограда",
@@ -146,6 +157,7 @@ function createLastTrainState(id: string, now: string): GameState {
 export function createInitialState(id: string, scenarioId: string, mode: GameMode = "campaign"): GameState {
   const now = new Date().toISOString();
   if (scenarioId === "last-train-1917") return createLastTrainState(id, now);
+  if (scenarioId === "florence-workshop") return createFlorenceState(id, now);
   if (scenarioId !== "russia-1917") {
     throw new Error("Этот сценарий ещё не открыт");
   }
