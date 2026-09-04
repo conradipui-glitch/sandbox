@@ -384,7 +384,7 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
   };
 
   return (
-    <main className="landing shell">
+    <main className={`landing shell ${selected === "florence-workshop" ? "landing-florence" : ""}`}>
       <nav className="topbar">
         <div className="brand"><Seal>ИИ</Seal><span>Переиграть историю</span></div>
         <div className="topbar-tools">
