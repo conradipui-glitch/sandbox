@@ -127,12 +127,23 @@ const sceneCharacterAliases: Record<string, string> = {
   industrialist: "industrialist-vorontsova",
 };
 
+const knownSceneLocations = new Set([
+  "nikolaevsky-platform",
+  "station-telegraph-office",
+  "freight-carriage",
+  "station-yard",
+  "muddy-station",
+  "factory-yard",
+  "tauride-cabinet",
+  "florence-workshop",
+  "florence-guildhall",
+  "florence-square",
+]);
+
 function normalizeSceneLocation(id: string, trainStory: boolean, florenceStory = false): string {
   const normalized = sceneLocationAliases[id] ?? id;
-  if (normalized === id && !sceneLocationAliases[id]) {
-    return trainStory ? "nikolaevsky-platform" : florenceStory ? "florence-workshop" : "tauride-cabinet";
-  }
-  return normalized;
+  if (knownSceneLocations.has(normalized)) return normalized;
+  return trainStory ? "nikolaevsky-platform" : florenceStory ? "florence-workshop" : "tauride-cabinet";
 }
 
 function normalizeSceneCharacter(id: string): string {

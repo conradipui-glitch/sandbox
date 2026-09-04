@@ -4,6 +4,7 @@ import { applyOutcome, simulateTurn } from "./simulation";
 import { gameModes, worldCharacters, worldContextForTurn } from "./world";
 import { campaignActForTurn } from "../shared/campaign";
 import { russia1917CampaignBeatForTurn, russia1917CampaignBeats } from "./scenario-beats";
+import { florenceBeatForTurn } from "./florence";
 import { extractAiText } from "./index";
 
 describe("history simulation", () => {
@@ -71,6 +72,27 @@ describe("history simulation", () => {
     const impossible = simulateTurn(state, "Приказать закончить фреску за час без красок, денег и людей");
     expect(impossible.resolution?.status).toBe("blocked");
     expect(impossible.summary).toMatch(/не может/i);
+  });
+
+  it("moves Florence to the next pressure point and ends after six turns", () => {
+    const first = createInitialState("florence-sequence", "florence-workshop", "chronicle");
+    const firstAction = "Показать кардиналу черновой картон и запросить отсрочку до утра";
+    const firstOutcome = simulateTurn(first, firstAction);
+    const second = applyOutcome(first, firstAction, firstOutcome);
+    expect(second.options.map((option) => option.title)).toEqual(florenceBeatForTurn(2).options.map((option) => option.title));
+
+    const blockedAction = "Закончить фреску за час без красок, денег и людей";
+    const blockedOutcome = simulateTurn(first, blockedAction);
+    const blocked = applyOutcome(first, blockedAction, blockedOutcome);
+    expect(blocked.options.map((option) => option.title)).toEqual(florenceBeatForTurn(1).options.map((option) => option.title));
+
+    let state = first;
+    for (let turn = 0; turn < 6; turn += 1) {
+      const action = "Проверить пигмент на картоне и записать реальный объём работы";
+      state = applyOutcome(state, action, simulateTurn(state, action));
+    }
+    expect(state.status).toBe("victory");
+    expect(state.turn).toBe(7);
   });
 
   it("keeps the scene contract grounded in the world state", () => {

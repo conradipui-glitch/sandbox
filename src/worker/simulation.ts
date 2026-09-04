@@ -288,7 +288,11 @@ function simulateFlorenceTurn(state: GameState, action: string): TurnOutcome {
     : care ? ["florence-juliano"]
       : agency ? ["florence-cardinal", "florence-juliano"]
         : beat.activeCharacterIds;
-  const nextOptions = beat.options.map((option) => ({ ...option, id: `${option.id}-${state.turn}` }));
+  // A completed turn advances to the next pressure point. A blocked order is
+  // different: the player needs another chance to change the facts that made
+  // it impossible, rather than being silently moved past that constraint.
+  const nextBeat = resolution.status === "blocked" ? beat : florenceBeatForTurn(state.turn + 1);
+  const nextOptions = nextBeat.options.map((option) => ({ ...option, id: `${option.id}-${state.turn}` }));
 
   return {
     headline: resolution.status === "blocked" ? "Мастерская остановила невозможный приказ" : beat.headline,
@@ -429,7 +433,7 @@ export function applyOutcome(state: GameState, action: string, outcome: TurnOutc
     return { ...metric, value: Math.max(0, Math.min(100, metric.value + delta)), trend: delta };
   });
   const weakest = Math.min(...metrics.map((metric) => metric.value));
-  const turnLimit = gameModes[state.mode].turnLimit;
+  const turnLimit = state.scenarioId === "florence-workshop" ? 6 : gameModes[state.mode].turnLimit;
   const status = state.mode === "sandbox"
     ? "active"
     : weakest <= 2
