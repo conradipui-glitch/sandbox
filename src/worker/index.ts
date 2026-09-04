@@ -180,6 +180,10 @@ function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: Tur
 
 async function generateOutcome(env: Env, state: GameState, action: string): Promise<TurnOutcome> {
   const fallback = simulateTurn(state, action);
+  // The Florence slice is testing deterministic feasibility before we let a model
+  // elaborate the prose. This prevents a fluent answer from silently overriding
+  // an established fact, a missing resource, or a required agreement.
+  if (state.scenarioId === "florence-workshop") return fallback;
   const compactState = {
     mode: state.mode,
     date: state.date,
@@ -378,6 +382,7 @@ export class HistorySession implements DurableObject {
         inputTokens: outcome.usage?.inputTokens ?? 0,
         outputTokens: outcome.usage?.outputTokens ?? 0,
         totalTokens: outcome.usage?.totalTokens ?? 0,
+        resolutionStatus: outcome.resolution?.status ?? null,
         meaningfulActions: analytics.meaningfulActions,
         statusAfterTurn: state.status,
       });
@@ -392,6 +397,7 @@ export class HistorySession implements DurableObject {
         provider,
         usage: outcome.usage,
         resolutionMs,
+        resolutionStatus: outcome.resolution?.status,
         statusAfterTurn: state.status,
       });
       return json(state);
