@@ -510,6 +510,51 @@ button { color: inherit; }
 }
 
 /* Florence prototype: sunlit Renaissance workshop palette before final illustrated assets arrive. */
+.landing-florence {
+  --red: #a4442f;
+  --line: rgba(77, 49, 28, .2);
+  --muted: #745f49;
+  color: #352217;
+  background:
+    linear-gradient(rgba(121,77,39,.05) 1px, transparent 1px),
+    radial-gradient(circle at 78% 13%, rgba(244,196,99,.38), transparent 29%),
+    linear-gradient(135deg, #ead9b7, #d2b181 70%, #bd825b);
+  background-size: 42px 42px, auto, auto;
+  transition: color .35s ease, background .45s ease;
+}
+.landing-florence .topbar,
+.landing-florence .hero { border-color: rgba(77,49,28,.2); }
+.landing-florence .topbar-note,
+.landing-florence .lead,
+.landing-florence .section-heading p,
+.landing-florence .scenario-card p,
+.landing-florence .scenario-meta,
+.landing-florence .launch-brief { color: #6e5843; }
+.landing-florence .hero h1,
+.landing-florence .section-heading h2,
+.landing-florence .scenario-card h3,
+.landing-florence .mode-picker strong { color: #352217; }
+.landing-florence .promise-row { color: #59412f; }
+.landing-florence .hero-art { border-color: rgba(77,49,28,.2); background: radial-gradient(circle at 54% 44%, rgba(255,239,190,.5), transparent 39%); }
+.landing-florence .hero-art::after { opacity: .45; }
+.landing-florence .map-lines { stroke: rgba(68,86,76,.34); }
+.landing-florence .orbit { border-color: rgba(164,68,47,.42); }
+.landing-florence .orbit-two { border-color: rgba(49,95,118,.35); }
+.landing-florence .year { color: #503827; }
+.landing-florence .year-b { color: #786149; }
+.landing-florence .artifact-card { background: #f3e5c5; box-shadow: 0 18px 45px rgba(81,46,25,.22); }
+.landing-florence .scenario-grid { background: rgba(244,226,190,.3); }
+.landing-florence .scenario-card:hover,
+.landing-florence .scenario-card.selected { background: rgba(255,244,215,.52); }
+.landing-florence .card-number { color: rgba(74,45,27,.1); }
+.landing-florence .mode-picker button { background: rgba(239,218,179,.7); }
+.landing-florence .mode-picker button:hover { background: rgba(249,234,202,.88); border-color: rgba(77,49,28,.38); box-shadow: 0 13px 28px rgba(76,43,23,.15); }
+.landing-florence .mode-picker button.selected { border-color: rgba(164,68,47,.68); background: rgba(247,225,182,.94); box-shadow: 0 15px 36px rgba(76,43,23,.18), inset 0 -2px rgba(164,68,47,.52); }
+.landing-florence .mode-picker small { color: #725d47; }
+.landing-florence .music-toggle,
+.landing-florence .text-scale-control { border-color: rgba(77,49,28,.28); background: rgba(255,248,230,.28); color: #5d4937; }
+.landing-florence .world-portal-card { box-shadow: 0 16px 38px rgba(58,54,38,.16); }
+
 .intro-deck-florence {
   --red: #a4442f;
   --line: rgba(77, 49, 28, .2);
