@@ -514,6 +514,7 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
 
 function IntroDeck({ scenarioId, mode, onCancel, onBegin, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { scenarioId: string; mode: GameMode; onCancel: () => void; onBegin: () => void; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
   const slides = introSlidesFor(scenarioId);
+  const florenceStory = scenarioId === "florence-workshop";
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState(0);
   const modeTitle = modeOptions.find((item) => item.id === mode)?.title ?? "Хроника";
@@ -545,7 +546,7 @@ function IntroDeck({ scenarioId, mode, onCancel, onBegin, textScale, onTextScale
   };
 
   return (
-    <main className="intro-deck">
+    <main className={`intro-deck ${florenceStory ? "intro-deck-florence" : ""}`}>
       <header className="intro-header">
         <button type="button" className="intro-back" onClick={onCancel}><ArrowLeft size={18} /> К выбору истории</button>
         <div className="intro-identity"><Seal>ИИ</Seal><div><span>Вводная хроника</span><small>{modeTitle} · {active + 1} из {slides.length}</small></div></div>
@@ -853,7 +854,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
     ? state.briefing
     : state.lastOutcome?.nextBriefing ?? `Прошло ${state.lastOutcome?.daysPassed ?? 7} дней. Решение вышло из кабинета и теперь проверяется исполнением на местах.`;
   return (
-    <main className="game-shell">
+    <main className={`game-shell ${florenceStory ? "game-shell-florence" : ""}`}>
       <header className="game-header">
         <button className="icon-button" onClick={onExit} title="К сценариям"><ArrowLeft size={19} /></button>
         <div className="game-identity"><Seal>ИИ</Seal><div><span>{state.scenarioTitle}</span><small>{state.role} · {modeTitle}</small></div></div>
