@@ -69,6 +69,38 @@ export interface SessionAnalyticsSummary {
   maxResolutionMs: number;
 }
 
+export interface ProductAnalyticsDay {
+  day: string;
+  uniqueVisitors: number;
+  activatedVisitors: number;
+  newVisitors: number;
+  startedSessions: number;
+  finishedSessions: number;
+  meaningfulActions: number;
+  preparedActions: number;
+  freeformActions: number;
+  aiTurns: number;
+  simulationTurns: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  resolutionMsTotal: number;
+  resolutionCount: number;
+  maxResolutionMs: number;
+  d1ReturnedVisitors: number;
+}
+
+export interface ProductAnalyticsOverview {
+  schemaVersion: 1;
+  generatedAt: string;
+  firstDataDay: string | null;
+  lastDataDay: string | null;
+  days: ProductAnalyticsDay[];
+  totals: Omit<ProductAnalyticsDay, "day">;
+  d1EligibleVisitors: number;
+  d1ReturnedVisitors: number;
+}
+
 export interface TurnOutcome {
   headline: string;
   summary: string;

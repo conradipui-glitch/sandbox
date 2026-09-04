@@ -1,6 +1,7 @@
 import type { ActionSource, DecisionOption, GameMode, GameState, MetricId, SceneCue, TurnOutcome } from "../shared/types";
 import { campaignActForTurn } from "../shared/campaign";
 import { createSessionAnalytics, normalizeVisitorId, publicAnalytics, recordSuccessfulTurn, registerSessionOpen, type SessionAnalytics } from "./analytics";
+import { type ProductAnalyticsEvent } from "./product-analytics";
 import { createInitialState, scenarioSummaries } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
 import { gameModes, microEncounters, worldCharacters, worldContextForTurn, worldEntities } from "./world";
@@ -12,8 +13,10 @@ const validAmbientIds = new Set(microEncounters.map((encounter) => encounter.id)
 interface Env {
   AI: Ai;
   HISTORY_SESSIONS: DurableObjectNamespace;
+  PRODUCT_ANALYTICS: DurableObjectNamespace;
   ASSETS: Fetcher;
   DEEPSEEK_API_KEY?: string;
+  ANALYTICS_DASHBOARD_TOKEN?: string;
 }
 
 interface StoredGame {
@@ -258,6 +261,17 @@ export class HistorySession implements DurableObject {
     return (await this.ctx.storage.get<StoredGame>("game")) ?? null;
   }
 
+  private recordProductEvent(event: ProductAnalyticsEvent) {
+    const analytics = this.env.PRODUCT_ANALYTICS.get(this.env.PRODUCT_ANALYTICS.idFromName("global"));
+    this.ctx.waitUntil(
+      analytics.fetch("https://analytics/record", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(event),
+      }).catch((error) => console.warn("Product analytics aggregation skipped", error instanceof Error ? error.message : error)),
+    );
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/create") {
@@ -272,6 +286,14 @@ export class HistorySession implements DurableObject {
       logProductEvent("session_started", {
         sessionId: state.id,
         visitorId: analytics.anonymousVisitorId,
+        scenarioId: state.scenarioId,
+        mode: state.mode,
+      });
+      this.recordProductEvent({
+        type: "session_started",
+        occurredAt: state.createdAt,
+        visitorId: analytics.anonymousVisitorId,
+        sessionId: state.id,
         scenarioId: state.scenarioId,
         mode: state.mode,
       });
@@ -295,6 +317,14 @@ export class HistorySession implements DurableObject {
           mode: stored.state.mode,
           activeDayCount: analytics.activeDays.length,
           returnedOnLaterDay: analytics.activeDays.length > 1,
+        });
+        this.recordProductEvent({
+          type: "session_opened",
+          occurredAt,
+          visitorId: analytics.anonymousVisitorId,
+          sessionId: stored.state.id,
+          scenarioId: stored.state.scenarioId,
+          mode: stored.state.mode,
         });
       }
       return json(stored.state);
@@ -351,6 +381,19 @@ export class HistorySession implements DurableObject {
         meaningfulActions: analytics.meaningfulActions,
         statusAfterTurn: state.status,
       });
+      this.recordProductEvent({
+        type: "meaningful_action_completed",
+        occurredAt: state.updatedAt,
+        visitorId: analytics.anonymousVisitorId,
+        sessionId: state.id,
+        scenarioId: state.scenarioId,
+        mode: state.mode,
+        source: actionSource,
+        provider,
+        usage: outcome.usage,
+        resolutionMs,
+        statusAfterTurn: state.status,
+      });
       return json(state);
     }
 
@@ -369,6 +412,13 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     });
   }
   if (request.method === "GET" && url.pathname === "/api/scenarios") return json(scenarioSummaries);
+  if (request.method === "GET" && url.pathname === "/api/analytics/overview") {
+    const analytics = env.PRODUCT_ANALYTICS.get(env.PRODUCT_ANALYTICS.idFromName("global"));
+    const token = request.headers.get("x-lh-analytics-token");
+    return analytics.fetch("https://analytics/overview", {
+      headers: token ? { "x-lh-analytics-token": token } : undefined,
+    });
+  }
 
   if (request.method === "POST" && url.pathname === "/api/games") {
     const body = (await request.json().catch(() => ({}))) as { scenarioId?: string; mode?: GameMode; visitorId?: unknown };
@@ -413,3 +463,5 @@ export default {
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;
+
+export { ProductAnalytics } from "./product-analytics";
