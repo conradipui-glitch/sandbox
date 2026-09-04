@@ -54,6 +54,25 @@ describe("history simulation", () => {
     expect(next.status).toBe("active");
   });
 
+  it("opens the Florence prototype and distinguishes executable, conditional and impossible freeform moves", () => {
+    const state = createInitialState("florence-1", "florence-workshop", "campaign");
+    expect(state.mode).toBe("chronicle");
+    expect(state.scenarioTitle).toContain("Флоренция");
+    expect(state.role).toContain("мастерской");
+
+    const care = simulateTurn(state, "Отправить Джулиано к лекарю и взять растирку красок на себя");
+    expect(care.resolution?.status).toBe("executed");
+    expect(care.resolution?.cost).toMatch(/срок|мастерской/i);
+
+    const negotiate = simulateTurn(state, "Попросить кардинала принять черновой картон и дать мастерской отсрочку");
+    expect(negotiate.resolution?.status).toBe("conditional");
+    expect(negotiate.resolution?.requirement).toMatch(/кардинал|подпись|аванс/i);
+
+    const impossible = simulateTurn(state, "Приказать закончить фреску за час без красок, денег и людей");
+    expect(impossible.resolution?.status).toBe("blocked");
+    expect(impossible.summary).toMatch(/не может/i);
+  });
+
   it("keeps the scene contract grounded in the world state", () => {
     const train = createInitialState("train-scene-1", "last-train-1917", "chronicle");
     const trainWorld = worldContextForTurn(train, "Показать список раненых и вызвать телеграфиста");
