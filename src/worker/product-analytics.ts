@@ -30,9 +30,7 @@ interface VisitorAnalyticsState {
   returnedOnD1: boolean;
 }
 
-interface AnalyticsEnv {
-  ANALYTICS_DASHBOARD_TOKEN?: string;
-}
+interface AnalyticsEnv {}
 
 const dayFrom = (isoDate: string) => isoDate.slice(0, 10);
 
@@ -210,11 +208,6 @@ export class ProductAnalytics implements DurableObject {
       return new Response(null, { status: 204 });
     }
     if (request.method === "GET" && url.pathname === "/overview") {
-      const expectedToken = this.env.ANALYTICS_DASHBOARD_TOKEN;
-      if (!expectedToken) return Response.json({ error: "Дашборд ещё не настроен: добавьте секрет ANALYTICS_DASHBOARD_TOKEN." }, { status: 503 });
-      if (request.headers.get("x-lh-analytics-token") !== expectedToken) {
-        return Response.json({ error: "Нужен действующий токен доступа к дашборду." }, { status: 401 });
-      }
       const state = await this.ctx.storage.get<AnalyticsState>("overview");
       return Response.json(overviewFromState(state, new Date().toISOString()), { headers: { "cache-control": "no-store" } });
     }
