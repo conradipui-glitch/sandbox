@@ -44,6 +44,13 @@ export interface ModelUsage {
   totalTokens: number;
 }
 
+export interface ActionResolution {
+  status: "executed" | "conditional" | "blocked";
+  explanation: string;
+  requirement?: string;
+  cost: string;
+}
+
 export type ActionSource = "prepared" | "freeform";
 
 export interface TurnSubmission {
@@ -116,6 +123,7 @@ export interface TurnOutcome {
   source: "ai" | "simulation";
   provider?: "deepseek" | "cloudflare" | "simulation";
   usage?: ModelUsage;
+  resolution?: ActionResolution;
 }
 
 export interface GameState {
