@@ -413,11 +413,15 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   }
   if (request.method === "GET" && url.pathname === "/api/scenarios") return json(scenarioSummaries);
   if (request.method === "GET" && url.pathname === "/api/analytics/overview") {
+    const expectedToken = env.ANALYTICS_DASHBOARD_TOKEN;
+    if (!expectedToken) {
+      return Response.json({ error: "Дашборд ещё не настроен: добавьте секрет ANALYTICS_DASHBOARD_TOKEN." }, { status: 503 });
+    }
+    if (request.headers.get("x-lh-analytics-token") !== expectedToken) {
+      return Response.json({ error: "Нужен действующий токен доступа к дашборду." }, { status: 401 });
+    }
     const analytics = env.PRODUCT_ANALYTICS.get(env.PRODUCT_ANALYTICS.idFromName("global"));
-    const token = request.headers.get("x-lh-analytics-token");
-    return analytics.fetch("https://analytics/overview", {
-      headers: token ? { "x-lh-analytics-token": token } : undefined,
-    });
+    return analytics.fetch("https://analytics/overview");
   }
 
   if (request.method === "POST" && url.pathname === "/api/games") {
