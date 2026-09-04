@@ -1,5 +1,6 @@
-import type { DecisionOption, GameMode, GameState, MetricId, SceneCue, TurnOutcome } from "../shared/types";
+import type { ActionSource, DecisionOption, GameMode, GameState, MetricId, SceneCue, TurnOutcome } from "../shared/types";
 import { campaignActForTurn } from "../shared/campaign";
+import { createSessionAnalytics, normalizeVisitorId, publicAnalytics, recordSuccessfulTurn, registerSessionOpen, type SessionAnalytics } from "./analytics";
 import { createInitialState, scenarioSummaries } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
 import { gameModes, microEncounters, worldCharacters, worldContextForTurn, worldEntities } from "./world";
@@ -18,6 +19,7 @@ interface Env {
 interface StoredGame {
   state: GameState;
   processedKeys: Record<string, GameState>;
+  analytics?: SessionAnalytics;
 }
 
 const json = (data: unknown, status = 200) =>
@@ -36,6 +38,25 @@ function errorResponse(message: string, status = 400) {
 function cleanAction(value: unknown): string {
   if (typeof value !== "string") return "";
   return value.replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim().slice(0, 700);
+}
+
+function cleanOptionId(value: unknown): string | null {
+  return typeof value === "string" && /^[a-z0-9-]{2,80}$/i.test(value) ? value : null;
+}
+
+function resolveActionSource(state: GameState, action: string, requestedSource: unknown, optionId: string | null): ActionSource {
+  if (requestedSource !== "prepared" || !optionId) return "freeform";
+  const option = state.options.find((item) => item.id === optionId);
+  if (!option) return "freeform";
+  const preparedActions = [
+    cleanAction(option.intent),
+    cleanAction(`${option.title}: ${option.description}`),
+  ].filter(Boolean);
+  return preparedActions.includes(action) ? "prepared" : "freeform";
+}
+
+function logProductEvent(event: string, data: Record<string, unknown>) {
+  console.log(JSON.stringify({ category: "product_analytics", schemaVersion: 1, event, ...data }));
 }
 
 function parseAiJson(text: string): Partial<TurnOutcome> | null {
@@ -240,23 +261,54 @@ export class HistorySession implements DurableObject {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/create") {
-      const body = (await request.json()) as { id?: string; scenarioId?: string; mode?: GameMode };
+      const body = (await request.json()) as { id?: string; scenarioId?: string; mode?: GameMode; visitorId?: unknown };
       if (!body.id) return errorResponse("Не передан идентификатор сессии");
       const existing = await this.getStored();
       if (existing) return json(existing.state);
       const mode = body.mode && body.mode in gameModes ? body.mode : "campaign";
       const state = createInitialState(body.id, body.scenarioId ?? "russia-1917", mode);
-      await this.ctx.storage.put("game", { state, processedKeys: {} } satisfies StoredGame);
+      const analytics = createSessionAnalytics(normalizeVisitorId(body.visitorId), state.createdAt);
+      await this.ctx.storage.put("game", { state, processedKeys: {}, analytics } satisfies StoredGame);
+      logProductEvent("session_started", {
+        sessionId: state.id,
+        visitorId: analytics.anonymousVisitorId,
+        scenarioId: state.scenarioId,
+        mode: state.mode,
+      });
       return json(state, 201);
     }
 
     if (request.method === "GET" && url.pathname === "/state") {
       const stored = await this.getStored();
-      return stored ? json(stored.state) : errorResponse("Сессия не найдена", 404);
+      if (!stored) return errorResponse("Сессия не найдена", 404);
+      const occurredAt = new Date().toISOString();
+      const visitorId = normalizeVisitorId(request.headers.get("x-lh-visitor-id"));
+      const previousDayCount = stored.analytics?.activeDays.length ?? 0;
+      const baseAnalytics = stored.analytics ?? createSessionAnalytics(visitorId, stored.state.createdAt);
+      const analytics = registerSessionOpen(baseAnalytics, visitorId, occurredAt);
+      await this.ctx.storage.put("game", { ...stored, analytics } satisfies StoredGame);
+      if (!stored.analytics || analytics.activeDays.length > previousDayCount) {
+        logProductEvent("session_opened", {
+          sessionId: stored.state.id,
+          visitorId: analytics.anonymousVisitorId,
+          scenarioId: stored.state.scenarioId,
+          mode: stored.state.mode,
+          activeDayCount: analytics.activeDays.length,
+          returnedOnLaterDay: analytics.activeDays.length > 1,
+        });
+      }
+      return json(stored.state);
+    }
+
+    if (request.method === "GET" && url.pathname === "/metrics") {
+      const stored = await this.getStored();
+      if (!stored) return errorResponse("Сессия не найдена", 404);
+      const analytics = stored.analytics ?? createSessionAnalytics(null, stored.state.createdAt);
+      return json(publicAnalytics(analytics));
     }
 
     if (request.method === "POST" && url.pathname === "/turn") {
-      const body = (await request.json()) as { action?: unknown; idempotencyKey?: unknown };
+      const body = (await request.json()) as { action?: unknown; idempotencyKey?: unknown; source?: unknown; optionId?: unknown; visitorId?: unknown };
       const action = cleanAction(body.action);
       const key = typeof body.idempotencyKey === "string" ? body.idempotencyKey.slice(0, 80) : "";
       if (action.length < 4) return errorResponse("Опишите решение хотя бы несколькими словами");
@@ -265,11 +317,40 @@ export class HistorySession implements DurableObject {
       if (key && stored.processedKeys[key]) return json(stored.processedKeys[key]);
       if (stored.state.status !== "active") return errorResponse("Эта ветка истории уже завершена", 409);
 
+      const startedAt = Date.now();
+      const visitorId = normalizeVisitorId(body.visitorId);
+      const actionSource = resolveActionSource(stored.state, action, body.source, cleanOptionId(body.optionId));
       const outcome = await generateOutcome(this.env, stored.state, action);
       const state = applyOutcome(stored.state, action, outcome);
       const processedKeys = key ? { ...stored.processedKeys, [key]: state } : stored.processedKeys;
       const trimmedKeys = Object.fromEntries(Object.entries(processedKeys).slice(-10));
-      await this.ctx.storage.put("game", { state, processedKeys: trimmedKeys } satisfies StoredGame);
+      const baseAnalytics = stored.analytics ?? createSessionAnalytics(visitorId, stored.state.createdAt);
+      const openedAnalytics = registerSessionOpen(baseAnalytics, visitorId, state.updatedAt);
+      const provider = outcome.provider ?? "simulation";
+      const resolutionMs = Date.now() - startedAt;
+      const analytics = recordSuccessfulTurn(openedAnalytics, {
+        source: actionSource,
+        provider,
+        usage: outcome.usage,
+        resolutionMs,
+        occurredAt: state.updatedAt,
+      });
+      await this.ctx.storage.put("game", { state, processedKeys: trimmedKeys, analytics } satisfies StoredGame);
+      logProductEvent("meaningful_action_completed", {
+        sessionId: state.id,
+        visitorId: analytics.anonymousVisitorId,
+        scenarioId: state.scenarioId,
+        mode: state.mode,
+        turn: state.turn - 1,
+        source: actionSource,
+        provider,
+        resolutionMs,
+        inputTokens: outcome.usage?.inputTokens ?? 0,
+        outputTokens: outcome.usage?.outputTokens ?? 0,
+        totalTokens: outcome.usage?.totalTokens ?? 0,
+        meaningfulActions: analytics.meaningfulActions,
+        statusAfterTurn: state.status,
+      });
       return json(state);
     }
 
@@ -290,21 +371,25 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET" && url.pathname === "/api/scenarios") return json(scenarioSummaries);
 
   if (request.method === "POST" && url.pathname === "/api/games") {
-    const body = (await request.json().catch(() => ({}))) as { scenarioId?: string; mode?: GameMode };
+    const body = (await request.json().catch(() => ({}))) as { scenarioId?: string; mode?: GameMode; visitorId?: unknown };
     const id = crypto.randomUUID();
     const stub = env.HISTORY_SESSIONS.get(env.HISTORY_SESSIONS.idFromName(id));
     return stub.fetch("https://session/create", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id, scenarioId: body.scenarioId ?? "russia-1917", mode: body.mode ?? "campaign" }),
+      body: JSON.stringify({ id, scenarioId: body.scenarioId ?? "russia-1917", mode: body.mode ?? "campaign", visitorId: body.visitorId }),
     });
   }
 
-  const match = url.pathname.match(/^\/api\/games\/([0-9a-f-]+)(?:\/(turn))?$/i);
+  const match = url.pathname.match(/^\/api\/games\/([0-9a-f-]+)(?:\/(turn|metrics))?$/i);
   if (match) {
     const [, id, action] = match;
     const stub = env.HISTORY_SESSIONS.get(env.HISTORY_SESSIONS.idFromName(id));
-    if (request.method === "GET" && !action) return stub.fetch("https://session/state");
+    if (request.method === "GET" && !action) {
+      const visitorId = request.headers.get("x-lh-visitor-id");
+      return stub.fetch("https://session/state", { headers: visitorId ? { "x-lh-visitor-id": visitorId } : undefined });
+    }
+    if (request.method === "GET" && action === "metrics") return stub.fetch("https://session/metrics");
     if (request.method === "POST" && action === "turn") {
       const body = await request.text();
       return stub.fetch("https://session/turn", { method: "POST", headers: { "content-type": "application/json" }, body });
