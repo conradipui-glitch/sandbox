@@ -509,24 +509,107 @@ button { color: inherit; }
   .temporal-particle, .chronometer-mandala .mandala-outer, .chronometer-mandala .mandala-middle, .chronometer-mandala .mandala-inner, .temporal-slot-reel, .temporal-backdrop.is-resolved, .world-thinking-card.is-resolving { animation: none; }
 }
 
-/* Florence prototype: architectural atmosphere before final illustrated assets arrive. */
-.intro-visual-florence { background: radial-gradient(circle at 69% 25%, rgba(214,162,86,.24), transparent 27%), linear-gradient(132deg, #3a231a 0%, #17100d 76%); }
-.intro-visual-florence .intro-visual-orbit { border-color: rgba(220,154,78,.34); }
+/* Florence prototype: sunlit Renaissance workshop palette before final illustrated assets arrive. */
+.intro-deck-florence {
+  --red: #a4442f;
+  --line: rgba(77, 49, 28, .2);
+  --muted: #745f49;
+  color: #352217;
+  background:
+    linear-gradient(rgba(121, 77, 39, .055) 1px, transparent 1px),
+    radial-gradient(circle at 78% 26%, rgba(221, 165, 72, .33), transparent 32%),
+    linear-gradient(135deg, #ead9b7, #cda878 68%, #b57a55);
+  background-size: 42px 42px, auto, auto;
+}
+.intro-deck-florence .intro-header,
+.intro-deck-florence .intro-footer { background: rgba(238, 220, 184, .9); border-color: rgba(77, 49, 28, .2); backdrop-filter: blur(12px); }
+.intro-deck-florence .intro-back,
+.intro-deck-florence .intro-identity small,
+.intro-deck-florence .intro-skip { color: #745f49; }
+.intro-deck-florence .intro-back:hover,
+.intro-deck-florence .intro-skip:hover { color: #352217; }
+.intro-deck-florence .intro-slide h1 { color: #352217; text-shadow: 0 1px rgba(255,255,255,.25); }
+.intro-deck-florence .intro-slide p { color: #5f4b38; }
+.intro-deck-florence .intro-slide-note { color: #654b36; }
+.intro-deck-florence .intro-slide-count { color: #8b402d; }
+.intro-deck-florence .text-scale-control,
+.intro-deck-florence .music-toggle { border-color: rgba(77,49,28,.28); background: rgba(255,248,230,.28); color: #5d4937; }
+.intro-deck-florence .intro-arrow { border-color: rgba(77,49,28,.3); color: #513b2b; background: rgba(255,248,230,.22); }
+.intro-deck-florence .intro-next { border-color: rgba(137,56,39,.55); background: #a4442f; color: #fff4df; }
+.intro-deck-florence .intro-progress { background: rgba(77,49,28,.13); }
+.intro-deck-florence .intro-progress i { background: linear-gradient(90deg, #a4442f, #c78e37, #315f76); }
+.intro-visual-florence {
+  border-color: rgba(75, 44, 25, .28);
+  background:
+    radial-gradient(circle at 75% 16%, rgba(255, 238, 179, .86), transparent 24%),
+    linear-gradient(132deg, #d7b573 0%, #b86745 48%, #315f76 100%);
+  box-shadow: 0 24px 55px rgba(85, 48, 25, .22);
+}
+.intro-visual-florence::after { background: linear-gradient(90deg, rgba(64,35,20,.36), transparent 53%), linear-gradient(0deg, rgba(48,31,23,.34), transparent 52%); box-shadow: inset 0 0 65px rgba(73,38,21,.22); }
+.intro-visual-florence .intro-visual-grid { opacity: .16; background-image: linear-gradient(rgba(255,239,201,.25) 1px, transparent 1px), linear-gradient(90deg, rgba(255,239,201,.25) 1px, transparent 1px); }
+.intro-visual-florence .intro-visual-orbit { border-color: rgba(248,221,157,.52); }
 .florence-intro-still, .florence-scene-still { position: absolute; inset: 0; z-index: 5; overflow: hidden; pointer-events: none; }
-.florence-fresco { position: absolute; width: 55%; height: 70%; right: 12%; top: 9%; border: 9px solid rgba(204,164,104,.44); border-radius: 47% 47% 7% 7%; background: radial-gradient(circle at 48% 26%, rgba(234,207,151,.54) 0 3%, transparent 3.5%), linear-gradient(150deg, rgba(159,95,55,.76), rgba(55,35,27,.82)); box-shadow: inset 0 0 70px rgba(22,12,9,.8), 0 16px 35px rgba(0,0,0,.45); transform: perspective(700px) rotateY(-7deg); }
+.florence-fresco { position: absolute; width: 55%; height: 70%; right: 12%; top: 9%; border: 9px solid rgba(126,77,37,.64); border-radius: 47% 47% 7% 7%; background: radial-gradient(circle at 48% 26%, rgba(251,229,169,.75) 0 3%, transparent 3.5%), radial-gradient(circle at 52% 42%, rgba(58,105,116,.66), transparent 23%), linear-gradient(150deg, #d49a61, #9f563e 58%, #426d6a); box-shadow: inset 0 0 55px rgba(77,38,22,.36), 0 16px 35px rgba(67,36,20,.28); transform: perspective(700px) rotateY(-7deg); }
 .florence-scaffold { position: absolute; right: 7%; bottom: 9%; width: 58%; height: 67%; opacity: .64; background: linear-gradient(73deg, transparent 46%, rgba(161,116,74,.82) 47% 49%, transparent 50%), linear-gradient(107deg, transparent 46%, rgba(161,116,74,.82) 47% 49%, transparent 50%), repeating-linear-gradient(0deg, transparent 0 22%, rgba(161,116,74,.74) 23% 25%, transparent 26% 47%); border-bottom: 7px solid rgba(112,72,46,.84); }
 .florence-candle { position: absolute; z-index: 3; left: 24%; bottom: 15%; width: 9px; height: 73px; border-radius: 7px; background: linear-gradient(#f4d89a, #8d5534); box-shadow: 0 -17px 23px 10px rgba(239,162,72,.3); }
 .florence-candle::before { content: ""; position: absolute; width: 18px; height: 29px; left: -5px; top: -21px; border-radius: 70% 30% 65% 35%; background: radial-gradient(circle at 40% 75%, #fff4bf 0 17%, #efa94f 31%, transparent 66%); filter: blur(.15px); animation: florence-flame 2.1s ease-in-out infinite; }
-.florence-figure { position: absolute; bottom: 7%; width: 57px; height: 188px; border-radius: 48% 48% 14% 14%; background: linear-gradient(90deg, rgba(12,9,8,.94), rgba(109,61,42,.85)); box-shadow: 0 -44px 0 -15px #21130e, 0 12px 18px rgba(0,0,0,.52); }
+.florence-figure { position: absolute; bottom: 7%; width: 57px; height: 188px; border-radius: 48% 48% 14% 14%; background: linear-gradient(90deg, #315f76, #78947d); box-shadow: 0 -44px 0 -15px #4a2b1d, 0 12px 18px rgba(69,37,20,.38); }
 .florence-figure-apprentice { left: 18%; transform: scale(.76); transform-origin: bottom; }
-.florence-figure-patron { right: 18%; height: 216px; background: linear-gradient(90deg, rgba(33,12,12,.97), rgba(134,48,41,.84)); }
-.scene-florence-world { background: radial-gradient(circle at 67% 23%, rgba(222,164,78,.22), transparent 27%), linear-gradient(132deg, #311d16 0%, #120d0b 80%); }
-.scene-florence-world .scene-window { opacity: .45; background: linear-gradient(#e0b165, #71442d 62%, #1e130f); }
-.scene-florence-world .scene-map { opacity: .31; background: #5c3725; }
-.scene-florence-world .scene-desk { background: linear-gradient(#684027, #1a0f0a); }
-.scene-florence-world .scene-grid { opacity: .08; }
-.scene-location-florence-guildhall { background: radial-gradient(circle at 23% 20%, rgba(195,166,113,.19), transparent 31%), linear-gradient(132deg, #2b231c, #100d0b 80%); }
-.scene-location-florence-square { background: radial-gradient(circle at 68% 17%, rgba(201,76,54,.18), transparent 31%), linear-gradient(132deg, #241817, #0e0a0a 80%); }
+.florence-figure-patron { right: 18%; height: 216px; background: linear-gradient(90deg, #71392d, #b75b3e); }
+.game-shell-florence {
+  --red: #a4442f;
+  --line: rgba(79, 48, 27, .2);
+  --muted: #705a44;
+  color: #352217;
+  background: radial-gradient(circle at 60% 2%, rgba(255,243,198,.72), transparent 30%), #d8bd91;
+}
+.game-shell-florence .game-header { background: rgba(235,216,178,.94); border-color: rgba(79,48,27,.2); color: #352217; }
+.game-shell-florence .game-identity small,
+.game-shell-florence .game-date { color: #725943; }
+.game-shell-florence .game-date b { background: rgba(164,68,47,.13); color: #8d3b2b; }
+.game-shell-florence .icon-button { border-color: rgba(79,48,27,.2); }
+.game-shell-florence .icon-button:hover { background: rgba(255,247,225,.34); }
+.game-shell-florence .state-rail,
+.game-shell-florence .chronicle { background: rgba(197,166,119,.72); border-color: rgba(79,48,27,.2); }
+.game-shell-florence .main-stage { background: linear-gradient(90deg, rgba(246,231,198,.48), rgba(222,193,146,.34)); }
+.game-shell-florence .rail-heading,
+.game-shell-florence .metric-top strong,
+.game-shell-florence .faction strong,
+.game-shell-florence .panel-title span,
+.game-shell-florence .decision-options strong,
+.game-shell-florence .timeline-entry strong { color: #46301f; }
+.game-shell-florence .metric-top,
+.game-shell-florence .faction span,
+.game-shell-florence .decision-options p,
+.game-shell-florence .timeline-entry p,
+.game-shell-florence .timeline-entry time,
+.game-shell-florence .panel-title small { color: #715b45; }
+.game-shell-florence .metric-track { background: rgba(76,48,29,.18); }
+.game-shell-florence .metric-track i { background: linear-gradient(90deg, #426f69, #315f76); }
+.game-shell-florence .objective { border-color: rgba(164,68,47,.34); background: rgba(248,229,189,.4); }
+.game-shell-florence .objective p { color: #644d39; }
+.game-shell-florence .briefing h1 { color: #3c271a; }
+.game-shell-florence .briefing p { color: #664f3b; }
+.game-shell-florence .decision-options button { background: rgba(248,232,199,.34); }
+.game-shell-florence .decision-options button:hover,
+.game-shell-florence .decision-options button.picked { border-color: rgba(164,68,47,.7); background: rgba(248,225,181,.7); }
+.game-shell-florence .freeform { background: rgba(248,235,207,.72); }
+.game-shell-florence .freeform textarea { color: #3b291d; }
+.game-shell-florence .freeform textarea::placeholder { color: #806a55; }
+.game-shell-florence .composer-footer span { color: #705a44; }
+.game-shell-florence .scene-props span { border-color: rgba(255,235,193,.42); background: rgba(65,39,24,.68); color: #f4deb6; }
+.game-shell-florence .scene-caption span { color: #f0bd67; }
+.game-shell-florence .scene-live { border-color: rgba(255,235,193,.4); color: #f2dab0; background: rgba(65,39,24,.58); }
+.game-shell-florence .action-resolution { background: rgba(248,229,189,.58); }
+.scene-florence-world { background: radial-gradient(circle at 74% 14%, rgba(255,238,178,.78), transparent 24%), linear-gradient(132deg, #d5ae68 0%, #b66543 48%, #315f76 100%); }
+.scene-florence-world::after { background: linear-gradient(90deg, rgba(63,35,21,.38), transparent 51%), linear-gradient(0deg, rgba(52,33,23,.36), transparent 50%); box-shadow: inset 0 0 60px rgba(77,39,22,.25); }
+.scene-florence-world .scene-window { opacity: .82; border-color: #7e4f2b; background: linear-gradient(#fff0b7, #dd9d55 62%, #8e4d36); box-shadow: 0 0 55px rgba(255,224,147,.48); }
+.scene-florence-world .scene-map { opacity: .52; background: #ddc28c; border-color: rgba(77,46,25,.3); }
+.scene-florence-world .scene-map span { color: #77533a; }
+.scene-florence-world .scene-desk { background: linear-gradient(#895432, #3f2417); }
+.scene-florence-world .scene-grid { opacity: .15; }
+.scene-location-florence-guildhall { background: radial-gradient(circle at 25% 13%, rgba(255,235,177,.66), transparent 28%), linear-gradient(132deg, #c5a46f, #7b835f 55%, #315a68); }
+.scene-location-florence-square { background: radial-gradient(circle at 70% 13%, rgba(243,177,94,.58), transparent 27%), linear-gradient(132deg, #b75a40, #655a50 53%, #264c62); }
 .action-resolution { margin: 19px 0; padding: 14px 16px; border-left: 2px solid #c8a561; background: rgba(213,169,91,.08); display: grid; gap: 6px; }
 .action-resolution > span { color: #d9b96d; font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
 .action-resolution strong { color: #e8dcc8; font-size: 13px; line-height: 1.45; }
