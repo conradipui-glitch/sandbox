@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Florence API smoke</title>
+<style>
+  body { max-width: 960px; margin: 32px auto; padding: 0 18px; font: 16px/1.45 system-ui, sans-serif; color: #20201e; background: #f5f0e7; }
+  button { padding: 10px 14px; border: 0; border-radius: 8px; background: #8f3d2f; color: #fff; font: inherit; cursor: pointer; }
+  button:disabled { opacity: .55; cursor: wait; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; border-radius: 8px; background: #fff; border: 1px solid #d9cdbb; }
+</style>
+<h1>Florence API smoke</h1>
+<p>Техническая проверка одного свободного хода на текущем preview Worker.</p>
+<button id="run" type="button">Прогнать ход «погладить кота»</button>
+<pre id="out">Нажмите кнопку.</pre>
+<script>
+  const button = document.querySelector('#run');
+  const output = document.querySelector('#out');
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    output.textContent = 'Запрос выполняется…';
+    try {
+      const createdResponse = await fetch('/api/games', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ scenarioId: 'florence-workshop', mode: 'chronicle' }),
+      });
+      const created = await createdResponse.json();
+      const turnResponse = await fetch('/api/games/' + encodeURIComponent(created.id) + '/turn', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'Погладить кота и спросить Джулиано, как он себя чувствует.' }),
+      });
+      const turn = await turnResponse.json();
+      output.textContent = JSON.stringify({ createStatus: createdResponse.status, turnStatus: turnResponse.status, turn }, null, 2);
+    } catch (error) {
+      output.textContent = String(error);
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>
+</html>
