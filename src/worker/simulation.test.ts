@@ -54,6 +54,7 @@ describe("history simulation", () => {
     expect(next.status).toBe("active");
   });
 
+
   it("keeps the scene contract grounded in the world state", () => {
     const train = createInitialState("train-scene-1", "last-train-1917", "chronicle");
     const trainWorld = worldContextForTurn(train, "Показать список раненых и вызвать телеграфиста");

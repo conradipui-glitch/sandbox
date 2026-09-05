@@ -1,4 +1,5 @@
 import type { DecisionOption, GameMode, GameState, Metric } from "../shared/types";
+import { createFlorenceState } from "./florence";
 
 const initialOptions: DecisionOption[] = [
   {
@@ -25,6 +26,16 @@ const initialOptions: DecisionOption[] = [
 ];
 
 export const scenarioSummaries = [
+  {
+    id: "florence-workshop",
+    title: "Флоренция: Мастерская под давлением",
+    period: "1512 · Флоренция",
+    role: "Художник и хозяин мастерской",
+    hook: "Заказчик хочет показать незавершённую роспись уже сегодня. Ваш ученик заболел, краски не хватает. Деньги предлагают сейчас — если вы уберёте со стены своё имя.",
+    difficulty: "Доступно",
+    accent: "#ba7650",
+    available: true,
+  },
   {
     id: "last-train-1917",
     title: "Последний поезд из Петрограда",
@@ -104,14 +115,14 @@ function createLastTrainState(id: string, now: string): GameState {
     turn: 1,
     status: "active",
     briefing:
-      "Петроград, 16 апреля 1917 года. На Николаевском вокзале остался один исправный состав. До рассвета он может вывезти раненых, доставить уголь или вернуть в штаб солдатскую делегацию — но не всё одновременно.",
+      "Вы отвечаете за отправление последнего поезда с Николаевского вокзала. Диспетчер Тимофей Беляев показывает список вагонов: до рассвета можно отправить только один состав. Врач просит вывезти раненых в госпиталь, рабочие требуют доставить уголь для отопления города, а солдаты хотят отправить своих представителей в военный штаб.\n\nЖурналистка Лидия Ветрова открывает блокнот: «Кого вы отправите первым и что скажете тем, кто останется?» Беляев ждёт вашего распоряжения о посадке.",
     objective:
-      "Отправить состав до рассвета, сохранив людей и доверие станции. В этой хронике нет правильного списка пассажиров — есть только цена порядка посадки.",
+      "До рассвета отправить поезд. Решить, кому достанутся места, и договориться с теми, кому придётся ждать.",
     metrics: [
       { id: "legitimacy", label: "Доверие станции", value: 48, trend: 0 },
-      { id: "economy", label: "Запас угля", value: 34, trend: -2 },
-      { id: "army", label: "Лояльность солдат", value: 42, trend: -1 },
-      { id: "stability", label: "Порядок на перроне", value: 37, trend: -2 },
+      { id: "economy", label: "Запас угля", value: 34, trend: 0 },
+      { id: "army", label: "Лояльность солдат", value: 42, trend: 0 },
+      { id: "stability", label: "Порядок на перроне", value: 37, trend: 0 },
       { id: "diplomacy", label: "Связь со штабом", value: 55, trend: 0 },
     ],
     factions: [
@@ -146,16 +157,17 @@ function createLastTrainState(id: string, now: string): GameState {
 export function createInitialState(id: string, scenarioId: string, mode: GameMode = "campaign"): GameState {
   const now = new Date().toISOString();
   if (scenarioId === "last-train-1917") return createLastTrainState(id, now);
+  if (scenarioId === "florence-workshop") return createFlorenceState(id, now);
   if (scenarioId !== "russia-1917") {
     throw new Error("Этот сценарий ещё не открыт");
   }
 
   const metrics: Metric[] = [
     { id: "legitimacy", label: "Легитимность", value: 54, trend: 0 },
-    { id: "economy", label: "Экономика", value: 31, trend: -2 },
-    { id: "army", label: "Армия", value: 39, trend: -3 },
-    { id: "stability", label: "Порядок", value: 28, trend: -2 },
-    { id: "diplomacy", label: "Дипломатия", value: 62, trend: 1 },
+    { id: "economy", label: "Экономика", value: 31, trend: 0 },
+    { id: "army", label: "Армия", value: 39, trend: 0 },
+    { id: "stability", label: "Порядок", value: 28, trend: 0 },
+    { id: "diplomacy", label: "Дипломатия", value: 62, trend: 0 },
   ];
 
   return {
@@ -168,7 +180,7 @@ export function createInitialState(id: string, scenarioId: string, mode: GameMod
     turn: 1,
     status: "active",
     briefing:
-      "Николай II отрёкся. В Петрограде одновременно существуют Временное правительство и Совет рабочих и солдатских депутатов. Фронт рассыпается, деревня ждёт землю, союзники требуют продолжать войну.",
+      "Вы стали главой Временного правительства после отречения Николая II. Но рабочие и солдаты слушают также Петроградский Совет — собрание их избранных представителей. Без их поддержки ваши приказы могут остаться на бумаге.\n\nМинистр Аркадий Левицкий кладёт перед вами три обращения: солдаты просят закончить войну, крестьяне требуют землю, а военное командование хочет восстановить дисциплину. Союзники России, Британия и Франция, настаивают на продолжении войны. С какого вопроса вы начнёте?",
     objective:
       "Удержать государство от распада и передать власть избранному Учредительному собранию — либо найти собственную форму нового порядка.",
     metrics,

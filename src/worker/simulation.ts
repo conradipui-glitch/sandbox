@@ -2,6 +2,7 @@ import type { DecisionOption, GameState, MetricId, TurnOutcome } from "../shared
 import { gameModes, worldContextForTurn } from "./world";
 import { lastTrainOptions } from "./scenarios";
 import { russia1917CampaignBeatForTurn } from "./scenario-beats";
+import { resolveFlorenceTurn } from "./florence-engine";
 
 const metricIds: MetricId[] = ["legitimacy", "economy", "army", "stability", "diplomacy"];
 
@@ -231,8 +232,10 @@ function simulateLastTrainTurn(state: GameState, action: string): TurnOutcome {
   };
 }
 
+
 export function simulateTurn(state: GameState, action: string): TurnOutcome {
   if (state.scenarioId === "last-train-1917") return simulateLastTrainTurn(state, action);
+  if (state.scenarioId === "florence-workshop") return resolveFlorenceTurn(state, action);
   const seed = hash(`${state.id}:${state.turn}:${action}`);
   const world = worldContextForTurn(state, action);
   const campaignBeat = state.scenarioId === "russia-1917" && state.mode === "campaign"
@@ -331,17 +334,27 @@ export function simulateTurn(state: GameState, action: string): TurnOutcome {
 }
 
 export function applyOutcome(state: GameState, action: string, outcome: TurnOutcome): GameState {
+  // The station story takes one night, not several days per conversation.
+  if (state.scenarioId === 'last-train-1917') outcome = { ...outcome, daysPassed: state.turn >= (gameModes[state.mode].turnLimit ?? Infinity) ? 1 : 0 };
+  const staysInScene = state.scenarioId === "florence-workshop" && outcome.advanceScene === false;
   const date = new Date(`${state.date}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + outcome.daysPassed);
   const nextDate = date.toISOString().slice(0, 10);
   const metrics = state.metrics.map((metric) => {
     const effect = outcome.effects.find((item) => item.id === metric.id);
-    const delta = effect?.delta ?? 0;
+    // A blocked Florence move is feedback, not an event that silently harms
+    // the people in the room.  The player gets another attempt in the same
+    // pressure point before the world changes.
+    const delta = staysInScene ? 0 : effect?.delta ?? 0;
     return { ...metric, value: Math.max(0, Math.min(100, metric.value + delta)), trend: delta };
   });
   const weakest = Math.min(...metrics.map((metric) => metric.value));
-  const turnLimit = gameModes[state.mode].turnLimit;
-  const status = state.mode === "sandbox"
+  const turnLimit = state.scenarioId === "florence-workshop" ? 6 : gameModes[state.mode].turnLimit;
+  const status = staysInScene
+    ? "active"
+    : state.scenarioId === 'florence-workshop'
+      ? state.turn >= 6 ? 'victory' : 'active'
+    : state.mode === "sandbox"
     ? "active"
     : weakest <= 2
       ? "collapsed"
@@ -351,8 +364,9 @@ export function applyOutcome(state: GameState, action: string, outcome: TurnOutc
 
   return {
     ...state,
+    ...(state.scenarioId === 'florence-workshop' && outcome.florence ? { florence: outcome.florence } : {}),
     date: nextDate,
-    turn: state.turn + 1,
+    turn: staysInScene ? state.turn : state.turn + 1,
     status,
     briefing: outcome.nextBriefing ?? `Прошло ${outcome.daysPassed} дней. Решение вышло из кабинета и теперь проверяется исполнением на местах.`,
     metrics,
@@ -360,14 +374,14 @@ export function applyOutcome(state: GameState, action: string, outcome: TurnOutc
     timeline: [
       ...state.timeline,
       {
-        id: `decision-${state.turn}`,
+        id: `decision-${state.turn}-${state.timeline.length}`,
         date: state.date,
         title: `Ваш ход: ${action.slice(0, 72)}`,
         description: outcome.headline,
         kind: "decision",
       },
       ...(outcome.surprise
-        ? [{ id: `shock-${state.turn}`, date: nextDate, title: "Непредвиденное последствие", description: outcome.surprise, kind: "shock" as const }]
+        ? [{ id: `shock-${state.turn}-${state.timeline.length}`, date: nextDate, title: "Непредвиденное последствие", description: outcome.surprise, kind: "shock" as const }]
         : []),
     ],
     lastOutcome: outcome,

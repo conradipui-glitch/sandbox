@@ -12,6 +12,8 @@ export interface DecisionOption {
   id: string;
   title: string;
   description: string;
+  /** A character line that frames a prepared move in authored scenarios. */
+  voice?: string;
   risk: "низкий" | "средний" | "высокий";
   intent: string;
 }
@@ -30,6 +32,11 @@ export interface FactionReaction {
   text: string;
 }
 
+export interface DialogueLine {
+  speaker: string;
+  line: string;
+}
+
 export interface SceneCue {
   locationId: string;
   activeCharacterIds: string[];
@@ -42,6 +49,13 @@ export interface ModelUsage {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+}
+
+export interface ActionResolution {
+  status: "executed" | "conditional" | "blocked";
+  explanation: string;
+  requirement?: string;
+  cost: string;
 }
 
 export type ActionSource = "prepared" | "freeform";
@@ -102,6 +116,10 @@ export interface ProductAnalyticsOverview {
 }
 
 export interface TurnOutcome {
+  florence?: FlorenceMemory;
+  advanceScene?: boolean;
+  reflection?: string;
+  nextTitle?: string;
   headline: string;
   summary: string;
   /** A fresh tactical situation for the next turn; it must not repeat summary. */
@@ -109,16 +127,21 @@ export interface TurnOutcome {
   dispatch: string;
   effects: Array<{ id: MetricId; delta: number; reason: string }>;
   reactions: FactionReaction[];
+  /** Authored character exchange for scenarios that need a dramatic reply, not just a status card. */
+  sceneDialogue?: DialogueLine[];
   nextOptions: DecisionOption[];
   daysPassed: number;
   surprise: string | null;
   scene: SceneCue;
   source: "ai" | "simulation";
   provider?: "deepseek" | "cloudflare" | "simulation";
+  model?: string;
   usage?: ModelUsage;
+  resolution?: ActionResolution;
 }
 
 export interface GameState {
+  florence?: FlorenceMemory;
   id: string;
   scenarioId: string;
   mode: GameMode;
@@ -136,6 +159,14 @@ export interface GameState {
   lastOutcome: TurnOutcome | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FlorenceMemory {
+  version: 2;
+  facts: Record<string, boolean>;
+  /** Confirmed narrative events, including novel player actions, kept across turns. */
+  events?: string[];
+  trace: Array<{ turn: number; action: string; moves: string[]; status: ActionResolution['status']; cost: string }>;
 }
 
 export interface ScenarioSummary {

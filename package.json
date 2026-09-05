@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "prebuild": "node scripts/restore-florence-audio.mjs",
     "dev": "vite",
     "dev:worker": "wrangler dev",
     "build": "tsc -b && vite build",

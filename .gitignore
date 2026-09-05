@@ -7,3 +7,4 @@ dist/
 !.env.example
 *.log
 .DS_Store
+public/audio/music-1[1-6]-florence-*.mp3

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Florence API smoke</title>
+<style>
+  body { max-width: 960px; margin: 32px auto; padding: 0 18px; font: 16px/1.45 system-ui, sans-serif; color: #20201e; background: #f5f0e7; }
+  button { padding: 10px 14px; border: 0; border-radius: 8px; background: #8f3d2f; color: #fff; font: inherit; cursor: pointer; }
+  button:disabled { opacity: .55; cursor: wait; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; border-radius: 8px; background: #fff; border: 1px solid #d9cdbb; }
+</style>
+<h1>Florence API smoke</h1>
+<p>Техническая проверка одного свободного хода на текущем preview Worker.</p>
+<button id="run" type="button">Прогнать ход «погладить кота»</button>
+<button id="run-full" type="button">Прогнать шесть ходов до финала</button>
+<pre id="out">Нажмите кнопку.</pre>
+<script>
+  const button = document.querySelector('#run');
+  const fullButton = document.querySelector('#run-full');
+  const output = document.querySelector('#out');
+  const setBusy = (busy) => { button.disabled = busy; fullButton.disabled = busy; };
+  const create = () => fetch('/api/games', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ scenarioId: 'florence-workshop', mode: 'chronicle' }),
+  }).then(async response => ({ status: response.status, body: await response.json() }));
+  const turn = (id, action) => fetch('/api/games/' + encodeURIComponent(id) + '/turn', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action }),
+  }).then(async response => ({ status: response.status, body: await response.json() }));
+  button.addEventListener('click', async () => {
+    setBusy(true);
+    output.textContent = 'Запрос выполняется…';
+    try {
+      const created = await create();
+      const result = await turn(created.body.id, 'Погладить кота и спросить Джулиано, как он себя чувствует.');
+      output.textContent = JSON.stringify({ createStatus: created.status, turnStatus: result.status, turn: result.body }, null, 2);
+    } catch (error) {
+      output.textContent = String(error);
+    } finally {
+      setBusy(false);
+    }
+  });
+  fullButton.addEventListener('click', async () => {
+    setBusy(true);
+    output.textContent = 'Шесть ходов выполняются…';
+    try {
+      const created = await create();
+      let state = created.body;
+      const turns = [];
+      for (let index = 0; index < 6; index += 1) {
+        const action = state.options?.[0]?.intent || 'Продолжить работу и описать следующий шаг.';
+        const result = await turn(state.id, action);
+        turns.push({ scene: state.turn, action, status: result.status, response: result.status === 200 ? {
+          nextScene: result.body.turn,
+          outcome: result.body.lastOutcome,
+          finalStatus: result.body.status,
+        } : result.body });
+        if (result.status !== 200) break;
+        state = result.body;
+      }
+      output.textContent = JSON.stringify({ createStatus: created.status, turns }, null, 2);
+    } catch (error) {
+      output.textContent = String(error);
+    } finally {
+      setBusy(false);
+    }
+  });
+</script>
+</html>

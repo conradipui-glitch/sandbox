@@ -4,6 +4,7 @@ import { createSessionAnalytics, normalizeVisitorId, publicAnalytics, recordSucc
 import { type ProductAnalyticsEvent } from "./product-analytics";
 import { createInitialState, scenarioSummaries } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
+import { florenceMessages, florenceEditorialMessages, validateFlorenceAi } from './florence-ai';
 import { gameModes, microEncounters, worldCharacters, worldContextForTurn, worldEntities } from "./world";
 
 const validCharacterIds = new Set(worldCharacters.map((character) => character.id));
@@ -164,7 +165,7 @@ function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: Tur
   return {
     ...fallback,
     headline: candidate.headline.slice(0, 140),
-    summary: candidate.summary.slice(0, 1000),
+    summary: candidate.summary.slice(0, 5000),
     nextBriefing: typeof candidate.nextBriefing === "string" ? candidate.nextBriefing.slice(0, 500) : fallback.nextBriefing,
     dispatch: typeof candidate.dispatch === "string" ? candidate.dispatch.slice(0, 420) : fallback.dispatch,
     effects: effects.length ? effects : fallback.effects,
@@ -178,8 +179,9 @@ function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: Tur
   };
 }
 
-async function generateOutcome(env: Env, state: GameState, action: string): Promise<TurnOutcome> {
-  const fallback = simulateTurn(state, action);
+export async function generateOutcome(env: Env, state: GameState, action: string): Promise<TurnOutcome> {
+  const florence = state.scenarioId === 'florence-workshop';
+  const fallback = florence ? null : simulateTurn(state, action);
   const compactState = {
     mode: state.mode,
     date: state.date,
@@ -193,11 +195,11 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
   const scenarioBrief = state.scenarioId === "last-train-1917"
     ? "Сценарий: «Последний поезд из Петрограда», апрель 1917 года. Игрок — распорядитель эвакуационного эшелона на Николаевском вокзале. До рассвета есть один исправный состав; раненые, уголь и солдатская делегация претендуют на один маршрут. Это короткая хроника о цене порядка посадки, а не викторина по истории."
     : `Сценарий: Россия, март 1917. Игрок — глава Временного правительства.${campaignAct ? ` Сейчас ${campaignAct.title}: ${campaignAct.question} Фокус акта — ${campaignAct.focus}.` : ""}`;
-  const messages = [
+  const messages = florence ? florenceMessages(state, action) : [
     {
       role: "system" as const,
       content:
-        "Ты — движок и режиссёр серьёзной альтернативно-исторической стратегии. Моделируй причинные последствия без магии, морализаторства и предопределённого канона. Учитывай логистику, институты, ограниченность власти и частичное знание персонажей. Персонажи преследуют собственные цели, помнят обращение игрока, могут ошибаться, лгать, торговаться и отказываться. Юмор редкий, наблюдательный и никогда не превращает бедность или насилие в шутку. Пиши по-русски. Верни только валидный JSON.",
+        "Ты — ведущий интерактивной исторической игры. Пиши ясным современным русским языком: сначала кто пришёл и чего хочет, затем что случилось и что можно сделать. При первом появлении объясняй роль человека. Не рассчитывай на знания игрока об истории. Избегай канцелярита и метафор вместо причин. Прочитай весь ход, включая бытовые и смешные дополнения: они должны получить реакцию и влиять на следующие варианты. Моделируй причинные последствия без магии и морализаторства. Учитывай логистику, ограниченность власти и частичное знание персонажей. Они помнят обращение игрока, могут торговаться и отказываться. В истории о поезде все разговоры идут в одну ночь: поезд не может одновременно уйти в dispatch и оставаться у перрона в nextBriefing. Об отправлении объявляй только после соответствующего решения игрока. Не превращай покупку угощения в трату последних денег, если игрок этого не сказал. Реплики, последствия и следующая ситуация должны описывать одно состояние мира. Разбей summary на короткие абзацы. Верни только валидный JSON.",
     },
     {
       role: "user" as const,
@@ -218,7 +220,7 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
           messages,
           thinking: { type: "disabled" },
           response_format: { type: "json_object" },
-          max_tokens: 1600,
+          max_tokens: florence ? 4500 : 1600,
           temperature: 0.72,
           stream: false,
         }),
@@ -226,28 +228,73 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
       });
       if (!response.ok) throw new Error(`DeepSeek API ${response.status}: ${(await response.text()).slice(0, 240)}`);
       const result = (await response.json()) as WorkersAiChatResponse;
-      const outcome = validateAiOutcome(parseAiJson(extractAiText(result)), fallback, "deepseek");
-      if (outcome.source === "ai") return { ...outcome, usage: usageFromResponse(result.usage) };
+      let parsed = parseAiJson(extractAiText(result));
+      let usage = usageFromResponse(result.usage);
+      if (florence) {
+        // Validate the primary answer before asking the optional editor to touch it.
+        // A bad editorial pass must never erase an otherwise usable AI scene.
+        const draftOutcome = validateFlorenceAi(parsed, state, action, 'deepseek');
+        if (!draftOutcome) {
+          throw new Error(parsed ? 'ai_primary_invalid_contract' : 'ai_primary_invalid_json', { cause: parsed ? { fields: ['headline', 'summary', 'resolution', 'advanceScene', 'nextBriefing', 'nextOptions', 'reflection'].filter(k => k in parsed), status: parsed.resolution?.status, optionCount: parsed.nextOptions?.length, advanceType: typeof parsed.advanceScene } : undefined });
+        }
+        let finalOutcome = draftOutcome;
+        try {
+          const reviewResponse = await fetch('https://api.deepseek.com/chat/completions', {
+            method: 'POST', headers: { authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'content-type': 'application/json' },
+            body: JSON.stringify({ model: 'deepseek-v4-flash', messages: florenceEditorialMessages(state, action, parsed), thinking: { type: 'disabled' }, response_format: { type: 'json_object' }, max_tokens: 4500, temperature: 0.35, stream: false }),
+            signal: AbortSignal.timeout(15_000),
+          });
+          if (!reviewResponse.ok) throw new Error(`Narrative review failed: ${reviewResponse.status}`);
+          const reviewed = await reviewResponse.json() as WorkersAiChatResponse;
+          const reviewedParsed = parseAiJson(extractAiText(reviewed));
+          const reviewedOutcome = validateFlorenceAi(reviewedParsed, state, action, 'deepseek');
+          const reviewUsage = usageFromResponse(reviewed.usage);
+          if (reviewUsage) usage = { inputTokens: (usage?.inputTokens ?? 0) + reviewUsage.inputTokens, outputTokens: (usage?.outputTokens ?? 0) + reviewUsage.outputTokens, totalTokens: (usage?.totalTokens ?? 0) + reviewUsage.totalTokens };
+          if (reviewedOutcome) finalOutcome = reviewedOutcome;
+          else console.warn('Narrative review returned an invalid contract; using validated draft');
+        } catch (reviewError) {
+          console.warn('Narrative review skipped; using validated draft', reviewError instanceof Error ? reviewError.message : reviewError);
+        }
+        return { ...finalOutcome, model: 'deepseek-v4-flash', usage };
+      }
+      const outcome = validateAiOutcome(parsed, fallback!, "deepseek");
+      if (outcome?.source === "ai") return { ...outcome, model: 'deepseek-v4-flash', usage };
       console.warn("DeepSeek returned an invalid game outcome");
     } catch (error) {
       console.warn("DeepSeek fallback", error instanceof Error ? error.message : error);
+      if (florence) {
+        if (error instanceof Error && /^ai_[a-z_]+$/.test(error.message)) throw error;
+        throw new Error(error instanceof Error && error.name === 'TimeoutError' ? 'ai_primary_timeout' : error instanceof Error && error.message.startsWith('Narrative review failed') ? 'ai_review_http' : 'ai_primary_unavailable');
+      }
     }
   }
 
   try {
+    for (let attempt = 0; attempt < (florence ? 2 : 1); attempt++) {
     const result = (await env.AI.run("@cf/zai-org/glm-4.7-flash", {
       messages,
-      max_completion_tokens: 1600,
+      // Keep the preview response comfortably inside the Worker request window.
+      // Florence asks for a complete scene card, not a long essay; 3k tokens is
+      // enough for the JSON contract and avoids timing out GLM on the long brief.
+      max_completion_tokens: florence ? 3000 : 1600,
       reasoning_effort: "low",
       chat_template_kwargs: { enable_thinking: false },
       response_format: { type: "json_object" },
       temperature: 0.72,
     })) as WorkersAiChatResponse;
-    const outcome = validateAiOutcome(parseAiJson(extractAiText(result)), fallback, "cloudflare");
-    return { ...outcome, usage: usageFromResponse(result.usage) };
+    const parsed = parseAiJson(extractAiText(result));
+    const outcome = florence ? validateFlorenceAi(parsed, state, action, 'cloudflare') : validateAiOutcome(parsed, fallback!, "cloudflare");
+    if (!outcome) {
+      if (attempt === 0 && florence) continue;
+      throw new Error(parsed ? 'ai_invalid_contract' : 'ai_invalid_json');
+    }
+    return { ...outcome, model: '@cf/zai-org/glm-4.7-flash', usage: usageFromResponse(result.usage) };
+    }
+    throw new Error('ai_invalid_contract');
   } catch (error) {
     console.warn("Workers AI fallback", error instanceof Error ? error.message : error);
-    return fallback;
+    if (florence) throw new Error(error instanceof Error && ['ai_invalid_contract', 'ai_invalid_json'].includes(error.message) ? error.message : 'ai_unavailable');
+    return fallback!;
   }
 }
 
@@ -350,12 +397,18 @@ export class HistorySession implements DurableObject {
       const startedAt = Date.now();
       const visitorId = normalizeVisitorId(body.visitorId);
       const actionSource = resolveActionSource(stored.state, action, body.source, cleanOptionId(body.optionId));
-      const outcome = await generateOutcome(this.env, stored.state, action);
+      let outcome: TurnOutcome;
+      try { outcome = await generateOutcome(this.env, stored.state, action); }
+      catch (cause) { return json({ error: 'Ведущий пока не смог ответить. Текст остался в поле ввода, ход не потрачен. Попробуйте ещё раз.', code: cause instanceof Error && /^ai_[a-z_]+$/.test(cause.message) ? cause.message : 'ai_unavailable', ...(cause instanceof Error && cause.cause ? { details: cause.cause } : {}) }, 503); }
       const state = applyOutcome(stored.state, action, outcome);
       const processedKeys = key ? { ...stored.processedKeys, [key]: state } : stored.processedKeys;
       const trimmedKeys = Object.fromEntries(Object.entries(processedKeys).slice(-10));
       const baseAnalytics = stored.analytics ?? createSessionAnalytics(visitorId, stored.state.createdAt);
       const openedAnalytics = registerSessionOpen(baseAnalytics, visitorId, state.updatedAt);
+      if (state.scenarioId === 'florence-workshop' && outcome.advanceScene === false) {
+        await this.ctx.storage.put('game', { state, processedKeys: trimmedKeys, analytics: openedAnalytics } satisfies StoredGame);
+        return json(state);
+      }
       const provider = outcome.provider ?? "simulation";
       const resolutionMs = Date.now() - startedAt;
       const analytics = recordSuccessfulTurn(openedAnalytics, {
@@ -378,6 +431,7 @@ export class HistorySession implements DurableObject {
         inputTokens: outcome.usage?.inputTokens ?? 0,
         outputTokens: outcome.usage?.outputTokens ?? 0,
         totalTokens: outcome.usage?.totalTokens ?? 0,
+        resolutionStatus: outcome.resolution?.status ?? null,
         meaningfulActions: analytics.meaningfulActions,
         statusAfterTurn: state.status,
       });
@@ -392,6 +446,7 @@ export class HistorySession implements DurableObject {
         provider,
         usage: outcome.usage,
         resolutionMs,
+        resolutionStatus: outcome.resolution?.status,
         statusAfterTurn: state.status,
       });
       return json(state);

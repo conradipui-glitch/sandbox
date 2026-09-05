@@ -4,9 +4,7 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
-  ChevronRight,
   Clock3,
-  Compass,
   Crown,
   Gauge,
   Landmark,
@@ -24,7 +22,6 @@ import type { DecisionOption, GameMode, GameState, ProductAnalyticsOverview, Sce
 import { campaignActForTurn } from "../shared/campaign";
 import { api } from "./api";
 import minister1917 from "./assets/characters/minister-1917.webp";
-import modeSparksOverlay from "./assets/effects/mode-sparks-overlay.png";
 import officer1917 from "./assets/characters/officer-stavka-1917.webp";
 import lidia1917 from "./assets/characters/lidia-vetrova-1917.webp";
 import belyaev1917 from "./assets/characters/rail-belyaev-1917.webp";
@@ -32,6 +29,12 @@ import novikova1917 from "./assets/characters/worker-novikova-1917.webp";
 import vorontsova1917 from "./assets/characters/industrialist-vorontsova-1917.webp";
 import staffCar1917 from "./assets/vehicles/staff-car-1917.webp";
 import freightTrain1917 from "./assets/vehicles/freight-train-1917.webp";
+import florenceWorkshop1512 from "./assets/backgrounds/florence-workshop-1512.webp";
+import florenceGuildhall1512 from "./assets/backgrounds/florence-guildhall-1512.webp";
+import florencePiazza1512 from "./assets/backgrounds/florence-piazza-1512.webp";
+import florenceJuliano1512 from "./assets/characters/florence-juliano-1512.webp";
+import florenceGuildmaster1512 from "./assets/characters/florence-guildmaster-1512.webp";
+import florenceSecretary1512 from "./assets/characters/florence-secretary-1512.webp";
 
 type TextScale = "standard" | "large" | "xlarge";
 
@@ -64,6 +67,15 @@ const sceneCharacterAssets: Record<string, SceneCharacterAsset> = {
   "rail-belyaev": { src: belyaev1917, alt: "Диспетчер Тимофей Беляев с маршрутными бирками", className: "belyaev", defaultSide: "left" },
   "worker-novikova": { src: novikova1917, alt: "Делегатка Анна Новикова с фабричным журналом", className: "worker", defaultSide: "left" },
   "industrialist-vorontsova": { src: vorontsova1917, alt: "Переговорщица Софья Воронцова с техническими чертежами", className: "industrialist", defaultSide: "right" },
+  "florence-juliano": { src: florenceJuliano1512, alt: "Ученик Джулиано с кистью и палитрой", className: "florence-juliano", defaultSide: "left" },
+  "florence-guildmaster": { src: florenceGuildmaster1512, alt: "Старшина флорентийской гильдии с книгой договоров", className: "florence-guildmaster", defaultSide: "right" },
+  "florence-secretary": { src: florenceSecretary1512, alt: "Секретарь кардинала с договором и пером", className: "florence-secretary", defaultSide: "right" },
+};
+
+const florenceBackgroundAssets: Record<string, string> = {
+  "florence-workshop": florenceWorkshop1512,
+  "florence-guildhall": florenceGuildhall1512,
+  "florence-square": florencePiazza1512,
 };
 
 const scenePropLabels: Record<string, string> = {
@@ -112,12 +124,23 @@ const sceneCharacterAliases: Record<string, string> = {
   industrialist: "industrialist-vorontsova",
 };
 
-function normalizeSceneLocation(id: string, trainStory: boolean): string {
+const knownSceneLocations = new Set([
+  "nikolaevsky-platform",
+  "station-telegraph-office",
+  "freight-carriage",
+  "station-yard",
+  "muddy-station",
+  "factory-yard",
+  "tauride-cabinet",
+  "florence-workshop",
+  "florence-guildhall",
+  "florence-square",
+]);
+
+function normalizeSceneLocation(id: string, trainStory: boolean, florenceStory = false): string {
   const normalized = sceneLocationAliases[id] ?? id;
-  if (normalized === id && !sceneLocationAliases[id]) {
-    return trainStory ? "nikolaevsky-platform" : "tauride-cabinet";
-  }
-  return normalized;
+  if (knownSceneLocations.has(normalized)) return normalized;
+  return trainStory ? "nikolaevsky-platform" : florenceStory ? "florence-workshop" : "tauride-cabinet";
 }
 
 function normalizeSceneCharacter(id: string): string {
@@ -125,12 +148,19 @@ function normalizeSceneCharacter(id: string): string {
 }
 
 const introDecks: Record<string, IntroSlide[]> = {
+  "florence-workshop": [
+    { id: "workshop", kicker: "Флоренция · 17 апреля 1512 года", title: "Сегодня вы — хозяин мастерской", body: "Вы художник. Вместе с учениками вы расписываете большую стену для кардинала Веттори — богатого церковного заказчика. На стене уже видны фигуры людей, но небо над ними ещё не закончено. Сегодня утром кардинал неожиданно сообщил: вечером он приведёт гостей смотреть работу.", note: "Показ назначен раньше, чем вы рассчитывали", scene: "cabinet" },
+    { id: "people", kicker: "Джулиано Белли · ваш ученик", title: "«Мастер, я ещё могу работать»", body: "Джулиано девятнадцать. Со вчерашнего вечера у него жар, а руки дрожат от болезни и долгой работы. Он боится потерять заработок и снова берётся за кисть. Именно он рисует небо. Если отпустить его к врачу, эту работу придётся закончить вам или другому ученику.", note: "Джулиано заболел. До утра ученики ждут зарплату", scene: "platform" },
+    { id: "condition", kicker: "Бартоломео Риччи · старшина гильдии", title: "Краску оплатили. Но её не хватает", body: "Риччи представляет гильдию — объединение городских художников. Она купила для вас синий пигмент в долг. В деревянном ящике должна была быть полная партия баночек с краской, но пришла лишь часть. На крышке сломана восковая печать дома кардинала: ящик вскрывали по дороге. Риччи хочет сверить доставку и понять, за что теперь платить.", note: "След есть. Кто виноват — пока неизвестно", scene: "train" },
+    { id: "contract", kicker: "Лука Орсини · секретарь кардинала", title: "Деньги сейчас — но без вашего имени", body: "Под вечер приходит Лука. Он ведёт дела кардинала и приносит деньги: часть оплаты можно получить сегодня. Есть условие: на готовой стене должно остаться только имя кардинала как покровителя искусств. Имени художника не будет. Лука ждёт, согласитесь ли вы. Деньги помогли бы заплатить ученикам и купить краску.", note: "Заказчик предлагает оплату до завершения работы", scene: "telegram" },
+    { id: "signature", kicker: "В мастерской · вечер", title: "Лука ставит сумку на стол", body: "«Что мне передать кардиналу?» — спрашивает он. Джулиано замер у стены с кистью в руке. Рядом стоит ящик, в котором не хватает оплаченной краски. Вам нужно решить, что делать с заказом и людьми до утра. Начните с разговора, предложите свои условия или сделайте то, чего от вас сейчас никто не ждёт.", note: "Вы — хозяин мастерской. Первый ответ за вами", scene: "departure" },
+  ],
   "last-train-1917": [
     {
       id: "station",
       kicker: "Апрель 1917 · Петроград",
-      title: "Город просыпается раньше поездов",
-      body: "После отречения столица живёт по новым правилам, но железная дорога всё ещё считает старые минуты. На Николаевском вокзале осталось одно исправное окно для отправления.",
+      title: "Вы отвечаете за последний поезд",
+      body: "Петроград, ночь на Николаевском вокзале. Вас назначили распорядителем эвакуации: вы решаете, кого и что посадить в поезд. Исправный паровоз остался один. До рассвета свободен только один путь, после его закроют военные.",
       note: "До рассвета: 01:12",
       scene: "station",
     },
@@ -138,32 +168,32 @@ const introDecks: Record<string, IntroSlide[]> = {
       id: "telegram",
       kicker: "Телеграмма без подписи",
       title: "Три списка легли на один стол",
-      body: "Раненые ждут санитарный вагон. Городские котельные ждут уголь. Солдатская делегация требует добраться до штаба и быть услышанной.",
+      body: "Врач просит вагоны для раненых: их нужно отвезти в госпиталь. Рядом рабочие охраняют уголь для котельных — без него город останется без тепла. Солдаты требуют довезти своих представителей до военного штаба. Каждая группа уверена, что ждать должны другие.",
       note: "Один состав · три очереди",
       scene: "telegram",
     },
     {
       id: "train",
-      kicker: "Материальное ограничение",
+      kicker: "Тимофей Беляев · диспетчер станции",
       title: "Поезд не может спасти всех",
-      body: "Тоннаж, топливо и стрелка не знают компромиссов. Любое место, отданное одной очереди, становится задержкой для другой.",
-      note: "Цена решения видна сразу",
+      body: "Беляев показывает вам схему вагонов. Если взять весь уголь, места для всех раненых не останется. Если задержать отправление, можно потерять доступ к пути. Он умеет собрать состав, но выбрать пассажиров и груз должны вы.",
+      note: "Места и времени на всех не хватит",
       scene: "train",
     },
     {
       id: "platform",
       kicker: "Люди на перроне",
-      title: "Порядок посадки станет вашей репутацией",
-      body: "Диспетчер Тимофей Беляев отвечает за расписание. Лидия Ветрова отвечает за правду, которую увидит город. Оба запомнят не только приказ, но и способ разговора.",
-      note: "Слова меняют очередь",
+      title: "Журналистка записывает ваш ответ",
+      body: "Лидия Ветрова пришла на станцию с блокнотом. Она хочет рассказать городу, кого отправили и кого оставили. Беляев спрашивает вас о посадке, а Лидия — почему именно эти люди должны ехать первыми. Разговор слышат стоящие рядом пассажиры.",
+      note: "Лидия Ветрова · журналистка",
       scene: "platform",
     },
     {
       id: "departure",
       kicker: "Точка разлома",
-      title: "Кому вы дадите этот путь?",
-      body: "С этого момента мир будет отвечать задержками, встречными требованиями и памятью свидетелей. Здесь нет правильного списка — есть только тот, за который вы готовы отвечать.",
-      note: "Начало хроники · 8–12 ходов",
+      title: "«С кого начинаем посадку?»",
+      body: "Беляев ждёт у паровоза. Врач поднимает руку, чтобы привлечь ваше внимание; солдаты спорят у вагона с углём. Можно сразу распорядиться о посадке, поговорить с людьми или придумать, как разделить места. Времени на первый ответ остаётся всё меньше.",
+      note: "Первое решение за вами",
       scene: "departure",
     },
   ],
@@ -171,41 +201,41 @@ const introDecks: Record<string, IntroSlide[]> = {
     {
       id: "vacuum",
       kicker: "Март 1917 · Петроград",
-      title: "Власть освободила место",
-      body: "Император отрёкся. Временное правительство и Совет существуют одновременно, а улица проверяет каждое слово быстрее, чем кабинет успевает его напечатать.",
-      note: "Точка расхождения",
+      title: "Вы возглавили правительство",
+      body: "Николай II отказался от престола. Вас назначили главой Временного правительства. Вам нужно наладить снабжение страны и подготовить выборы. Но рабочие и солдаты создали собственный Совет: без его поддержки ваши приказы могут не исполнить.",
+      note: "Петроград · март 1917 года",
       scene: "cabinet",
     },
     {
       id: "three-fronts",
       kicker: "Три давления",
       title: "Фронт, земля и хлеб требуют одного ответа",
-      body: "Союзники ждут продолжения войны. Деревня ждёт передела. Город ждёт, что очередной приказ не останется бумагой.",
+      body: "Россия продолжает воевать. Солдаты устали, в деревнях требуют передать помещичью землю крестьянам, в городах стоят очереди за хлебом. Британия и Франция, союзники России, хотят, чтобы вы продолжали войну. Уступка одной стороне может вызвать протест другой.",
       note: "Ресурсов меньше обещаний",
       scene: "telegram",
     },
     {
       id: "people",
       kicker: "Живой кабинет",
-      title: "У каждого решения будет голос",
-      body: "Офицер принесёт карту, рабочая делегатка — список смен, журналистка — неудобный второй вопрос. Они знают только часть мира и могут отказаться вам верить.",
-      note: "До двух активных персонажей",
+      title: "В приёмной уже ждут люди",
+      body: "Полковник Аргунов пришёл от военного командования: ему нужны снабжение и дисциплина. Анна Новикова представляет рабочих и требует хлеба и понятных условий труда. Журналистка Лидия Ветрова собирается напечатать ваш первый ответ. Каждый рассчитывает услышать обещание именно для себя.",
+      note: "Аргунов · военный. Новикова · делегатка рабочих. Ветрова · журналистка",
       scene: "platform",
     },
     {
       id: "memory",
       kicker: "Память государства",
-      title: "Последствия возвращаются",
-      body: "Подписанный указ меняет не только показатели. Он создаёт обещания, долги, союзы и публичную версию того, что произошло.",
-      note: "Старый выбор не исчезает",
+      title: "Подписать приказ ещё недостаточно",
+      body: "На столе лежит просьба отправить хлеб в Петроград. Для этого железнодорожникам нужны уголь и свободные вагоны, которые уже требует армия. Ваш министр Левицкий предлагает созвать обе стороны: прежде чем обещать людям хлеб, нужно решить, кто уступит транспорт.",
+      note: "Аркадий Левицкий · министр вашего правительства",
       scene: "train",
     },
     {
       id: "first-choice",
       kicker: "Первый ход",
       title: "С чего начнётся ваша республика?",
-      body: "Вы можете отдать свободный приказ или выбрать направление. ИИ не обязан сделать ваш план успешным — он обязан сделать ответ мира правдоподобным.",
-      note: "Кампания · 25–40 ходов",
+      body: "Левицкий придвигает к вам чистый лист. За дверью спорят посланники армии и рабочих. Страна ждёт вашего первого решения: начать переговоры о мире, заняться землёй, договориться с Советом — или предложить свой план.",
+      note: "Ваше правительство начинает работу",
       scene: "cabinet",
     },
   ],
@@ -227,10 +257,27 @@ const musicTracks = {
   intrigue: { src: "/audio/music-08-intrigue-surveillance.mp3", title: "Стол землемера", loop: true },
   reveal: { src: "/audio/music-09-decision-reveal.mp3", title: "Закрывая книгу", loop: false },
   finale: { src: "/audio/music-10-fragile-victory.mp3", title: "Последняя телеграмма", loop: true },
+  florenceThreshold: { src: "/audio/music-11-florence-threshold.mp3", title: "Пыль в солнечном луче", loop: true },
+  florenceWorkshop: { src: "/audio/music-12-florence-workshop-night.mp3", title: "Ночь мастерской", loop: true },
+  florenceGuildhall: { src: "/audio/music-13-florence-guildhall.mp3", title: "Книга гильдии", loop: true },
+  florenceDeadline: { src: "/audio/music-14-florence-deadline.mp3", title: "Колокола до рассвета", loop: true },
+  florenceReveal: { src: "/audio/music-15-florence-decision-reveal.mp3", title: "Цена подписи", loop: false },
+  florenceFinale: { src: "/audio/music-16-florence-dawn-finale.mp3", title: "Свет на фреске", loop: true },
 } satisfies Record<string, MusicTrack>;
 
-function selectMusic(game: GameState | null, busy: boolean): MusicTrack {
-  if (!game) return musicTracks.menu;
+function selectMusic(game: GameState | null, busy: boolean, introScenarioId?: string): MusicTrack {
+  if (!game) return introScenarioId === "florence-workshop" ? musicTracks.florenceThreshold : musicTracks.menu;
+
+  if (game.scenarioId === "florence-workshop") {
+    if (busy) return musicTracks.florenceReveal;
+    if (game.status !== "active") return musicTracks.florenceFinale;
+
+    const location = game.lastOutcome?.scene.locationId;
+    if (location === "florence-guildhall") return musicTracks.florenceGuildhall;
+    if (location === "florence-square" || game.turn >= 4) return musicTracks.florenceDeadline;
+    return musicTracks.florenceWorkshop;
+  }
+
   if (busy) return musicTracks.reveal;
   if (game.status !== "active") return musicTracks.finale;
 
@@ -254,6 +301,16 @@ const modeOptions: Array<{ id: GameMode; title: string; duration: string; descri
 ];
 
 const fallbackScenarios: ScenarioSummary[] = [
+  {
+    id: "florence-workshop",
+    title: "Флоренция: Мастерская под давлением",
+    period: "1512 · Флоренция",
+    role: "Художник и хозяин мастерской",
+    hook: "Заказчик хочет показать незавершённую роспись уже сегодня. Ваш ученик заболел, краски не хватает. Деньги предлагают сейчас — если вы уберёте со стены своё имя.",
+    difficulty: "Доступно",
+    accent: "#ba7650",
+    available: true,
+  },
   {
     id: "last-train-1917",
     title: "Последний поезд из Петрограда",
@@ -347,27 +404,11 @@ function MusicToggle({ muted, onToggle, trackTitle }: { muted: boolean; onToggle
 }
 
 function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { scenarios: ScenarioSummary[]; onStart: (id: string, mode: GameMode) => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
-  const [selected, setSelected] = useState(scenarios.find((item) => item.id === "last-train-1917")?.id ?? scenarios.find((item) => item.available)?.id ?? scenarios[0]?.id);
+  const [selected, setSelected] = useState(scenarios.find((item) => item.id === "florence-workshop")?.id ?? scenarios.find((item) => item.id === "last-train-1917")?.id ?? scenarios.find((item) => item.available)?.id ?? scenarios[0]?.id);
   const [mode, setMode] = useState<GameMode>("chronicle");
-  const scenario = scenarios.find((item) => item.id === selected) ?? scenarios[0];
-  const moveModeSparks = (event: React.PointerEvent<HTMLDivElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 18;
-    const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 12;
-    event.currentTarget.style.setProperty("--spark-x", `${x}px`);
-    event.currentTarget.style.setProperty("--spark-y", `${y}px`);
-    event.currentTarget.style.setProperty("--spark-x-reverse", `${x * -0.55}px`);
-    event.currentTarget.style.setProperty("--spark-y-reverse", `${y * -0.55}px`);
-  };
-  const resetModeSparks = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.currentTarget.style.setProperty("--spark-x", "0px");
-    event.currentTarget.style.setProperty("--spark-y", "0px");
-    event.currentTarget.style.setProperty("--spark-x-reverse", "0px");
-    event.currentTarget.style.setProperty("--spark-y-reverse", "0px");
-  };
 
   return (
-    <main className="landing shell">
+    <main className={`landing shell ${selected === "florence-workshop" ? "landing-florence" : ""}`}>
       <nav className="topbar">
         <div className="brand"><Seal>ИИ</Seal><span>Переиграть историю</span></div>
         <div className="topbar-tools">
@@ -381,39 +422,20 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
         <div className="hero-copy">
           <div className="eyebrow"><span>ALTERNATIVE HISTORY ENGINE</span><i /></div>
           <h1>История уже случилась.<br /><em>Но не здесь.</em></h1>
-          <p className="lead">Вы управляете государством. Мир не ждёт выбора из меню: он отвечает на любое ваше решение — интересами людей, дефицитом ресурсов и непредвиденными союзами.</p>
-          <div className="promise-row">
-            <span><Sparkles size={17} /> Ни одного прописанного финала</span>
-            <span><Compass size={17} /> Любое решение — допустимый ход</span>
-          </div>
-        </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="orbit orbit-one" />
-          <div className="orbit orbit-two" />
-          <div className="year year-a">1917</div>
-          <div className="year year-b">1985</div>
-          <div className="year year-c">?</div>
-          <svg className="map-lines" viewBox="0 0 500 420">
-            <path d="M45 205 C132 121, 187 122, 240 168 S339 243, 450 158" />
-            <path d="M80 295 C159 247, 235 286, 281 245 S370 174, 439 271" />
-            <path d="M142 76 C184 158, 147 229, 224 340" />
-          </svg>
-          <div className="artifact-card"><span>Точка расхождения</span><strong>Вы принимаете<br />первое решение</strong><i /></div>
+          <p className="lead">Выберите историю и станьте её участником. Разговаривайте с людьми, принимайте решения и пишите свои действия — от вашего ответа зависит, что случится дальше.</p>
         </div>
       </section>
 
       <section className="scenario-section">
         <div className="section-heading">
           <div><span className="index">01</span><h2>Выберите точку разлома</h2></div>
-          <p>Первая короткая история доступна уже сейчас. Остальные покажут, как одна механика меняется вместе с миром.</p>
+          <p>Нажмите «Играть» на нужной истории. Перед первым решением вы познакомитесь с местом и персонажами.</p>
         </div>
         <div className="scenario-grid">
           {scenarios.map((item, index) => (
-            <button
-              type="button"
+            <article
               key={item.id}
               className={`scenario-card ${selected === item.id ? "selected" : ""} ${!item.available ? "locked" : ""}`}
-              onClick={() => { setSelected(item.id); if (item.id === "last-train-1917") setMode("chronicle"); }}
               style={{ "--accent": item.accent } as React.CSSProperties}
             >
               <span className="card-number">0{index + 1}</span>
@@ -421,24 +443,12 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
               <h3>{item.title}</h3>
               <p>{item.hook}</p>
               <div className="scenario-meta"><span>{item.role}</span><span>{item.difficulty}</span></div>
-              {item.id === "last-train-1917" && <span className="recommended">Первая хроника</span>}
+              {["last-train-1917", "florence-workshop"].includes(item.id) && <span className="recommended">Доступна для теста</span>}
               {!item.available && <span className="coming">Скоро</span>}
-              {selected === item.id && <span className="selection-mark"><ChevronRight size={18} /></span>}
-            </button>
+              {item.available && <button type="button" className="primary scenario-play" disabled={busy} onClick={() => { setSelected(item.id); onStart(item.id, ["last-train-1917", "florence-workshop"].includes(item.id) ? 'chronicle' : mode); }}>Играть <span className="visually-hidden">— {item.title}</span><ArrowRight size={18} /></button>}
+              {item.id === 'russia-1917' && <label className="scenario-mode">Длина истории<select value={mode} onChange={event => setMode(event.target.value as GameMode)}><option value="chronicle">Короткая: 8–12 ходов</option><option value="campaign">Кампания: 25–40 ходов</option><option value="sandbox">Без завершения</option></select></label>}
+            </article>
           ))}
-        </div>
-        <div className="mode-picker-stage" onPointerMove={moveModeSparks} onPointerLeave={resetModeSparks}>
-          <div className="mode-sparks" aria-hidden="true">
-            <img className="mode-sparks-a" src={modeSparksOverlay} alt="" />
-            <img className="mode-sparks-b" src={modeSparksOverlay} alt="" />
-          </div>
-          <div className="mode-picker" aria-label="Режим игры">
-            {modeOptions.map((item) => (
-              <button type="button" key={item.id} className={mode === item.id ? "selected" : ""} onClick={() => setMode(item.id)}>
-                <span>{item.duration}</span><strong>{item.title}</strong><small>{item.description}</small>
-              </button>
-            ))}
-          </div>
         </div>
         <section className="world-portal" aria-labelledby="world-portal-title">
           <div className="world-portal-heading">
@@ -450,14 +460,6 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
             <div className="portal-card-reveal"><span>Сюжетная хроника · диалоги · новая палитра</span><b>Здесь слова меняют отношения, маршруты и память свидетелей.</b></div>
           </article>
         </section>
-        <div className="launch-row">
-          <div className="launch-brief"><ShieldAlert size={20} /><span><strong>Правило мира:</strong> ИИ не обязан делать ваш план успешным. Он обязан сделать ответ мира правдоподобным.</span></div>
-          <button className="primary" disabled={!scenario?.available || busy} onClick={() => scenario && onStart(scenario.id, mode)}>
-            {busy ? <LoaderCircle className="spin" size={20} /> : <Crown size={20} />}
-            Начать правление
-            <ArrowRight size={20} />
-          </button>
-        </div>
       </section>
     </main>
   );
@@ -465,20 +467,25 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
 
 function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: string }) {
   const trainStory = scenarioId === "last-train-1917";
+  const florenceStory = scenarioId === "florence-workshop";
   const showTrain = trainStory && ["train", "departure", "telegram"].includes(slide.scene);
   const showBelyaev = trainStory && ["station", "platform", "departure"].includes(slide.scene);
-  const showLidia = (trainStory && ["telegram", "platform"].includes(slide.scene)) || (!trainStory && slide.scene === "telegram");
-  const showMinister = !trainStory && ["cabinet", "memory", "telegram"].includes(slide.scene);
-  const showOfficer = !trainStory && slide.scene === "platform";
-  const showWorker = !trainStory && slide.scene === "platform";
-  const showIndustrialist = !trainStory && slide.scene === "train";
+  const showLidia = (trainStory && ["telegram", "platform"].includes(slide.scene)) || (!trainStory && !florenceStory && slide.scene === "telegram");
+  const showMinister = !trainStory && !florenceStory && ["cabinet", "memory", "telegram"].includes(slide.scene);
+  const showOfficer = !trainStory && !florenceStory && slide.scene === "platform";
+  const showWorker = !trainStory && !florenceStory && slide.scene === "platform";
+  const showIndustrialist = !trainStory && !florenceStory && slide.scene === "train";
   const sceneLabels: Record<IntroSlide["scene"], string> = { station: "перрон", telegram: "телеграф", train: "состав", platform: "разговор", departure: "отправление", cabinet: "кабинет" };
+  const florenceSceneLabels: Record<IntroSlide["scene"], string> = { station: "площадь", telegram: "условия", train: "пигмент", platform: "ученики", departure: "первый ответ", cabinet: "мастерская" };
+  const florencePortrait = slide.id === 'people' ? florenceJuliano1512 : slide.id === 'condition' ? florenceGuildmaster1512 : ['contract', 'signature'].includes(slide.id) ? florenceSecretary1512 : null;
+  const florenceBackdrop = slide.id === 'condition' ? florenceGuildhall1512 : slide.id === 'contract' ? florencePiazza1512 : florenceWorkshop1512;
   return (
-    <div className={`intro-visual intro-visual-${slide.scene}`} aria-hidden="true">
+    <div className={`intro-visual intro-visual-${slide.scene} ${florenceStory ? "intro-visual-florence" : ""}`} aria-hidden="true">
+      {florenceStory && <img className="florence-location-background" src={florenceBackdrop} alt="" />}
       <div className="intro-visual-grid" />
       <div className="intro-visual-orbit intro-visual-orbit-one" />
       <div className="intro-visual-orbit intro-visual-orbit-two" />
-      <span className="intro-visual-index">Сцена · {sceneLabels[slide.scene]}</span>
+      <span className="intro-visual-index">Сцена · {(florenceStory ? florenceSceneLabels : sceneLabels)[slide.scene]}</span>
       {showTrain && <div className="intro-train"><img src={freightTrain1917} alt="" /></div>}
       {showBelyaev && <div className="intro-person intro-person-belyaev"><img src={belyaev1917} alt="" /></div>}
       {showLidia && <div className="intro-person intro-person-lidia"><img src={lidia1917} alt="" /></div>}
@@ -486,15 +493,17 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
       {showOfficer && <div className="intro-person intro-person-officer"><img src={officer1917} alt="" /></div>}
       {showWorker && <div className="intro-person intro-person-worker"><img src={novikova1917} alt="" /></div>}
       {showIndustrialist && <div className="intro-person intro-person-industrialist"><img src={vorontsova1917} alt="" /></div>}
-      {!trainStory && slide.scene === "telegram" && <div className="intro-pressure-tags"><span>ФРОНТ</span><span>ЗЕМЛЯ</span><span>ХЛЕБ</span></div>}
+      {florenceStory && florencePortrait && <div className="intro-person intro-person-florence-juliano"><img src={florencePortrait} alt="" /></div>}
+      {!trainStory && !florenceStory && slide.scene === "telegram" && <div className="intro-pressure-tags"><span>ФРОНТ</span><span>ЗЕМЛЯ</span><span>ХЛЕБ</span></div>}
       <div className="intro-visual-line" />
-      <span className="intro-visual-caption">{trainStory ? "Николаевский вокзал · живая хроника" : "Таврический дворец · живая история"}</span>
+      <span className="intro-visual-caption">{trainStory ? "Николаевский вокзал · живая хроника" : florenceStory ? "Флоренция · ночь мастерской" : "Таврический дворец · живая история"}</span>
     </div>
   );
 }
 
 function IntroDeck({ scenarioId, mode, onCancel, onBegin, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { scenarioId: string; mode: GameMode; onCancel: () => void; onBegin: () => void; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
   const slides = introSlidesFor(scenarioId);
+  const florenceStory = scenarioId === "florence-workshop";
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState(0);
   const modeTitle = modeOptions.find((item) => item.id === mode)?.title ?? "Хроника";
@@ -521,15 +530,16 @@ function IntroDeck({ scenarioId, mode, onCancel, onBegin, textScale, onTextScale
   const onScroll = () => {
     const track = trackRef.current;
     if (!track || !track.clientHeight) return;
-    const index = Math.round(track.scrollTop / track.clientHeight);
+    const index = Array.from(track.children).reduce((closest, element, index, children) =>
+      Math.abs((element as HTMLElement).offsetTop - track.scrollTop) < Math.abs((children[closest] as HTMLElement).offsetTop - track.scrollTop) ? index : closest, 0);
     setActive(Math.max(0, Math.min(slides.length - 1, index)));
   };
 
   return (
-    <main className="intro-deck">
+    <main className={`intro-deck ${florenceStory ? "intro-deck-florence" : ""}`}>
       <header className="intro-header">
         <button type="button" className="intro-back" onClick={onCancel}><ArrowLeft size={18} /> К выбору истории</button>
-        <div className="intro-identity"><Seal>ИИ</Seal><div><span>Вводная хроника</span><small>{modeTitle} · {active + 1} из {slides.length}</small></div></div>
+        <div className="intro-identity"><Seal>ИИ</Seal><div><span>Вступление</span><small>{active + 1} из {slides.length}</small></div></div>
         <div className="intro-tools"><MusicToggle muted={musicMuted} onToggle={onMusicToggle} trackTitle={trackTitle} /><TextScaleControl value={textScale} onChange={onTextScale} /></div>
       </header>
       <div className="intro-progress" aria-label={`Слайд ${active + 1} из ${slides.length}`}>
@@ -567,12 +577,13 @@ function IntroDeck({ scenarioId, mode, onCancel, onBegin, textScale, onTextScale
   );
 }
 
-function MetricGauge({ value, trend, label }: { value: number; trend: number; label: string }) {
+function MetricGauge({ value, trend, label, initial, reason }: { value: number; trend: number; label: string; initial: boolean; reason?: string }) {
   return (
     <div className="metric">
-      <div className="metric-top"><span>{label}</span><strong>{value}</strong></div>
+      <div className="metric-top"><span>{label}</span><strong>{value}<small> / 100</small></strong></div>
       <div className="metric-track"><i style={{ width: `${value}%` }} /></div>
-      <small className={trend > 0 ? "up" : trend < 0 ? "down" : "flat"}>{trend > 0 ? `+${trend}` : trend === 0 ? "—" : trend} за ход</small>
+      <small className={initial ? 'flat' : trend > 0 ? "up" : trend < 0 ? "down" : "flat"}>{initial ? 'Начальное состояние' : trend === 0 ? 'Без изменений' : `${trend > 0 ? '+' : ''}${trend} после вашего решения`}</small>
+      {!initial && trend !== 0 && reason && <p className="metric-reason">{reason}</p>}
     </div>
   );
 }
@@ -595,17 +606,20 @@ function DecisionComposer({ options, onSubmit, busy }: { options: DecisionOption
 
   return (
     <section className="decision-panel">
-      <div className="panel-title"><span>Ваш следующий ход</span><small>Решение не ограничено вариантами</small></div>
+      <div className="panel-title"><span>Что вы сделаете?</span></div>
+      <details className="play-help"><summary>Как выбрать или написать свой ход</summary><p>Кнопка подставит действие в поле ниже. Можно изменить его целиком или добавить свою идею: ведущий прочитает весь текст. Затем нажмите «Разыграть ход».</p><p>Риск — оценка возможных потерь времени, денег или доверия. Это не вероятность успеха. В описании каждого варианта указано, чем вы рискуете.</p></details>
       <div className="decision-options">
         {options.map((option) => (
           <button key={option.id} className={selected === option.id ? "picked" : ""} onClick={() => pick(option)}>
-            <div><span className={`risk risk-${option.risk}`}>{option.risk}</span><ArrowRight size={15} /></div>
+            <div><span className={`risk risk-${option.risk}`}>Риск: {option.risk}</span><ArrowRight size={15} /></div>
             <strong>{option.title}</strong><p>{option.description}</p>
+            {option.voice && <small className="option-voice">{option.voice}</small>}
           </button>
         ))}
       </div>
       <div className="freeform">
-        <textarea value={text} onChange={(event) => { setText(event.target.value); setSelected(null); }} placeholder="Или отдайте собственный приказ: что именно вы делаете, с кем договариваетесь, чем готовы рискнуть…" maxLength={700} />
+        <label className="freeform-label" htmlFor="player-action">Ваше действие — можно написать что угодно своими словами</label>
+        <textarea id="player-action" value={text} onChange={(event) => { setText(event.target.value); setSelected(null); }} placeholder="Что вы делаете или говорите? К кому обращаетесь?" maxLength={700} />
         <div className="composer-footer"><span>{text.length}/700 · мир ответит последствиями</span><button disabled={busy || text.trim().length < 4} onClick={() => onSubmit({ action: text, source: selected ? "prepared" : "freeform", optionId: selected ?? undefined })}>{busy ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />} Разыграть ход</button></div>
       </div>
     </section>
@@ -616,15 +630,27 @@ function Outcome({ state }: { state: GameState }) {
   const outcome = state.lastOutcome;
   if (!outcome) return null;
   return (
-    <section className="outcome">
-      <div className="outcome-kicker"><Radio size={15} /> Последствия предыдущего решения <span>{outcome.provider === "deepseek" ? "DeepSeek" : outcome.provider === "cloudflare" ? "Cloudflare AI" : outcome.source === "ai" ? "ИИ" : "симулятор"}</span></div>
+    <section className="outcome" id="turn-result" tabIndex={-1} data-provider={outcome.provider} data-model={outcome.model} data-tokens={outcome.usage?.totalTokens} data-scene={state.turn}>
+      <div className="outcome-kicker"><Radio size={15} /> {state.status === 'active' ? 'После вашего решения' : 'Чем закончилась история'}</div>
       <h2>{outcome.headline}</h2>
-      <p>{outcome.summary}</p>
-      <blockquote>{outcome.dispatch}</blockquote>
+      {outcome.summary.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+      {outcome.resolution && <div className={`action-resolution action-resolution-${outcome.resolution.status}`}>
+        <span>{outcome.resolution.status === "executed" ? "Что удалось сделать" : outcome.resolution.status === "conditional" ? "О чём ещё нужно договориться" : "Что помешало"}</span>
+        <strong>{outcome.resolution.explanation}</strong>
+        {outcome.resolution.requirement && <p><b>Нужно:</b> {outcome.resolution.requirement}</p>}
+        <p><b>Последствия и затраты:</b> {outcome.resolution.cost}</p>
+      </div>}
+      {state.scenarioId !== 'florence-workshop' && <blockquote>{outcome.dispatch}</blockquote>}
       {outcome.surprise && <div className="surprise"><ShieldAlert size={20} /><div><strong>Непредвиденное последствие</strong><p>{outcome.surprise}</p></div></div>}
-      <div className="reaction-grid">
+      {outcome.sceneDialogue?.length ? <div className="scene-dialogue" aria-label="Разговор в сцене">
+        <span>В разговоре</span>
+        {outcome.sceneDialogue.map((line, index) => {
+          const portrait = /джулиан/i.test(line.speaker) ? florenceJuliano1512 : /лука|орсини/i.test(line.speaker) ? florenceSecretary1512 : /риччи|бартоломео/i.test(line.speaker) ? florenceGuildmaster1512 : null;
+          return <article className="dialogue-line" key={`${line.speaker}-${index}`}>{state.scenarioId === 'florence-workshop' && portrait && <img src={portrait} alt="" />}<div><strong>{line.speaker}</strong><p>{/^[«"“]/.test(line.line.trim()) ? line.line : `«${line.line}»`}</p></div></article>;
+        })}
+      </div> : <div className="reaction-grid">
         {outcome.reactions.map((reaction) => <div key={reaction.faction}><span className={`stance stance-${reaction.stance}`}>{reaction.stance}</span><strong>{reaction.faction}</strong><p>{reaction.text}</p></div>)}
-      </div>
+      </div>}
     </section>
   );
 }
@@ -725,7 +751,7 @@ const thinkingVariants = [
   { id: "eclipse", label: "Несколько будущих спорят между собой" },
 ] as const;
 
-function WorldThinking({ date }: { date: string }) {
+function WorldThinking({ date, florenceStory = false }: { date: string; florenceStory?: boolean }) {
   const [elapsed, setElapsed] = useState(0);
   const [variant] = useState(() => thinkingVariants[Math.floor(Math.random() * thinkingVariants.length)]);
   const startingDate = useRef(date);
@@ -740,13 +766,21 @@ function WorldThinking({ date }: { date: string }) {
     if (date !== startingDate.current) setResolved(true);
   }, [date]);
 
-  const phase = elapsed < 5
-    ? "Приказ покидает кабинет"
-    : elapsed < 10
-      ? "Фракции сверяют интересы"
-      : elapsed < 15
-        ? "Слухи меняют траекторию"
-        : "Последствия складываются в хронику";
+  const phase = florenceStory
+    ? elapsed < 5
+      ? "Кисть останавливается над картоном"
+      : elapsed < 10
+        ? "Гильдия сверяет условие и цену"
+        : elapsed < 15
+          ? "Мастерская считает, кто примет риск"
+          : "След решения складывается в хронику"
+    : elapsed < 5
+      ? "Приказ покидает кабинет"
+      : elapsed < 10
+        ? "Фракции сверяют интересы"
+        : elapsed < 15
+          ? "Слухи меняют траекторию"
+          : "Последствия складываются в хронику";
 
   return (
     <div className="world-thinking" role="status" aria-live="polite" aria-label="Мир отвечает на ваше решение">
@@ -768,20 +802,26 @@ function WorldThinking({ date }: { date: string }) {
         <strong>Мир отвечает на ваше решение</strong>
         <p>{phase}</p>
         <div className="thinking-track" aria-hidden="true"><i /></div>
-        <div className="thinking-meta"><span aria-live="off">Прошло {elapsed} сек.</span><span>ИИ разыгрывает последствия</span></div>
+        <div className="thinking-meta"><span aria-live="off">Прошло {elapsed} сек.</span><span>Ведущий готовит ответ</span></div>
       </div>
     </div>
   );
 }
 
 function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted, onMusicToggle, trackTitle }: { state: GameState; onTurn: (submission: TurnSubmission) => void; onExit: () => void; busy: boolean; textScale: TextScale; onTextScale: (value: TextScale) => void; musicMuted: boolean; onMusicToggle: () => void; trackTitle: string }) {
+  const [showState, setShowState] = useState(() => window.innerWidth > 1100);
+  useEffect(() => {
+    if (!busy && state.lastOutcome) document.getElementById('turn-result')?.scrollIntoView({ behavior: 'instant', block: 'start' });
+  }, [state.updatedAt, busy]);
   const stability = state.metrics.find((metric) => metric.id === "stability")?.value ?? 50;
   const armyReaction = state.lastOutcome?.reactions.find((reaction) => reaction.faction.includes("Став"));
-  const activeCharacters = (state.lastOutcome?.scene.activeCharacterIds ?? []).map(normalizeSceneCharacter);
+  const activeCharacters = (state.lastOutcome?.scene.activeCharacterIds ?? (state.scenarioId === 'florence-workshop' ? ['florence-secretary', 'florence-juliano'] : [])).map(normalizeSceneCharacter);
   const sceneProps = state.lastOutcome?.scene.propIds ?? [];
   const trainStory = state.scenarioId === "last-train-1917";
-  const rawSceneLocation = state.lastOutcome?.scene.locationId ?? (trainStory ? "nikolaevsky-platform" : "tauride-cabinet");
-  const sceneLocation = normalizeSceneLocation(rawSceneLocation, trainStory);
+  const florenceStory = state.scenarioId === "florence-workshop";
+  const rawSceneLocation = state.lastOutcome?.scene.locationId ?? (trainStory ? "nikolaevsky-platform" : florenceStory ? "florence-workshop" : "tauride-cabinet");
+  const sceneLocation = normalizeSceneLocation(rawSceneLocation, trainStory, florenceStory);
+  const florenceBackground = florenceStory ? florenceBackgroundAssets[sceneLocation] ?? florenceWorkshop1512 : null;
   const showCar = sceneProps.includes("staff-renault");
   const showTrain = sceneProps.includes("freight-train");
   const modeTitle = modeOptions.find((mode) => mode.id === state.mode)?.title ?? "Кампания";
@@ -794,10 +834,13 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
     "muddy-station": "Петроград · вокзальный перрон",
     "factory-yard": "Петроград · фабричный двор",
     "tauride-cabinet": "Петроград · Таврический дворец",
+    "florence-workshop": "Флоренция · мастерская",
+    "florence-guildhall": "Флоренция · зал гильдии",
+    "florence-square": "Флоренция · ночная площадь",
   };
   const requestedSceneCharacters = activeCharacters.filter((id) => sceneCharacterAssets[id]);
-  const fallbackSceneCharacter = trainStory ? "rail-belyaev" : "minister-levitsky";
-  const sceneCharacterIds = (requestedSceneCharacters.length ? requestedSceneCharacters : [fallbackSceneCharacter]).slice(0, 2);
+  const fallbackSceneCharacter = trainStory ? "rail-belyaev" : florenceStory ? "florence-juliano" : "minister-levitsky";
+  const sceneCharacterIds = (florenceStory && state.lastOutcome ? requestedSceneCharacters : requestedSceneCharacters.length ? requestedSceneCharacters : [fallbackSceneCharacter]).slice(0, 2);
   const sceneCharacters = sceneCharacterIds.map((id, index) => {
     const asset = sceneCharacterAssets[id];
     const side = sceneCharacterIds.length === 1 ? asset.defaultSide : index === 0 ? "left" : "right";
@@ -811,37 +854,49 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
     "rail-belyaev": "Беляев считает минуты до стрелки",
     "worker-novikova": "Анна принесла список фабричных смен",
     "industrialist-vorontsova": "Софья ждёт встречного условия",
+    "florence-juliano": "Джулиано Белли · ваш ученик",
+    "florence-guildmaster": "Бартоломео Риччи · старшина гильдии",
+    "florence-secretary": "Лука Орсини · секретарь заказчика",
+    "florence-cardinal": "Кардинал ждёт результат, который можно предъявить городу",
   };
-  const guestCaption = guestCaptions[leadCharacter ?? ""] ?? (trainStory ? "Станция ждёт вашего решения" : "Кабинет ждёт вашего решения");
+  const florenceLead = activeCharacters[0];
+  const guestCaption = guestCaptions[florenceStory ? florenceLead ?? "" : leadCharacter ?? ""] ?? (trainStory ? "Станция ждёт вашего решения" : florenceStory ? "Мастерская ждёт вашего решения" : "Кабинет ждёт вашего решения");
   const visibleSceneProps = sceneProps.map((id) => ({ id, label: scenePropLabels[id] })).filter((item): item is { id: string; label: string } => Boolean(item.label)).slice(0, 3);
-  const locationLabel = locationNames[sceneLocation] ?? (trainStory ? "Петроград · железнодорожная линия" : "Петроград · Таврический дворец");
+  const locationLabel = locationNames[sceneLocation] ?? (trainStory ? "Петроград · железнодорожная линия" : florenceStory ? "Флоренция · мастерская" : "Петроград · Таврический дворец");
   const briefingText = state.turn === 1
     ? state.briefing
     : state.lastOutcome?.nextBriefing ?? `Прошло ${state.lastOutcome?.daysPassed ?? 7} дней. Решение вышло из кабинета и теперь проверяется исполнением на местах.`;
   return (
-    <main className="game-shell">
+    <main className={`game-shell ${florenceStory ? "game-shell-florence" : ""}`}>
       <header className="game-header">
         <button className="icon-button" onClick={onExit} title="К сценариям"><ArrowLeft size={19} /></button>
         <div className="game-identity"><Seal>ИИ</Seal><div><span>{state.scenarioTitle}</span><small>{state.role} · {modeTitle}</small></div></div>
-        <div className="game-date"><Clock3 size={17} /><span>{formatDate(state.date)}</span><b>Ход {state.turn}</b><MusicToggle muted={musicMuted} onToggle={onMusicToggle} trackTitle={trackTitle} /><TextScaleControl value={textScale} onChange={onTextScale} /></div>
+        <div className="game-date"><Clock3 size={17} /><span>{formatDate(state.date)}</span><b>{state.status !== 'active' ? 'Финал' : `Ход ${state.turn}`}</b><MusicToggle muted={musicMuted} onToggle={onMusicToggle} trackTitle={trackTitle} /><TextScaleControl value={textScale} onChange={onTextScale} /></div>
       </header>
 
       <div className="game-layout">
         <aside className="state-rail">
-          <div className="rail-heading"><Gauge size={17} /> Состояние страны</div>
-          <div className="metrics-list">{state.metrics.map((metric) => <MetricGauge key={metric.id} {...metric} />)}</div>
+          <details className="state-details" open={showState} onToggle={event => setShowState(event.currentTarget.open)}>
+          <summary>Состояние и участники</summary>
+          <div className="rail-heading"><Gauge size={17} /> {florenceStory ? "Состояние мастерской" : "Состояние страны"}</div>
+          <p className="rail-explanation">Оценки от 0 до 100: чем выше, тем лучше положение. Это не деньги и не проценты успеха. После решения видны изменение и его причина.</p>
+          <div className="metrics-list">{state.metrics.map((metric) => <MetricGauge key={metric.id} {...metric} initial={!state.lastOutcome} reason={state.lastOutcome?.effects.find(e => e.id === metric.id)?.reason} />)}</div>
+          {florenceStory && <details className="play-help"><summary>Что означает каждый показатель</summary><p><b>Репутация:</b> насколько надёжным мастером вас считают. <b>Материалы и деньги:</b> хватит ли запасов на работу и оплату. <b>Опора гильдии:</b> готов ли Риччи поддержать вас. <b>Силы людей:</b> смогут ли ученики продолжать без переутомления. <b>Договор:</b> насколько вы близки к соглашению с заказчиком.</p></details>}
           <div className="factions">
-            <div className="rail-heading"><Landmark size={17} /> Центры силы</div>
-            {state.factions.map((faction) => <div className="faction" key={faction.name}><div><strong>{faction.name}</strong><span>{faction.mood}</span></div><b>{faction.power}</b></div>)}
+            <div className="rail-heading"><Landmark size={17} /> Участники: с чего всё началось</div>
+            {state.factions.map((faction) => <div className="faction" key={faction.name}><div><strong>{faction.name}</strong><span>{faction.mood}</span></div></div>)}
           </div>
-          <div className="objective"><span>Цель правления</span><p>{state.objective}</p></div>
+          <div className="objective"><span>{florenceStory ? "Цель ночи" : "Цель правления"}</span><p>{state.objective}</p></div>
+          </details>
         </aside>
 
         <div className="main-stage">
-          <section className={`scene-tableau ${stability < 30 ? "scene-unrest" : ""} ${trainStory ? "scene-train-world" : ""} scene-location-${sceneLocation}`} aria-label={`Живая сцена: ${locationLabel}`}>
+          <div className="player-role"><strong>Вы — {state.role.toLowerCase()}.</strong><p>{state.objective}</p></div>
+          <section className={`scene-tableau ${stability < 30 ? "scene-unrest" : ""} ${trainStory ? "scene-train-world" : ""} ${florenceStory ? "scene-florence-world" : ""} scene-location-${sceneLocation}`} aria-label={`Живая сцена: ${locationLabel}`}>
+            {florenceBackground && <img className="scene-location-background" src={florenceBackground} alt="" />}
             <div className="scene-grid" />
             <div className="scene-window"><i /><i /><i /></div>
-            <div className="scene-map"><span>ПЕТРОГРАД</span><i /><i /><i /></div>
+            <div className="scene-map"><span>{florenceStory ? "FIRENZE" : "ПЕТРОГРАД"}</span><i /><i /><i /></div>
             <div className="scene-desk"><span /><span /></div>
             {showCar && <div className="scene-vehicle"><img src={staffCar1917} alt="Штабной автомобиль у входа" /></div>}
             {showTrain && <div className="scene-train"><img src={freightTrain1917} alt="Товарный паровоз у станции" /></div>}
@@ -857,30 +912,36 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
             </div>
             <div className="scene-live" title={state.lastOutcome?.scene.atmosphere ?? undefined}><i /> Живая сцена</div>
           </section>
-          <section className="briefing">
+          <Outcome state={state} />
+          {(!florenceStory || state.status === 'active') && <section className="briefing">
             <div className="briefing-index">{String(state.turn).padStart(2, "0")}</div>
             <div>
-              <span className="eyebrow-small">Оперативная обстановка</span>
+              <span className="eyebrow-small">{florenceStory ? `Сцена ${Math.min(state.turn, 6)} из 6` : 'Что происходит сейчас'}</span>
               {campaignAct && <div className="campaign-wayfinding" aria-label={`Кампания, акт ${campaignAct.number}: ${campaignAct.question}`}>
                 <div className="campaign-wayfinding-meta"><span>Кампания · акт {campaignAct.number}</span><small>{campaignAct.range}</small></div>
                 <strong>{campaignAct.title}</strong>
                 <p>{campaignAct.question} <em>{campaignAct.focus}</em></p>
               </div>}
-              <h1>{state.turn === 1 ? "Власть существует только до первого неверного решения" : "Решение вышло из кабинета"}</h1><p>{briefingText}</p>
+              <h1>{florenceStory ? state.lastOutcome?.nextTitle || 'Секретарь заказчика ждёт ответа' : state.turn === 1 ? trainStory ? 'Один поезд. Кого отправить?' : 'Вам предстоит возглавить правительство' : 'Что изменилось и кто ждёт решения'}</h1>{briefingText.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
             </div>
-          </section>
-          <Outcome state={state} />
-          {state.status === "active" ? <DecisionComposer options={state.options} onSubmit={onTurn} busy={busy} /> : <div className="end-state"><h2>{state.status === "victory" ? "Новый порядок устоял" : "Государство распалось"}</h2><p>Эта ветка истории завершена. Можно вернуться к точке разлома и попробовать другую стратегию.</p><button onClick={onExit}><RotateCcw size={18} /> Начать заново</button></div>}
+          </section>}
+          {state.status === "active" ? <DecisionComposer options={state.options} onSubmit={onTurn} busy={busy} /> : <div className="end-state">
+            <h2>{florenceStory ? 'После этой ночи' : state.status === 'victory' ? 'Новый порядок устоял' : 'Государство распалось'}</h2>
+            <p>{florenceStory ? state.lastOutcome?.reflection : 'Эта ветка истории завершена. Можно вернуться к точке давления и попробовать другой путь.'}</p>
+            {florenceStory && state.florence && <details className="florence-trace"><summary>Посмотреть решения и их цену</summary>
+              {state.florence.trace.map(entry => <article key={entry.turn}><strong>Сцена {entry.turn}</strong><p>{entry.action}</p><p>{entry.cost}</p></article>)}
+            </details>}
+            <button onClick={onExit}><RotateCcw size={18} /> Начать заново</button></div>}
         </div>
 
         <aside className="chronicle">
-          <div className="rail-heading"><BookOpen size={17} /> Ваша хроника</div>
+          <div className="rail-heading"><BookOpen size={17} /> События истории</div>
           <div className="timeline">
-            {[...state.timeline].reverse().map((entry) => <article key={entry.id} className={`timeline-entry ${entry.kind}`}><time>{formatDate(entry.date)}</time><strong>{entry.title}</strong><p>{entry.description}</p></article>)}
+            {[...state.timeline].reverse().map((entry) => <article key={entry.id} className={`timeline-entry ${entry.kind}`}><time>{entry.kind === 'origin' ? 'Предыстория · ' : ''}{formatDate(entry.date)}</time><strong>{entry.title}</strong><p>{entry.description}</p></article>)}
           </div>
         </aside>
       </div>
-      {busy && <WorldThinking date={state.date} />}
+      {busy && <WorldThinking date={state.date} florenceStory={florenceStory} />}
     </main>
   );
 }
@@ -986,18 +1047,20 @@ function GameApp() {
   }, []);
 
   const start = async (id: string, mode: GameMode) => {
-    setIntro(null);
+    if (busy) return;
     setBusy(true); setError(null);
     try {
       const state = await api.createGame(id, mode);
       localStorage.setItem("living-history-session", state.id);
       setGame(state);
+      setIntro(null);
+      window.scrollTo({ top: 0, behavior: 'instant' });
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Не удалось начать игру"); }
     finally { setBusy(false); }
   };
 
   const playTurn = async (submission: TurnSubmission) => {
-    if (!game) return;
+    if (!game || busy) return;
     setBusy(true); setError(null);
     try {
       const nextState = await api.playTurn(game.id, submission);
@@ -1008,15 +1071,15 @@ function GameApp() {
     finally { setBusy(false); }
   };
 
-  const exit = () => { localStorage.removeItem("living-history-session"); setGame(null); setError(null); };
+  const exit = () => { localStorage.removeItem("living-history-session"); setGame(null); setError(null); window.scrollTo({ top: 0, behavior: 'instant' }); };
   const requestStart = (scenarioId: string, mode: GameMode) => {
-    setIntro({ scenarioId, mode: scenarioId === "last-train-1917" ? "chronicle" : mode });
+    setIntro({ scenarioId, mode: ["last-train-1917", "florence-workshop"].includes(scenarioId) ? "chronicle" : mode });
   };
   const changeTextScale = (value: TextScale) => {
     setTextScale(value);
     localStorage.setItem("living-history-text-scale", value);
   };
-  const activeTrack = useMemo(() => selectMusic(game, busy), [game, busy]);
+  const activeTrack = useMemo(() => selectMusic(game, busy, intro?.scenarioId), [game, busy, intro?.scenarioId]);
   const toggleMusic = () => {
     const nextMuted = !musicMuted;
     setMusicMuted(nextMuted);
