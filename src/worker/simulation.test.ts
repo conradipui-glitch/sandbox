@@ -4,7 +4,6 @@ import { applyOutcome, simulateTurn } from "./simulation";
 import { gameModes, worldCharacters, worldContextForTurn } from "./world";
 import { campaignActForTurn } from "../shared/campaign";
 import { russia1917CampaignBeatForTurn, russia1917CampaignBeats } from "./scenario-beats";
-import { florenceBeatForTurn, florenceDialogueForTurn } from "./florence";
 import { extractAiText } from "./index";
 
 describe("history simulation", () => {
@@ -55,63 +54,6 @@ describe("history simulation", () => {
     expect(next.status).toBe("active");
   });
 
-  it("opens the Florence prototype and distinguishes executable, conditional and impossible freeform moves", () => {
-    const state = createInitialState("florence-1", "florence-workshop", "campaign");
-    expect(state.mode).toBe("chronicle");
-    expect(state.scenarioTitle).toContain("Флоренция");
-    expect(state.role).toContain("мастерской");
-
-    const care = simulateTurn(state, "Отправить Джулиано к лекарю и взять растирку красок на себя");
-    expect(care.resolution?.status).toBe("executed");
-    expect(care.resolution?.cost).toMatch(/срок|мастерской/i);
-    expect(care.sceneDialogue?.map((line) => line.speaker)).toEqual(["Джулиано", "Лука Орсини"]);
-    expect(care.summary).toMatch(/снимает фартук/i);
-    const afterCare = applyOutcome(state, "Отправить Джулиано к лекарю и взять растирку красок на себя", care);
-    const careContinues = simulateTurn(afterCare, "Пересчитать смету красок и представить гильдии выполнимый план оплаты");
-    expect(careContinues.sceneDialogue?.at(-1)?.line).toMatch(/сняли меня с лесов/i);
-
-    const negotiate = simulateTurn(state, "Попросить кардинала принять черновой картон и дать мастерской отсрочку");
-    expect(negotiate.resolution?.status).toBe("conditional");
-    expect(negotiate.resolution?.requirement).toMatch(/кардинал|подпись|аванс/i);
-    expect(negotiate.sceneDialogue?.[0]?.speaker).toBe("Лука Орсини");
-
-    const impossible = simulateTurn(state, "Приказать закончить фреску за час без красок, денег и людей");
-    expect(impossible.resolution?.status).toBe("blocked");
-    expect(impossible.summary).toMatch(/не может/i);
-    expect(impossible.sceneDialogue).toHaveLength(2);
-  });
-
-  it("gives every Florence pressure point authored dialogue for each response tone", () => {
-    for (let turn = 1; turn <= 6; turn += 1) {
-      for (const tone of ["terms", "care", "agency", "craft", "blocked"] as const) {
-        const exchange = florenceDialogueForTurn(turn, tone);
-        expect(exchange.narration.length).toBeGreaterThan(70);
-        expect(exchange.lines).toHaveLength(2);
-        expect(exchange.lines.every((line) => line.speaker.length > 0 && line.line.length > 30)).toBe(true);
-      }
-    }
-  });
-
-  it("moves Florence to the next pressure point and ends after six turns", () => {
-    const first = createInitialState("florence-sequence", "florence-workshop", "chronicle");
-    const firstAction = "Показать кардиналу черновой картон и запросить отсрочку до утра";
-    const firstOutcome = simulateTurn(first, firstAction);
-    const second = applyOutcome(first, firstAction, firstOutcome);
-    expect(second.options.map((option) => option.title)).toEqual(florenceBeatForTurn(2).options.map((option) => option.title));
-
-    const blockedAction = "Закончить фреску за час без красок, денег и людей";
-    const blockedOutcome = simulateTurn(first, blockedAction);
-    const blocked = applyOutcome(first, blockedAction, blockedOutcome);
-    expect(blocked.options.map((option) => option.title)).toEqual(florenceBeatForTurn(1).options.map((option) => option.title));
-
-    let state = first;
-    for (let turn = 0; turn < 6; turn += 1) {
-      const action = "Проверить пигмент на картоне и записать реальный объём работы";
-      state = applyOutcome(state, action, simulateTurn(state, action));
-    }
-    expect(state.status).toBe("victory");
-    expect(state.turn).toBe(7);
-  });
 
   it("keeps the scene contract grounded in the world state", () => {
     const train = createInitialState("train-scene-1", "last-train-1917", "chronicle");

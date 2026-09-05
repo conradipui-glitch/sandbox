@@ -540,7 +540,7 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
       <div className="intro-visual-grid" />
       <div className="intro-visual-orbit intro-visual-orbit-one" />
       <div className="intro-visual-orbit intro-visual-orbit-two" />
-      <span className="intro-visual-index">Сцена · {sceneLabels[slide.scene]}</span>
+      <span className="intro-visual-index">Сцена · {florenceStory ? 'мастерская' : sceneLabels[slide.scene]}</span>
       {showTrain && <div className="intro-train"><img src={freightTrain1917} alt="" /></div>}
       {showBelyaev && <div className="intro-person intro-person-belyaev"><img src={belyaev1917} alt="" /></div>}
       {showLidia && <div className="intro-person intro-person-lidia"><img src={lidia1917} alt="" /></div>}
@@ -684,14 +684,16 @@ function Outcome({ state }: { state: GameState }) {
     <section className="outcome">
       <div className="outcome-kicker"><Radio size={15} /> Последствия предыдущего решения <span>{outcome.provider === "deepseek" ? "DeepSeek" : outcome.provider === "cloudflare" ? "Cloudflare AI" : outcome.source === "ai" ? "ИИ" : "симулятор"}</span></div>
       <h2>{outcome.headline}</h2>
-      <p>{outcome.summary}</p>
+      {state.scenarioId === 'florence-workshop'
+        ? outcome.summary.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>)
+        : <p>{outcome.summary}</p>}
       {outcome.resolution && <div className={`action-resolution action-resolution-${outcome.resolution.status}`}>
         <span>{outcome.resolution.status === "executed" ? "Ход выполнен" : outcome.resolution.status === "conditional" ? "Ход требует условия" : "Ход невозможен сейчас"}</span>
         <strong>{outcome.resolution.explanation}</strong>
         {outcome.resolution.requirement && <p><b>Нужно:</b> {outcome.resolution.requirement}</p>}
         <small><b>Цена:</b> {outcome.resolution.cost}</small>
       </div>}
-      <blockquote>{outcome.dispatch}</blockquote>
+      {state.scenarioId !== 'florence-workshop' && <blockquote>{outcome.dispatch}</blockquote>}
       {outcome.surprise && <div className="surprise"><ShieldAlert size={20} /><div><strong>Непредвиденное последствие</strong><p>{outcome.surprise}</p></div></div>}
       {outcome.sceneDialogue?.length ? <div className="scene-dialogue" aria-label="Разговор в сцене">
         <span>Голоса сцены</span>
@@ -942,20 +944,27 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
             </div>
             <div className="scene-live" title={state.lastOutcome?.scene.atmosphere ?? undefined}><i /> Живая сцена</div>
           </section>
-          <section className="briefing">
+          {florenceStory && <Outcome state={state} />}
+          {(!florenceStory || state.status === 'active') && <section className="briefing">
             <div className="briefing-index">{String(state.turn).padStart(2, "0")}</div>
             <div>
-              <span className="eyebrow-small">Оперативная обстановка</span>
+              <span className="eyebrow-small">{florenceStory ? `Сцена ${Math.min(state.turn, 6)} из 6 · редакция 2` : 'Оперативная обстановка'}</span>
               {campaignAct && <div className="campaign-wayfinding" aria-label={`Кампания, акт ${campaignAct.number}: ${campaignAct.question}`}>
                 <div className="campaign-wayfinding-meta"><span>Кампания · акт {campaignAct.number}</span><small>{campaignAct.range}</small></div>
                 <strong>{campaignAct.title}</strong>
                 <p>{campaignAct.question} <em>{campaignAct.focus}</em></p>
               </div>}
-              <h1>{state.turn === 1 ? florenceStory ? "Работа не становится возможной от приказа" : "Власть существует только до первого неверного решения" : florenceStory ? "Условия сделки изменились" : "Решение вышло из кабинета"}</h1><p>{briefingText}</p>
+              <h1>{florenceStory ? state.lastOutcome?.nextTitle ?? 'Чужая печать' : state.turn === 1 ? 'Власть существует только до первого неверного решения' : 'Решение вышло из кабинета'}</h1><p>{briefingText}</p>
             </div>
-          </section>
-          <Outcome state={state} />
-          {state.status === "active" ? <DecisionComposer options={state.options} onSubmit={onTurn} busy={busy} /> : <div className="end-state"><h2>{state.status === "victory" ? florenceStory ? "Мастерская пережила эту ночь" : "Новый порядок устоял" : florenceStory ? "Мастерская закрыла заказ" : "Государство распалось"}</h2><p>Эта ветка истории завершена. Можно вернуться к точке давления и попробовать другой способ сохранить работу, людей или своё имя.</p><button onClick={onExit}><RotateCcw size={18} /> Начать заново</button></div>}
+          </section>}
+          {!florenceStory && <Outcome state={state} />}
+          {state.status === "active" ? <DecisionComposer options={state.options} onSubmit={onTurn} busy={busy} /> : <div className="end-state">
+            <h2>{florenceStory ? 'После последней подписи' : state.status === 'victory' ? 'Новый порядок устоял' : 'Государство распалось'}</h2>
+            <p>{florenceStory ? state.lastOutcome?.reflection : 'Эта ветка истории завершена. Можно вернуться к точке давления и попробовать другой путь.'}</p>
+            {florenceStory && state.florence && <details className="florence-trace"><summary>Посмотреть решения и их цену</summary>
+              {state.florence.trace.map(entry => <article key={entry.turn}><strong>Сцена {entry.turn}</strong><p>{entry.action}</p><p>{entry.cost}</p></article>)}
+            </details>}
+            <button onClick={onExit}><RotateCcw size={18} /> Начать заново</button></div>}
         </div>
 
         <aside className="chronicle">
@@ -1071,12 +1080,13 @@ function GameApp() {
   }, []);
 
   const start = async (id: string, mode: GameMode) => {
-    setIntro(null);
+    if (busy) return;
     setBusy(true); setError(null);
     try {
       const state = await api.createGame(id, mode);
       localStorage.setItem("living-history-session", state.id);
       setGame(state);
+      setIntro(null);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Не удалось начать игру"); }
     finally { setBusy(false); }
   };

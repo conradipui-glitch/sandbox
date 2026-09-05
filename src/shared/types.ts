@@ -116,6 +116,10 @@ export interface ProductAnalyticsOverview {
 }
 
 export interface TurnOutcome {
+  florence?: FlorenceMemory;
+  advanceScene?: boolean;
+  reflection?: string;
+  nextTitle?: string;
   headline: string;
   summary: string;
   /** A fresh tactical situation for the next turn; it must not repeat summary. */
@@ -136,6 +140,7 @@ export interface TurnOutcome {
 }
 
 export interface GameState {
+  florence?: FlorenceMemory;
   id: string;
   scenarioId: string;
   mode: GameMode;
@@ -153,6 +158,12 @@ export interface GameState {
   lastOutcome: TurnOutcome | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FlorenceMemory {
+  version: 2;
+  facts: Record<string, boolean>;
+  trace: Array<{ turn: number; action: string; moves: string[]; status: ActionResolution['status']; cost: string }>;
 }
 
 export interface ScenarioSummary {

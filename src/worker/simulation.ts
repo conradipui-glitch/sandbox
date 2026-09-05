@@ -1,8 +1,8 @@
-import type { DecisionOption, DialogueLine, GameState, MetricId, TurnOutcome } from "../shared/types";
+import type { DecisionOption, GameState, MetricId, TurnOutcome } from "../shared/types";
 import { gameModes, worldContextForTurn } from "./world";
 import { lastTrainOptions } from "./scenarios";
 import { russia1917CampaignBeatForTurn } from "./scenario-beats";
-import { florenceBeatForTurn, florenceDialogueForTurn, type FlorenceResponseTone } from "./florence";
+import { resolveFlorenceTurn } from "./florence-engine";
 
 const metricIds: MetricId[] = ["legitimacy", "economy", "army", "stability", "diplomacy"];
 
@@ -232,144 +232,10 @@ function simulateLastTrainTurn(state: GameState, action: string): TurnOutcome {
   };
 }
 
-function florenceMemoryLine(state: GameState): DialogueLine | null {
-  const priorActions = state.timeline
-    .filter((entry) => entry.kind === "decision")
-    .map((entry) => entry.title.replace(/^Ваш ход:\s*/i, ""))
-    .join(" ")
-    .toLowerCase();
-  if (!priorActions) return null;
-  // A name is not an action.  In particular, "не отправлять Джулиано к
-  // лекарю" must not be remembered as care.  Keep the memory conservative:
-  // it speaks only about an unambiguous, completed choice.
-  if (/(отправ\p{L}*\s+(?:джулиано|подмастерья)\s+к\s+лекар|снят\p{L}*\s+джулиано\s+с\s+лес)/u.test(priorActions)) {
-    return { speaker: "Джулиано", line: "Вы уже сняли меня с лесов, когда это стоило срока. Не отдавайте теперь ту же ночь кому-то молча." };
-  }
-  if (/кардинал|отсроч|аванс|договор|гильди|подпис/.test(priorActions)) {
-    return { speaker: "Лука Орсини", line: "Вы просили, чтобы условия были записаны. Теперь не оставляйте самую дорогую строку без имени." };
-  }
-  if (/отказ|не пуск|закры|пауз|не отвеч|останов|сво(ё|е) услов/.test(priorActions)) {
-    return { speaker: "Бартоломео Риччи", line: "Вы уже выбрали границу. Площадь помнит не слова на ней, а то, что вы отказались переступить." };
-  }
-  if (/смет|пигмент|краск|картон|рассчит|письмен/.test(priorActions)) {
-    return { speaker: "Кардинал Веттори", line: "Вы принесли мне доказательство, а не заверение. Не превращайте его теперь в новую красивую речь." };
-  }
-  return null;
-}
-
-function simulateFlorenceTurn(state: GameState, action: string): TurnOutcome {
-  const seed = hash(`${state.id}:${state.turn}:${action}`);
-  const value = action.toLowerCase();
-  const beat = florenceBeatForTurn(state.turn);
-  const deniesCare = /не\s+(?:отправля|пускать|давать).{0,48}(?:джулиан|подмастер|лекар)/.test(value);
-  const care = !deniesCare && /джулиан|подмастер|лекар|отдых|сон|ученик/.test(value);
-  const practical = /смет|пигмент|краск|картон|договор|аванс|гильди|рассчит|письмен/.test(value);
-  const agency = /отказ|не пуск|закры|пауз|не отвеч|останов|сво(ё|е) услов/.test(value);
-  const impossible = /без (красок|денег|людей|времени)|сразу законч|магическ|чудес|из воздуха/.test(value);
-  const hasRecognisedMove = care || practical || agency || /кардинал|отсроч|аванс|договор|гильди|подпис/.test(value);
-  const conditional = !impossible && (!hasRecognisedMove || /кардинал|отсроч|аванс|договор|гильди|подпис/.test(value));
-
-  const resolution = impossible
-    ? {
-        status: "blocked" as const,
-        explanation: "В мастерской нет ни материалов, ни людей, чтобы приказ исполнился сам собой.",
-        requirement: "Сначала выберите, что меняется в фактах: срок, объём работы, деньги, материалы или число людей.",
-        cost: "Ход не списан как событие: сначала нужно изменить хотя бы одно условие мастерской.",
-      }
-    : conditional
-      ? {
-          status: "conditional" as const,
-        explanation: hasRecognisedMove
-          ? "Ваш замысел реален, но другой человек или институт должны принять встречное условие."
-          : "В этой формулировке неясно, какое действие должно изменить факты мастерской.",
-        requirement: hasRecognisedMove
-          ? "Кардиналу и гильдии нужны ясные срок, подпись или гарантия оплаты прежде, чем они изменят свои требования."
-          : "Назовите, что именно вы делаете сейчас: меняете срок, объём работы, материалы, оплату или распределение труда.",
-          cost: "Пока идёт торг, мастерская платит временем и риском публичного отказа.",
-        }
-      : {
-          status: "executed" as const,
-          explanation: "Этот ход можно начать прямо сейчас силами и правами, которые есть у мастерской.",
-          cost: care ? "Часть работы и срока вы берёте на себя вместо Джулиано." : agency ? "Вы отказываетесь от удобного чужого условия и принимаете конфликт." : practical ? "Вы тратите время на проверку фактов вместо красивого обещания." : "Ваш выбор меняет то, кому придётся нести следующий риск.",
-        };
-
-  const bias: Partial<Record<MetricId, number>> = {};
-  if (care) { bias.stability = 5; bias.legitimacy = 3; bias.economy = -3; }
-  if (practical) { bias.economy = (bias.economy ?? 0) + 4; bias.diplomacy = 2; }
-  if (agency) { bias.legitimacy = (bias.legitimacy ?? 0) + 3; bias.army = -3; bias.diplomacy = (bias.diplomacy ?? 0) - 2; }
-  if (conditional) { bias.diplomacy = (bias.diplomacy ?? 0) + 2; bias.stability = (bias.stability ?? 0) - 1; }
-  if (impossible) { bias.legitimacy = -5; bias.stability = -3; }
-
-  const effects = metricIds.map((id, index) => {
-    const noise = ((seed >> (index * 3)) % 5) - 2;
-    const delta = Math.max(-8, Math.min(8, noise + (bias[id] ?? 0)));
-    const reason = id === "stability"
-      ? delta > 1 ? "Люди получили предел, который можно выдержать" : delta < -1 ? "Нагрузка легла на тех, кто уже почти не держится" : "Силы мастерской пока не успели восстановиться"
-      : id === "economy"
-        ? delta > 1 ? "Проверка сметы вернула контроль над материалами" : delta < -1 ? "Решение потребовало денег или времени, которых почти нет" : "Цена пока записана в книге, а не оплачена"
-        : delta > 1 ? "Ваше условие стало видимым и нашло поддержку" : delta < -1 ? "Другая сторона запомнила, что ей пришлось уступить" : "Последствие ещё проверяется чужим ответом";
-    return { id, delta, reason };
-  });
-
-  const tone: FlorenceResponseTone = resolution.status === "blocked"
-    ? "blocked"
-    : resolution.status === "conditional"
-      ? "terms"
-      : care
-        ? "care"
-        : agency
-          ? "agency"
-          : "craft";
-  const authoredDialogue = florenceDialogueForTurn(state.turn, tone);
-  const memoryLine = florenceMemoryLine(state);
-  const summary = resolution.status === "blocked"
-    ? `${authoredDialogue.narration}\n\nЭтот приказ не может произойти в нынешних условиях. ${resolution.explanation} ${resolution.requirement}`
-    : `${authoredDialogue.narration}\n\nВаш ход: «${action}». ${beat.summary}`;
-  const activeCharacterIds = practical || conditional
-    ? ["florence-secretary", "florence-guildmaster"]
-    : care ? ["florence-juliano"]
-      : agency ? ["florence-cardinal", "florence-juliano"]
-        : beat.activeCharacterIds;
-  // A completed turn advances to the next pressure point. A blocked order is
-  // different: the player needs another chance to change the facts that made
-  // it impossible, rather than being silently moved past that constraint.
-  const nextBeat = resolution.status === "blocked" ? beat : florenceBeatForTurn(state.turn + 1);
-  const nextOptions = nextBeat.options.map((option) => ({ ...option, id: `${option.id}-${state.turn}` }));
-
-  return {
-    headline: resolution.status === "blocked" ? "Мастерская остановила невозможный приказ" : beat.headline,
-    summary,
-    nextBriefing: resolution.status === "blocked"
-      ? "Мир ждёт не нового лозунга, а изменения одного из реальных условий: времени, материалов, денег, объёма работы или согласия другого человека."
-      : beat.nextBriefing,
-    dispatch: beat.dispatch,
-    effects,
-    reactions: [
-      { faction: "Джулиано", stance: care ? "поддержка" : effects.find((effect) => effect.id === "stability")!.delta < 0 ? "противодействие" : "настороженность", text: care ? "Не спорит с вашим решением, но впервые признаёт, что усталость нельзя спрятать за фреской." : "Смотрит не на обещание, а на то, кому достанется ночная работа." },
-      { faction: "Гильдия живописцев", stance: effects.find((effect) => effect.id === "army")!.delta >= 0 ? "поддержка" : "настороженность", text: "Признаёт только те условия, которые можно записать в книгу и предъявить заказчику." },
-      { faction: "Дом кардинала", stance: effects.find((effect) => effect.id === "diplomacy")!.delta >= 0 ? "настороженность" : "противодействие", text: "Считает не красоту замысла, а сроки, подписи и право потребовать отчёт." },
-    ],
-    sceneDialogue: memoryLine ? [...authoredDialogue.lines, memoryLine] : authoredDialogue.lines,
-    nextOptions,
-    // This is one night in the workshop, not six separate calendar days.
-    daysPassed: 0,
-    surprise: resolution.status === "blocked" ? null : seed % 4 === 0 ? null : beat.surprise,
-    scene: {
-      locationId: beat.locationId,
-      activeCharacterIds,
-      propIds: beat.propIds,
-      ambientId: null,
-      atmosphere: beat.atmosphere,
-    },
-    source: "simulation",
-    provider: "simulation",
-    resolution,
-  };
-}
 
 export function simulateTurn(state: GameState, action: string): TurnOutcome {
   if (state.scenarioId === "last-train-1917") return simulateLastTrainTurn(state, action);
-  if (state.scenarioId === "florence-workshop") return simulateFlorenceTurn(state, action);
+  if (state.scenarioId === "florence-workshop") return resolveFlorenceTurn(state, action);
   const seed = hash(`${state.id}:${state.turn}:${action}`);
   const world = worldContextForTurn(state, action);
   const campaignBeat = state.scenarioId === "russia-1917" && state.mode === "campaign"
@@ -468,7 +334,7 @@ export function simulateTurn(state: GameState, action: string): TurnOutcome {
 }
 
 export function applyOutcome(state: GameState, action: string, outcome: TurnOutcome): GameState {
-  const staysInScene = state.scenarioId === "florence-workshop" && outcome.resolution?.status === "blocked";
+  const staysInScene = state.scenarioId === "florence-workshop" && outcome.advanceScene === false;
   const date = new Date(`${state.date}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + outcome.daysPassed);
   const nextDate = date.toISOString().slice(0, 10);
@@ -494,6 +360,7 @@ export function applyOutcome(state: GameState, action: string, outcome: TurnOutc
 
   return {
     ...state,
+    ...(state.scenarioId === 'florence-workshop' && outcome.florence ? { florence: outcome.florence } : {}),
     date: nextDate,
     turn: staysInScene ? state.turn : state.turn + 1,
     status,

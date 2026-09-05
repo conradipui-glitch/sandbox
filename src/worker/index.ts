@@ -360,6 +360,10 @@ export class HistorySession implements DurableObject {
       const trimmedKeys = Object.fromEntries(Object.entries(processedKeys).slice(-10));
       const baseAnalytics = stored.analytics ?? createSessionAnalytics(visitorId, stored.state.createdAt);
       const openedAnalytics = registerSessionOpen(baseAnalytics, visitorId, state.updatedAt);
+      if (state.scenarioId === 'florence-workshop' && outcome.advanceScene === false) {
+        await this.ctx.storage.put('game', { state, processedKeys: trimmedKeys, analytics: openedAnalytics } satisfies StoredGame);
+        return json(state);
+      }
       const provider = outcome.provider ?? "simulation";
       const resolutionMs = Date.now() - startedAt;
       const analytics = recordSuccessfulTurn(openedAnalytics, {
