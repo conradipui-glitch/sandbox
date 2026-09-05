@@ -4,6 +4,7 @@ import { createSessionAnalytics, normalizeVisitorId, publicAnalytics, recordSucc
 import { type ProductAnalyticsEvent } from "./product-analytics";
 import { createInitialState, scenarioSummaries } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
+import { florenceMessages, validateFlorenceAi } from './florence-ai';
 import { gameModes, microEncounters, worldCharacters, worldContextForTurn, worldEntities } from "./world";
 
 const validCharacterIds = new Set(worldCharacters.map((character) => character.id));
@@ -178,12 +179,9 @@ function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: Tur
   };
 }
 
-async function generateOutcome(env: Env, state: GameState, action: string): Promise<TurnOutcome> {
-  const fallback = simulateTurn(state, action);
-  // The Florence slice is testing deterministic feasibility before we let a model
-  // elaborate the prose. This prevents a fluent answer from silently overriding
-  // an established fact, a missing resource, or a required agreement.
-  if (state.scenarioId === "florence-workshop") return fallback;
+export async function generateOutcome(env: Env, state: GameState, action: string): Promise<TurnOutcome> {
+  const florence = state.scenarioId === 'florence-workshop';
+  const fallback = florence ? null : simulateTurn(state, action);
   const compactState = {
     mode: state.mode,
     date: state.date,
@@ -197,11 +195,11 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
   const scenarioBrief = state.scenarioId === "last-train-1917"
     ? "Сценарий: «Последний поезд из Петрограда», апрель 1917 года. Игрок — распорядитель эвакуационного эшелона на Николаевском вокзале. До рассвета есть один исправный состав; раненые, уголь и солдатская делегация претендуют на один маршрут. Это короткая хроника о цене порядка посадки, а не викторина по истории."
     : `Сценарий: Россия, март 1917. Игрок — глава Временного правительства.${campaignAct ? ` Сейчас ${campaignAct.title}: ${campaignAct.question} Фокус акта — ${campaignAct.focus}.` : ""}`;
-  const messages = [
+  const messages = florence ? florenceMessages(state, action) : [
     {
       role: "system" as const,
       content:
-        "Ты — движок и режиссёр серьёзной альтернативно-исторической стратегии. Моделируй причинные последствия без магии, морализаторства и предопределённого канона. Учитывай логистику, институты, ограниченность власти и частичное знание персонажей. Персонажи преследуют собственные цели, помнят обращение игрока, могут ошибаться, лгать, торговаться и отказываться. Юмор редкий, наблюдательный и никогда не превращает бедность или насилие в шутку. Пиши по-русски. Верни только валидный JSON.",
+        "Ты — ведущий интерактивной исторической игры. Пиши ясным современным русским языком: сначала кто пришёл и чего хочет, затем что случилось и что можно сделать. При первом появлении объясняй роль человека. Не рассчитывай на знания игрока об истории. Избегай канцелярита и метафор вместо причин. Прочитай весь ход, включая бытовые и смешные дополнения: они должны получить реакцию и влиять на следующие варианты. Моделируй причинные последствия без магии и морализаторства. Учитывай логистику, ограниченность власти и частичное знание персонажей. Они помнят обращение игрока, могут торговаться и отказываться. Верни только валидный JSON.",
     },
     {
       role: "user" as const,
@@ -222,7 +220,7 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
           messages,
           thinking: { type: "disabled" },
           response_format: { type: "json_object" },
-          max_tokens: 1600,
+          max_tokens: florence ? 3000 : 1600,
           temperature: 0.72,
           stream: false,
         }),
@@ -230,8 +228,9 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
       });
       if (!response.ok) throw new Error(`DeepSeek API ${response.status}: ${(await response.text()).slice(0, 240)}`);
       const result = (await response.json()) as WorkersAiChatResponse;
-      const outcome = validateAiOutcome(parseAiJson(extractAiText(result)), fallback, "deepseek");
-      if (outcome.source === "ai") return { ...outcome, usage: usageFromResponse(result.usage) };
+      const parsed = parseAiJson(extractAiText(result));
+      const outcome = florence ? validateFlorenceAi(parsed, state, action, 'deepseek') : validateAiOutcome(parsed, fallback!, "deepseek");
+      if (outcome?.source === "ai") return { ...outcome, usage: usageFromResponse(result.usage) };
       console.warn("DeepSeek returned an invalid game outcome");
     } catch (error) {
       console.warn("DeepSeek fallback", error instanceof Error ? error.message : error);
@@ -241,17 +240,20 @@ async function generateOutcome(env: Env, state: GameState, action: string): Prom
   try {
     const result = (await env.AI.run("@cf/zai-org/glm-4.7-flash", {
       messages,
-      max_completion_tokens: 1600,
+      max_completion_tokens: florence ? 3000 : 1600,
       reasoning_effort: "low",
       chat_template_kwargs: { enable_thinking: false },
       response_format: { type: "json_object" },
       temperature: 0.72,
     })) as WorkersAiChatResponse;
-    const outcome = validateAiOutcome(parseAiJson(extractAiText(result)), fallback, "cloudflare");
+    const parsed = parseAiJson(extractAiText(result));
+    const outcome = florence ? validateFlorenceAi(parsed, state, action, 'cloudflare') : validateAiOutcome(parsed, fallback!, "cloudflare");
+    if (!outcome) throw new Error('AI outcome did not satisfy the Florence response contract');
     return { ...outcome, usage: usageFromResponse(result.usage) };
   } catch (error) {
     console.warn("Workers AI fallback", error instanceof Error ? error.message : error);
-    return fallback;
+    if (florence) throw new Error('Не удалось получить ответ ведущего. Ваш ход сохранён в поле ввода, а история не изменилась. Попробуйте ещё раз.');
+    return fallback!;
   }
 }
 
@@ -354,7 +356,9 @@ export class HistorySession implements DurableObject {
       const startedAt = Date.now();
       const visitorId = normalizeVisitorId(body.visitorId);
       const actionSource = resolveActionSource(stored.state, action, body.source, cleanOptionId(body.optionId));
-      const outcome = await generateOutcome(this.env, stored.state, action);
+      let outcome: TurnOutcome;
+      try { outcome = await generateOutcome(this.env, stored.state, action); }
+      catch { return errorResponse('Ведущий пока не смог ответить. Текст остался в поле ввода, ход не потрачен. Попробуйте ещё раз.', 503); }
       const state = applyOutcome(stored.state, action, outcome);
       const processedKeys = key ? { ...stored.processedKeys, [key]: state } : stored.processedKeys;
       const trimmedKeys = Object.fromEntries(Object.entries(processedKeys).slice(-10));

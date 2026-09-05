@@ -350,6 +350,8 @@ export function applyOutcome(state: GameState, action: string, outcome: TurnOutc
   const turnLimit = state.scenarioId === "florence-workshop" ? 6 : gameModes[state.mode].turnLimit;
   const status = staysInScene
     ? "active"
+    : state.scenarioId === 'florence-workshop'
+      ? state.turn >= 6 ? 'victory' : 'active'
     : state.mode === "sandbox"
     ? "active"
     : weakest <= 2

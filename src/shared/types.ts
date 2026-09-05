@@ -163,6 +163,8 @@ export interface GameState {
 export interface FlorenceMemory {
   version: 2;
   facts: Record<string, boolean>;
+  /** Confirmed narrative events, including novel player actions, kept across turns. */
+  events?: string[];
   trace: Array<{ turn: number; action: string; moves: string[]; status: ActionResolution['status']; cost: string }>;
 }
 

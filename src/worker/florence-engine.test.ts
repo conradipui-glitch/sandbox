@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { createInitialState } from './scenarios';
 import { simulateTurn, applyOutcome } from './simulation';
 import type { GameState } from '../shared/types';
+import { florenceOptions } from './florence-engine';
 
-const start = () => createInitialState('author-playtest', 'florence-workshop', 'chronicle');
+// Legacy authored resolver checks, kept separately from the live AI path.
+const start = () => { const s = createInitialState('author-playtest', 'florence-workshop', 'chronicle'); s.options = florenceOptions(1, s.florence!); return s; };
 const send = (s: GameState, a: string) => applyOutcome(s, a, simulateTurn(s, a));
 function choose(s: GameState, id: string) {
   const option = s.options.find(o => o.id === `florence-v2-${id}`);

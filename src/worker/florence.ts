@@ -1,13 +1,14 @@
 import type { GameState, Metric } from '../shared/types';
-import { florenceBriefing, florenceOptions, initialFlorenceMemory } from './florence-engine';
+import { initialFlorenceMemory } from './florence-engine';
+import { florenceOpening, florenceOpeningOptions } from './florence-ai';
 
 export function createFlorenceState(id: string, now: string): GameState {
   const memory = initialFlorenceMemory();
   const metrics: Metric[] = [
     { id: "legitimacy", label: "Репутация мастерской", value: 51, trend: 0 },
-    { id: "economy", label: "Материалы и деньги", value: 44, trend: -1 },
+    { id: "economy", label: "Материалы и деньги", value: 44, trend: 0 },
     { id: "army", label: "Опора гильдии", value: 42, trend: 0 },
-    { id: "stability", label: "Силы людей", value: 36, trend: -2 },
+    { id: "stability", label: "Силы людей", value: 36, trend: 0 },
     { id: "diplomacy", label: "Договор с заказчиком", value: 53, trend: 0 },
   ];
   return {
@@ -15,24 +16,22 @@ export function createFlorenceState(id: string, now: string): GameState {
     scenarioId: "florence-workshop",
     mode: "chronicle",
     scenarioTitle: "Флоренция: Мастерская под давлением",
-    role: "мастер городской мастерской",
+    role: "Художник и хозяин мастерской",
     date: "1512-04-17",
     turn: 1,
     status: "active",
-    briefing: florenceBriefing(1, memory),
+    briefing: florenceOpening,
     florence: memory,
-    objective: "Решить судьбу заказа к утру: кому достанется работа, кто получит оплату и чьё имя останется на стене.",
+    objective: "К утру договориться с заказчиком о судьбе незаконченной росписи. Вам решать, чем поступиться ради оплаты, здоровья учеников и права назвать себя автором.",
     metrics,
     factions: [
-      { name: "Ученики мастерской", power: 52, mood: "Смотрят, кого вы защитите" },
-      { name: "Гильдия живописцев", power: 73, mood: "Ждёт взнос и порядок" },
-      { name: "Дом кардинала", power: 81, mood: "Требует увидеть результат" },
-      { name: "Городские заказчики", power: 46, mood: "Передают слухи" },
+      { name: "Джулиано и другие ученики", power: 52, mood: "Работают у вас; ждут зарплату утром" },
+      { name: "Риччи, старшина гильдии", power: 73, mood: "Оплатил краску в долг вашей мастерской" },
+      { name: "Лука, секретарь кардинала", power: 81, mood: "Принёс предложение об оплате и хочет ответ" },
     ],
-    options: florenceOptions(1, memory),
+    options: florenceOpeningOptions.map(o => ({ ...o })),
     timeline: [
-      { id: "florence-origin-1", date: "1512-04-17", title: "Заказ до заката", description: "Кардинал требует показать роспись сегодня, хотя работа и люди к этому не готовы.", kind: "origin" },
-      { id: "florence-origin-2", date: "1512-04-17", title: "Пигмент и силы на исходе", description: "Джулиано болен, а запас дорогой краски не позволяет честно обещать готовую фреску.", kind: "origin" },
+      { id: "florence-origin-1", date: "1512-04-17", title: "До вашего первого решения", description: "Кардинал перенёс показ на сегодняшний вечер. Ученик заболел. Оплаченная краска пришла не полностью. Лука принёс предложение о предоплате.", kind: "origin" },
     ],
     lastOutcome: null,
     createdAt: now,
