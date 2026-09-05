@@ -503,14 +503,14 @@ export function applyOutcome(state: GameState, action: string, outcome: TurnOutc
     timeline: [
       ...state.timeline,
       {
-        id: `decision-${state.turn}`,
+        id: `decision-${state.turn}-${state.timeline.length}`,
         date: state.date,
         title: `Ваш ход: ${action.slice(0, 72)}`,
         description: outcome.headline,
         kind: "decision",
       },
       ...(outcome.surprise
-        ? [{ id: `shock-${state.turn}`, date: nextDate, title: "Непредвиденное последствие", description: outcome.surprise, kind: "shock" as const }]
+        ? [{ id: `shock-${state.turn}-${state.timeline.length}`, date: nextDate, title: "Непредвиденное последствие", description: outcome.surprise, kind: "shock" as const }]
         : []),
     ],
     lastOutcome: outcome,
