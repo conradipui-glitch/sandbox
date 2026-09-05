@@ -539,7 +539,7 @@ function IntroDeck({ scenarioId, mode, onCancel, onBegin, textScale, onTextScale
     <main className={`intro-deck ${florenceStory ? "intro-deck-florence" : ""}`}>
       <header className="intro-header">
         <button type="button" className="intro-back" onClick={onCancel}><ArrowLeft size={18} /> К выбору истории</button>
-        <div className="intro-identity"><Seal>ИИ</Seal><div><span>Вводная хроника</span><small>{modeTitle} · {active + 1} из {slides.length}</small></div></div>
+        <div className="intro-identity"><Seal>ИИ</Seal><div><span>Вступление</span><small>{active + 1} из {slides.length}</small></div></div>
         <div className="intro-tools"><MusicToggle muted={musicMuted} onToggle={onMusicToggle} trackTitle={trackTitle} /><TextScaleControl value={textScale} onChange={onTextScale} /></div>
       </header>
       <div className="intro-progress" aria-label={`Слайд ${active + 1} из ${slides.length}`}>
@@ -914,7 +914,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
             </div>
             <div className="scene-live" title={state.lastOutcome?.scene.atmosphere ?? undefined}><i /> Живая сцена</div>
           </section>
-          {florenceStory && <Outcome state={state} />}
+          <Outcome state={state} />
           {(!florenceStory || state.status === 'active') && <section className="briefing">
             <div className="briefing-index">{String(state.turn).padStart(2, "0")}</div>
             <div>
@@ -927,7 +927,6 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
               <h1>{florenceStory ? state.lastOutcome?.nextTitle || 'Секретарь заказчика ждёт ответа' : state.turn === 1 ? trainStory ? 'Один поезд. Кого отправить?' : 'Вам предстоит возглавить правительство' : 'Что изменилось и кто ждёт решения'}</h1>{briefingText.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
             </div>
           </section>}
-          {!florenceStory && <Outcome state={state} />}
           {state.status === "active" ? <DecisionComposer options={state.options} onSubmit={onTurn} busy={busy} /> : <div className="end-state">
             <h2>{florenceStory ? 'После этой ночи' : state.status === 'victory' ? 'Новый порядок устоял' : 'Государство распалось'}</h2>
             <p>{florenceStory ? state.lastOutcome?.reflection : 'Эта ветка истории завершена. Можно вернуться к точке давления и попробовать другой путь.'}</p>

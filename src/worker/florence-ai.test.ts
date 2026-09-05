@@ -20,9 +20,23 @@ const answer = () => ({
   sceneDialogue: [{ speaker: 'Лука, секретарь кардинала', line: 'Похоже, у вас здесь ещё один хозяин.' }],
 });
 const envWith = (run: (...args: unknown[]) => unknown) => ({ AI: { run } }) as unknown as Parameters<typeof generateOutcome>[0];
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('Florence live AI boundary', () => {
+  it('stores the reviewed narrative rather than the contradictory draft', async () => {
+    const draft = answer();
+    const revised = { ...answer(), headline: 'Кот остался в мастерской', events: ['Кот остался в мастерской; договор не подписан.'] };
+    const request = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(draft) } }], usage: { prompt_tokens: 10, completion_tokens: 20 } }))).mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(revised) } }], usage: { prompt_tokens: 30, completion_tokens: 40 } })));
+    vi.stubGlobal('fetch', request);
+    const env = { ...envWith(vi.fn()), DEEPSEEK_API_KEY: 'test-only-placeholder' };
+    const out = await generateOutcome(env, start(), 'Гладить котов');
+    expect(request).toHaveBeenCalledTimes(2);
+    const review = JSON.parse(request.mock.calls[1][1].body);
+    expect(JSON.parse(review.messages[1].content).action).toBe('Гладить котов');
+    expect(out.headline).toBe(revised.headline);
+    expect(out.florence?.events?.[0]).toBe(revised.events[0]);
+    expect(out.usage?.totalTokens).toBe(100);
+  });
   it('sends the complete edited action to the configured AI and uses new options', async () => {
     const action = 'Попросить Луку уйти. Подарить ему миниатюру с портретом девушки, раннюю работу Джулиано.';
     const run = vi.fn(async () => ({ response: JSON.stringify(answer()), usage: { prompt_tokens: 800, completion_tokens: 300 } }));

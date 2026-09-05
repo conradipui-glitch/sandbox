@@ -4,7 +4,7 @@ import { createSessionAnalytics, normalizeVisitorId, publicAnalytics, recordSucc
 import { type ProductAnalyticsEvent } from "./product-analytics";
 import { createInitialState, scenarioSummaries } from "./scenarios";
 import { applyOutcome, simulateTurn } from "./simulation";
-import { florenceMessages, validateFlorenceAi } from './florence-ai';
+import { florenceMessages, florenceEditorialMessages, validateFlorenceAi } from './florence-ai';
 import { gameModes, microEncounters, worldCharacters, worldContextForTurn, worldEntities } from "./world";
 
 const validCharacterIds = new Set(worldCharacters.map((character) => character.id));
@@ -165,7 +165,7 @@ function validateAiOutcome(candidate: Partial<TurnOutcome> | null, fallback: Tur
   return {
     ...fallback,
     headline: candidate.headline.slice(0, 140),
-    summary: candidate.summary.slice(0, 1000),
+    summary: candidate.summary.slice(0, 5000),
     nextBriefing: typeof candidate.nextBriefing === "string" ? candidate.nextBriefing.slice(0, 500) : fallback.nextBriefing,
     dispatch: typeof candidate.dispatch === "string" ? candidate.dispatch.slice(0, 420) : fallback.dispatch,
     effects: effects.length ? effects : fallback.effects,
@@ -199,7 +199,7 @@ export async function generateOutcome(env: Env, state: GameState, action: string
     {
       role: "system" as const,
       content:
-        "Ты — ведущий интерактивной исторической игры. Пиши ясным современным русским языком: сначала кто пришёл и чего хочет, затем что случилось и что можно сделать. При первом появлении объясняй роль человека. Не рассчитывай на знания игрока об истории. Избегай канцелярита и метафор вместо причин. Прочитай весь ход, включая бытовые и смешные дополнения: они должны получить реакцию и влиять на следующие варианты. Моделируй причинные последствия без магии и морализаторства. Учитывай логистику, ограниченность власти и частичное знание персонажей. Они помнят обращение игрока, могут торговаться и отказываться. Верни только валидный JSON.",
+        "Ты — ведущий интерактивной исторической игры. Пиши ясным современным русским языком: сначала кто пришёл и чего хочет, затем что случилось и что можно сделать. При первом появлении объясняй роль человека. Не рассчитывай на знания игрока об истории. Избегай канцелярита и метафор вместо причин. Прочитай весь ход, включая бытовые и смешные дополнения: они должны получить реакцию и влиять на следующие варианты. Моделируй причинные последствия без магии и морализаторства. Учитывай логистику, ограниченность власти и частичное знание персонажей. Они помнят обращение игрока, могут торговаться и отказываться. В истории о поезде все разговоры идут в одну ночь: поезд не может одновременно уйти в dispatch и оставаться у перрона в nextBriefing. Об отправлении объявляй только после соответствующего решения игрока. Не превращай покупку угощения в трату последних денег, если игрок этого не сказал. Реплики, последствия и следующая ситуация должны описывать одно состояние мира. Разбей summary на короткие абзацы. Верни только валидный JSON.",
     },
     {
       role: "user" as const,
@@ -228,9 +228,22 @@ export async function generateOutcome(env: Env, state: GameState, action: string
       });
       if (!response.ok) throw new Error(`DeepSeek API ${response.status}: ${(await response.text()).slice(0, 240)}`);
       const result = (await response.json()) as WorkersAiChatResponse;
-      const parsed = parseAiJson(extractAiText(result));
+      let parsed = parseAiJson(extractAiText(result));
+      let usage = usageFromResponse(result.usage);
+      if (florence && parsed) {
+        const reviewResponse = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST', headers: { authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ model: 'deepseek-v4-flash', messages: florenceEditorialMessages(state, action, parsed), thinking: { type: 'disabled' }, response_format: { type: 'json_object' }, max_tokens: 4500, temperature: 0.35, stream: false }),
+          signal: AbortSignal.timeout(25_000),
+        });
+        if (!reviewResponse.ok) throw new Error(`Narrative review failed: ${reviewResponse.status}`);
+        const reviewed = await reviewResponse.json() as WorkersAiChatResponse;
+        parsed = parseAiJson(extractAiText(reviewed));
+        const reviewUsage = usageFromResponse(reviewed.usage);
+        if (reviewUsage) usage = { inputTokens: (usage?.inputTokens ?? 0) + reviewUsage.inputTokens, outputTokens: (usage?.outputTokens ?? 0) + reviewUsage.outputTokens, totalTokens: (usage?.totalTokens ?? 0) + reviewUsage.totalTokens };
+      }
       const outcome = florence ? validateFlorenceAi(parsed, state, action, 'deepseek') : validateAiOutcome(parsed, fallback!, "deepseek");
-      if (outcome?.source === "ai") return { ...outcome, usage: usageFromResponse(result.usage) };
+      if (outcome?.source === "ai") return { ...outcome, model: 'deepseek-v4-flash', usage };
       console.warn("DeepSeek returned an invalid game outcome");
     } catch (error) {
       console.warn("DeepSeek fallback", error instanceof Error ? error.message : error);
@@ -239,7 +252,7 @@ export async function generateOutcome(env: Env, state: GameState, action: string
 
   try {
     for (let attempt = 0; attempt < (florence ? 2 : 1); attempt++) {
-    const result = (await env.AI.run(florence ? "@cf/qwen/qwen3-30b-a3b-fp8" : "@cf/zai-org/glm-4.7-flash", {
+    const result = (await env.AI.run("@cf/zai-org/glm-4.7-flash", {
       messages,
       max_tokens: florence ? 4500 : 1600,
       max_completion_tokens: florence ? 4500 : 1600,
@@ -254,7 +267,7 @@ export async function generateOutcome(env: Env, state: GameState, action: string
       if (attempt === 0 && florence) continue;
       throw new Error(parsed ? 'ai_invalid_contract' : 'ai_invalid_json');
     }
-    return { ...outcome, model: florence ? '@cf/qwen/qwen3-30b-a3b-fp8' : '@cf/zai-org/glm-4.7-flash', usage: usageFromResponse(result.usage) };
+    return { ...outcome, model: '@cf/zai-org/glm-4.7-flash', usage: usageFromResponse(result.usage) };
     }
     throw new Error('ai_invalid_contract');
   } catch (error) {

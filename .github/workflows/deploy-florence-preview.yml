@@ -41,15 +41,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy --name living-history-florence-preview --keep-vars
-
-      - name: Configure preview narrator when repository key is available
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          FLORENCE_DEEPSEEK_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        run: |
-          if [ -n "$FLORENCE_DEEPSEEK_KEY" ]; then
-            printf '%s' "$FLORENCE_DEEPSEEK_KEY" | npx wrangler secret put DEEPSEEK_API_KEY --name living-history-florence-preview
-          else
-            echo 'No repository narrator key; preview uses Workers AI.'
           fi
