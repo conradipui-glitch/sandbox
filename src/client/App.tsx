@@ -633,9 +633,7 @@ function Outcome({ state }: { state: GameState }) {
     <section className="outcome" id="turn-result" tabIndex={-1} data-provider={outcome.provider} data-model={outcome.model} data-tokens={outcome.usage?.totalTokens} data-scene={state.turn}>
       <div className="outcome-kicker"><Radio size={15} /> {state.status === 'active' ? 'После вашего решения' : 'Чем закончилась история'}</div>
       <h2>{outcome.headline}</h2>
-      {state.scenarioId === 'florence-workshop'
-        ? outcome.summary.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>)
-        : <p>{outcome.summary}</p>}
+      {outcome.summary.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>)}
       {outcome.resolution && <div className={`action-resolution action-resolution-${outcome.resolution.status}`}>
         <span>{outcome.resolution.status === "executed" ? "Что удалось сделать" : outcome.resolution.status === "conditional" ? "О чём ещё нужно договориться" : "Что помешало"}</span>
         <strong>{outcome.resolution.explanation}</strong>
@@ -1056,12 +1054,13 @@ function GameApp() {
       localStorage.setItem("living-history-session", state.id);
       setGame(state);
       setIntro(null);
+      window.scrollTo({ top: 0, behavior: 'instant' });
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Не удалось начать игру"); }
     finally { setBusy(false); }
   };
 
   const playTurn = async (submission: TurnSubmission) => {
-    if (!game) return;
+    if (!game || busy) return;
     setBusy(true); setError(null);
     try {
       const nextState = await api.playTurn(game.id, submission);
@@ -1072,7 +1071,7 @@ function GameApp() {
     finally { setBusy(false); }
   };
 
-  const exit = () => { localStorage.removeItem("living-history-session"); setGame(null); setError(null); };
+  const exit = () => { localStorage.removeItem("living-history-session"); setGame(null); setError(null); window.scrollTo({ top: 0, behavior: 'instant' }); };
   const requestStart = (scenarioId: string, mode: GameMode) => {
     setIntro({ scenarioId, mode: ["last-train-1917", "florence-workshop"].includes(scenarioId) ? "chronicle" : mode });
   };
