@@ -16,7 +16,15 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     headers: { "content-type": "application/json", ...options?.headers },
   });
   const body = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new Error(body.error || `Ошибка ${response.status}`);
+  if (!response.ok) {
+    const rawCode = (body as { code?: unknown }).code;
+    const code = typeof rawCode === "string" ? rawCode : undefined;
+    const message = body.error || `Ошибка ${response.status}`;
+    // Keep provider diagnostics available during preview smoke checks without
+    // exposing implementation codes in the ordinary player experience.
+    const debug = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
+    throw new Error(debug && code ? `${message} [${code}]` : message);
+  }
   return body;
 }
 
