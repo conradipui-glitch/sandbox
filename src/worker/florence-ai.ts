@@ -22,7 +22,7 @@ export function florenceMessages(state: GameState, action: string) {
 
 Подача: summary — 2–3 абзаца по 2–3 предложения: что сделал игрок, как мир ответил, что изменилось. Конкретное действие вместо туманных метафор («цена подписи», «проверка займёт свет», «выбрать имя» запрещены). Картон называй эскизом на бумаге, аванс — предоплатой, леса — деревянными подмостками. sceneDialogue — 1–3 естественные реплики с именем и ролью. nextBriefing — новая ясная ситуация после последствий, со знакомым участником и конкретным вопросом; НЕ пересказ summary. nextOptions — 3 новых, разных и выполнимых действия, учитывающих именно этот ход и доступные ресурсы. Формулировка intent должна точно соответствовать title и description. Не возвращай шаблонный набор сцен.
 
-На шестом совершённом ходе напиши полноценный эпилог (4–5 коротких абзацев): судьба заказа и денег, ученика, отношений и деталей, введённых игроком; что удалось и что осталось нерешённым. Финал может быть горьким, смешным или тёплым, но вырастает из действий. Последняя строка — конкретная сцена утра. Не обрывай текст. reflection — один необязательный вопрос о противоречии или выборе именно этого прохождения, без выводов о личности и без внушения «правильного» мотива. nextOptions в финале пустой.
+На шестом совершённом ходе напиши полноценный эпилог (4–5 коротких абзацев): судьба заказа и денег, ученика, отношений и деталей, введённых игроком; что удалось и что осталось нерешённым. Финал может быть горьким, смешным или тёплым, но вырастает из действий. Последняя строка — конкретная сцена утра. Не обрывай текст. reflection — один обязательный открытый вопрос о противоречии или выборе именно этого прохождения, без выводов о личности и без внушения «правильного» мотива. nextOptions в финале пустой.
 
 Перед отправкой проверь текст как редактор:
 — Не меняй срок на «завтрашний закат»: первоначальный показ сегодня вечером, игрок может просить утро. Согласие секретаря передать просьбу ещё не согласие кардинала перенести показ.
@@ -58,8 +58,13 @@ export function validateFlorenceAi(raw: unknown, state: GameState, action: strin
   const c = object(raw), r = object(c.resolution), s = object(c.scene);
   if (!['executed', 'conditional', 'blocked'].includes(String(r.status)) || typeof c.advanceScene !== 'boolean') return null;
   const status = r.status as 'executed' | 'conditional' | 'blocked';
-  const advance = c.advanceScene && status !== 'blocked';
-  const terminal = advance && state.turn >= 6;
+  // The sixth resolved action is the end of this short story. Models occasionally
+  // return `advanceScene: false` while still writing a complete epilogue; keeping
+  // that flag would strand the player on scene six. A non-blocked sixth action is
+  // therefore always committed, while blocked moves still remain retryable.
+  const finalTurn = state.turn >= 6 && status !== 'blocked';
+  const advance = status !== 'blocked' && (c.advanceScene === true || finalTurn);
+  const terminal = finalTurn;
   if (text(c.headline, 140).length < 3 || text(c.summary, 5000).length < 50 || text(r.explanation, 700).length < 8) return null;
   const options: DecisionOption[] = [];
   if (!terminal) {
@@ -69,7 +74,7 @@ export function validateFlorenceAi(raw: unknown, state: GameState, action: strin
       if (!text(o.title, 120) || text(o.description, 400).length < 8 || text(o.intent, 700).length < 8) return null;
       options.push({ id: `florence-ai-${state.turn}-${i}`, title: text(o.title, 120), description: text(o.description, 400), intent: text(o.intent, 700), risk: ['низкий', 'средний', 'высокий'].includes(String(o.risk)) ? o.risk as DecisionOption['risk'] : 'средний' });
     }
-  } else if (text(c.reflection, 900).length < 10) return null;
+  }
   const memory: FlorenceMemory = structuredClone(state.florence ?? { version: 2, facts: {}, trace: [], events: state.timeline.map(e => `${e.title}: ${e.description}`) });
   if (advance) {
     for (const [key, value] of Object.entries(object(c.facts)).slice(0, 30)) {
@@ -90,6 +95,7 @@ export function validateFlorenceAi(raw: unknown, state: GameState, action: strin
     resolution: { status, explanation: text(r.explanation, 700), cost: text(r.cost, 600) || 'Дополнительных затрат в этом действии не было.', ...(text(r.requirement, 600) && !/^(нет|none|null|не требуется)[.!]?$/i.test(text(r.requirement, 600)) ? { requirement: text(r.requirement, 600) } : {}) },
     advanceScene: advance, florence: memory, effects, nextOptions: options,
     scene: { locationId: ['florence-workshop', 'florence-guildhall', 'florence-square'].includes(String(s.locationId)) ? String(s.locationId) : 'florence-workshop', activeCharacterIds: characters, propIds: [], ambientId: null, atmosphere: text(s.atmosphere, 240) },
-    daysPassed: terminal ? 1 : 0, dispatch: '', reactions: [], surprise: null, source: 'ai', provider, reflection: terminal ? text(c.reflection, 900) : undefined,
+    daysPassed: terminal ? 1 : 0, dispatch: '', reactions: [], surprise: null, source: 'ai', provider,
+    reflection: terminal ? text(c.reflection, 900) || 'Что в вашем решении этой ночью оказалось важнее: срок, имя на фреске или здоровье ученика?' : undefined,
   };
 }
