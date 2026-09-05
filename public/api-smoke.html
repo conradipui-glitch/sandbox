@@ -12,31 +12,59 @@
 <h1>Florence API smoke</h1>
 <p>Техническая проверка одного свободного хода на текущем preview Worker.</p>
 <button id="run" type="button">Прогнать ход «погладить кота»</button>
+<button id="run-full" type="button">Прогнать шесть ходов до финала</button>
 <pre id="out">Нажмите кнопку.</pre>
 <script>
   const button = document.querySelector('#run');
+  const fullButton = document.querySelector('#run-full');
   const output = document.querySelector('#out');
+  const setBusy = (busy) => { button.disabled = busy; fullButton.disabled = busy; };
+  const create = () => fetch('/api/games', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ scenarioId: 'florence-workshop', mode: 'chronicle' }),
+  }).then(async response => ({ status: response.status, body: await response.json() }));
+  const turn = (id, action) => fetch('/api/games/' + encodeURIComponent(id) + '/turn', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action }),
+  }).then(async response => ({ status: response.status, body: await response.json() }));
   button.addEventListener('click', async () => {
-    button.disabled = true;
+    setBusy(true);
     output.textContent = 'Запрос выполняется…';
     try {
-      const createdResponse = await fetch('/api/games', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ scenarioId: 'florence-workshop', mode: 'chronicle' }),
-      });
-      const created = await createdResponse.json();
-      const turnResponse = await fetch('/api/games/' + encodeURIComponent(created.id) + '/turn', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'Погладить кота и спросить Джулиано, как он себя чувствует.' }),
-      });
-      const turn = await turnResponse.json();
-      output.textContent = JSON.stringify({ createStatus: createdResponse.status, turnStatus: turnResponse.status, turn }, null, 2);
+      const created = await create();
+      const result = await turn(created.body.id, 'Погладить кота и спросить Джулиано, как он себя чувствует.');
+      output.textContent = JSON.stringify({ createStatus: created.status, turnStatus: result.status, turn: result.body }, null, 2);
     } catch (error) {
       output.textContent = String(error);
     } finally {
-      button.disabled = false;
+      setBusy(false);
+    }
+  });
+  fullButton.addEventListener('click', async () => {
+    setBusy(true);
+    output.textContent = 'Шесть ходов выполняются…';
+    try {
+      const created = await create();
+      let state = created.body;
+      const turns = [];
+      for (let index = 0; index < 6; index += 1) {
+        const action = state.options?.[0]?.intent || 'Продолжить работу и описать следующий шаг.';
+        const result = await turn(state.id, action);
+        turns.push({ scene: state.turn, action, status: result.status, response: result.status === 200 ? {
+          nextScene: result.body.turn,
+          outcome: result.body.lastOutcome,
+          finalStatus: result.body.status,
+        } : result.body });
+        if (result.status !== 200) break;
+        state = result.body;
+      }
+      output.textContent = JSON.stringify({ createStatus: created.status, turns }, null, 2);
+    } catch (error) {
+      output.textContent = String(error);
+    } finally {
+      setBusy(false);
     }
   });
 </script>
