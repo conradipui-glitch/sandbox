@@ -399,7 +399,7 @@ export class HistorySession implements DurableObject {
       const actionSource = resolveActionSource(stored.state, action, body.source, cleanOptionId(body.optionId));
       let outcome: TurnOutcome;
       try { outcome = await generateOutcome(this.env, stored.state, action); }
-      catch (cause) { return json({ error: 'Ведущий пока не смог ответить. Текст остался в поле ввода, ход не потрачен. Попробуйте ещё раз.', code: cause instanceof Error && /^ai_[a-z_]+$/.test(cause.message) ? cause.message : 'ai_unavailable', ...(cause instanceof Error && cause.message === 'ai_review_invalid_contract' ? { details: cause.cause } : {}) }, 503); }
+      catch (cause) { return json({ error: 'Ведущий пока не смог ответить. Текст остался в поле ввода, ход не потрачен. Попробуйте ещё раз.', code: cause instanceof Error && /^ai_[a-z_]+$/.test(cause.message) ? cause.message : 'ai_unavailable', ...(cause instanceof Error && cause.cause ? { details: cause.cause } : {}) }, 503); }
       const state = applyOutcome(stored.state, action, outcome);
       const processedKeys = key ? { ...stored.processedKeys, [key]: state } : stored.processedKeys;
       const trimmedKeys = Object.fromEntries(Object.entries(processedKeys).slice(-10));
@@ -518,9 +518,3 @@ export default {
         console.error(error);
         return errorResponse("Внутренняя ошибка игрового движка", 500);
       }
-    }
-    return env.ASSETS.fetch(request);
-  },
-} satisfies ExportedHandler<Env>;
-
-export { ProductAnalytics } from "./product-analytics";
