@@ -239,7 +239,10 @@ function florenceMemoryLine(state: GameState): DialogueLine | null {
     .join(" ")
     .toLowerCase();
   if (!priorActions) return null;
-  if (/джулиан|подмастер|лекар|отдых|сон|ученик/.test(priorActions)) {
+  // A name is not an action.  In particular, "не отправлять Джулиано к
+  // лекарю" must not be remembered as care.  Keep the memory conservative:
+  // it speaks only about an unambiguous, completed choice.
+  if (/(отправ\p{L}*\s+(?:джулиано|подмастерья)\s+к\s+лекар|снят\p{L}*\s+джулиано\s+с\s+лес)/u.test(priorActions)) {
     return { speaker: "Джулиано", line: "Вы уже сняли меня с лесов, когда это стоило срока. Не отдавайте теперь ту же ночь кому-то молча." };
   }
   if (/кардинал|отсроч|аванс|договор|гильди|подпис/.test(priorActions)) {
@@ -258,11 +261,13 @@ function simulateFlorenceTurn(state: GameState, action: string): TurnOutcome {
   const seed = hash(`${state.id}:${state.turn}:${action}`);
   const value = action.toLowerCase();
   const beat = florenceBeatForTurn(state.turn);
-  const care = /джулиан|подмастер|лекар|отдых|сон|ученик/.test(value);
+  const deniesCare = /не\s+(?:отправля|пускать|давать).{0,48}(?:джулиан|подмастер|лекар)/.test(value);
+  const care = !deniesCare && /джулиан|подмастер|лекар|отдых|сон|ученик/.test(value);
   const practical = /смет|пигмент|краск|картон|договор|аванс|гильди|рассчит|письмен/.test(value);
   const agency = /отказ|не пуск|закры|пауз|не отвеч|останов|сво(ё|е) услов/.test(value);
   const impossible = /без (красок|денег|людей|времени)|сразу законч|магическ|чудес|из воздуха/.test(value);
-  const conditional = !impossible && /кардинал|отсроч|аванс|договор|гильди|подпис/.test(value);
+  const hasRecognisedMove = care || practical || agency || /кардинал|отсроч|аванс|договор|гильди|подпис/.test(value);
+  const conditional = !impossible && (!hasRecognisedMove || /кардинал|отсроч|аванс|договор|гильди|подпис/.test(value));
 
   const resolution = impossible
     ? {
@@ -274,8 +279,12 @@ function simulateFlorenceTurn(state: GameState, action: string): TurnOutcome {
     : conditional
       ? {
           status: "conditional" as const,
-          explanation: "Ваш замысел реален, но другой человек или институт должны принять встречное условие.",
-          requirement: "Кардиналу и гильдии нужны ясные срок, подпись или гарантия оплаты прежде, чем они изменят свои требования.",
+        explanation: hasRecognisedMove
+          ? "Ваш замысел реален, но другой человек или институт должны принять встречное условие."
+          : "В этой формулировке неясно, какое действие должно изменить факты мастерской.",
+        requirement: hasRecognisedMove
+          ? "Кардиналу и гильдии нужны ясные срок, подпись или гарантия оплаты прежде, чем они изменят свои требования."
+          : "Назовите, что именно вы делаете сейчас: меняете срок, объём работы, материалы, оплату или распределение труда.",
           cost: "Пока идёт торг, мастерская платит временем и риском публичного отказа.",
         }
       : {
@@ -342,7 +351,8 @@ function simulateFlorenceTurn(state: GameState, action: string): TurnOutcome {
     ],
     sceneDialogue: memoryLine ? [...authoredDialogue.lines, memoryLine] : authoredDialogue.lines,
     nextOptions,
-    daysPassed: 1,
+    // This is one night in the workshop, not six separate calendar days.
+    daysPassed: 0,
     surprise: resolution.status === "blocked" ? null : seed % 4 === 0 ? null : beat.surprise,
     scene: {
       locationId: beat.locationId,
@@ -458,17 +468,23 @@ export function simulateTurn(state: GameState, action: string): TurnOutcome {
 }
 
 export function applyOutcome(state: GameState, action: string, outcome: TurnOutcome): GameState {
+  const staysInScene = state.scenarioId === "florence-workshop" && outcome.resolution?.status === "blocked";
   const date = new Date(`${state.date}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + outcome.daysPassed);
   const nextDate = date.toISOString().slice(0, 10);
   const metrics = state.metrics.map((metric) => {
     const effect = outcome.effects.find((item) => item.id === metric.id);
-    const delta = effect?.delta ?? 0;
+    // A blocked Florence move is feedback, not an event that silently harms
+    // the people in the room.  The player gets another attempt in the same
+    // pressure point before the world changes.
+    const delta = staysInScene ? 0 : effect?.delta ?? 0;
     return { ...metric, value: Math.max(0, Math.min(100, metric.value + delta)), trend: delta };
   });
   const weakest = Math.min(...metrics.map((metric) => metric.value));
   const turnLimit = state.scenarioId === "florence-workshop" ? 6 : gameModes[state.mode].turnLimit;
-  const status = state.mode === "sandbox"
+  const status = staysInScene
+    ? "active"
+    : state.mode === "sandbox"
     ? "active"
     : weakest <= 2
       ? "collapsed"
@@ -479,7 +495,7 @@ export function applyOutcome(state: GameState, action: string, outcome: TurnOutc
   return {
     ...state,
     date: nextDate,
-    turn: state.turn + 1,
+    turn: staysInScene ? state.turn : state.turn + 1,
     status,
     briefing: outcome.nextBriefing ?? `Прошло ${outcome.daysPassed} дней. Решение вышло из кабинета и теперь проверяется исполнением на местах.`,
     metrics,
