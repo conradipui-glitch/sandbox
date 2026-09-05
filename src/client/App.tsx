@@ -410,6 +410,7 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
   const [selected, setSelected] = useState(scenarios.find((item) => item.id === "florence-workshop")?.id ?? scenarios.find((item) => item.id === "last-train-1917")?.id ?? scenarios.find((item) => item.available)?.id ?? scenarios[0]?.id);
   const [mode, setMode] = useState<GameMode>("chronicle");
   const scenario = scenarios.find((item) => item.id === selected) ?? scenarios[0];
+  const florenceStory = scenario?.id === "florence-workshop";
   const moveModeSparks = (event: React.PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 18;
@@ -441,31 +442,31 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
         <div className="hero-copy">
           <div className="eyebrow"><span>ALTERNATIVE HISTORY ENGINE</span><i /></div>
           <h1>История уже случилась.<br /><em>Но не здесь.</em></h1>
-          <p className="lead">Вы управляете государством. Мир не ждёт выбора из меню: он отвечает на любое ваше решение — интересами людей, дефицитом ресурсов и непредвиденными союзами.</p>
+          <p className="lead">{florenceStory ? "Вы держите мастерскую на границе ночи. Мир не ждёт выбора из меню: он отвечает на любое решение — усталостью людей, условиями договора и тем, чьё имя переживёт заказ." : "Вы управляете государством. Мир не ждёт выбора из меню: он отвечает на любое ваше решение — интересами людей, дефицитом ресурсов и непредвиденными союзами."}</p>
           <div className="promise-row">
-            <span><Sparkles size={17} /> Ни одного прописанного финала</span>
-            <span><Compass size={17} /> Любое решение — допустимый ход</span>
+            <span><Sparkles size={17} /> {florenceStory ? "Шесть сцен, несколько судеб" : "Ни одного прописанного финала"}</span>
+            <span><Compass size={17} /> {florenceStory ? "Цена решения остаётся в хронике" : "Любое решение — допустимый ход"}</span>
           </div>
         </div>
         <div className="hero-art" aria-hidden="true">
           <div className="orbit orbit-one" />
           <div className="orbit orbit-two" />
-          <div className="year year-a">1917</div>
-          <div className="year year-b">1985</div>
+          <div className="year year-a">{florenceStory ? "1512" : "1917"}</div>
+          <div className="year year-b">{florenceStory ? "FIRENZE" : "1985"}</div>
           <div className="year year-c">?</div>
           <svg className="map-lines" viewBox="0 0 500 420">
             <path d="M45 205 C132 121, 187 122, 240 168 S339 243, 450 158" />
             <path d="M80 295 C159 247, 235 286, 281 245 S370 174, 439 271" />
             <path d="M142 76 C184 158, 147 229, 224 340" />
           </svg>
-          <div className="artifact-card"><span>Точка расхождения</span><strong>Вы принимаете<br />первое решение</strong><i /></div>
+          <div className="artifact-card"><span>{florenceStory ? "Дело о синем пигменте" : "Точка расхождения"}</span><strong>{florenceStory ? <>Вы решаете, кому<br />достанется имя</> : <>Вы принимаете<br />первое решение</>}</strong><i /></div>
         </div>
       </section>
 
       <section className="scenario-section">
         <div className="section-heading">
           <div><span className="index">01</span><h2>Выберите точку разлома</h2></div>
-          <p>Первая короткая история доступна уже сейчас. Остальные покажут, как одна механика меняется вместе с миром.</p>
+          <p>{florenceStory ? "Короткая авторская хроника для плейтеста: шесть тактов, три силы давления и память о каждом компромиссе." : "Первая короткая история доступна уже сейчас. Остальные покажут, как одна механика меняется вместе с миром."}</p>
         </div>
         <div className="scenario-grid">
           {scenarios.map((item, index) => (
@@ -511,7 +512,7 @@ function Landing({ scenarios, onStart, busy, textScale, onTextScale, musicMuted,
           </article>
         </section>
         <div className="launch-row">
-          <div className="launch-brief"><ShieldAlert size={20} /><span><strong>Правило мира:</strong> ИИ не обязан делать ваш план успешным. Он обязан сделать ответ мира правдоподобным.</span></div>
+          <div className="launch-brief"><ShieldAlert size={20} /><span><strong>{florenceStory ? "Правило мастерской:" : "Правило мира:"}</strong> {florenceStory ? "Другие люди могут не согласиться, а факт нельзя отменить приказом. Ваш ход оставляет след." : "ИИ не обязан делать ваш план успешным. Он обязан сделать ответ мира правдоподобным."}</span></div>
           <button className="primary" disabled={!scenario?.available || busy} onClick={() => scenario && onStart(scenario.id, mode)}>
             {busy ? <LoaderCircle className="spin" size={20} /> : <Crown size={20} />}
             {scenario?.id === "florence-workshop" ? "Открыть мастерскую" : "Начать правление"}
@@ -534,13 +535,14 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
   const showWorker = !trainStory && !florenceStory && slide.scene === "platform";
   const showIndustrialist = !trainStory && !florenceStory && slide.scene === "train";
   const sceneLabels: Record<IntroSlide["scene"], string> = { station: "перрон", telegram: "телеграф", train: "состав", platform: "разговор", departure: "отправление", cabinet: "кабинет" };
+  const florenceSceneLabels: Record<IntroSlide["scene"], string> = { station: "площадь", telegram: "условия", train: "пигмент", platform: "ученики", departure: "утро", cabinet: "мастерская" };
   return (
     <div className={`intro-visual intro-visual-${slide.scene} ${florenceStory ? "intro-visual-florence" : ""}`} aria-hidden="true">
       {florenceStory && <img className="florence-location-background" src={florenceWorkshop1512} alt="" />}
       <div className="intro-visual-grid" />
       <div className="intro-visual-orbit intro-visual-orbit-one" />
       <div className="intro-visual-orbit intro-visual-orbit-two" />
-      <span className="intro-visual-index">Сцена · {florenceStory ? 'мастерская' : sceneLabels[slide.scene]}</span>
+      <span className="intro-visual-index">Сцена · {(florenceStory ? florenceSceneLabels : sceneLabels)[slide.scene]}</span>
       {showTrain && <div className="intro-train"><img src={freightTrain1917} alt="" /></div>}
       {showBelyaev && <div className="intro-person intro-person-belyaev"><img src={belyaev1917} alt="" /></div>}
       {showLidia && <div className="intro-person intro-person-lidia"><img src={lidia1917} alt="" /></div>}
@@ -801,7 +803,7 @@ const thinkingVariants = [
   { id: "eclipse", label: "Несколько будущих спорят между собой" },
 ] as const;
 
-function WorldThinking({ date }: { date: string }) {
+function WorldThinking({ date, florenceStory = false }: { date: string; florenceStory?: boolean }) {
   const [elapsed, setElapsed] = useState(0);
   const [variant] = useState(() => thinkingVariants[Math.floor(Math.random() * thinkingVariants.length)]);
   const startingDate = useRef(date);
@@ -816,13 +818,21 @@ function WorldThinking({ date }: { date: string }) {
     if (date !== startingDate.current) setResolved(true);
   }, [date]);
 
-  const phase = elapsed < 5
-    ? "Приказ покидает кабинет"
-    : elapsed < 10
-      ? "Фракции сверяют интересы"
-      : elapsed < 15
-        ? "Слухи меняют траекторию"
-        : "Последствия складываются в хронику";
+  const phase = florenceStory
+    ? elapsed < 5
+      ? "Кисть останавливается над картоном"
+      : elapsed < 10
+        ? "Гильдия сверяет условие и цену"
+        : elapsed < 15
+          ? "Мастерская считает, кто примет риск"
+          : "След решения складывается в хронику"
+    : elapsed < 5
+      ? "Приказ покидает кабинет"
+      : elapsed < 10
+        ? "Фракции сверяют интересы"
+        : elapsed < 15
+          ? "Слухи меняют траекторию"
+          : "Последствия складываются в хронику";
 
   return (
     <div className="world-thinking" role="status" aria-live="polite" aria-label="Мир отвечает на ваше решение">
@@ -844,7 +854,7 @@ function WorldThinking({ date }: { date: string }) {
         <strong>Мир отвечает на ваше решение</strong>
         <p>{phase}</p>
         <div className="thinking-track" aria-hidden="true"><i /></div>
-        <div className="thinking-meta"><span aria-live="off">Прошло {elapsed} сек.</span><span>ИИ разыгрывает последствия</span></div>
+        <div className="thinking-meta"><span aria-live="off">Прошло {elapsed} сек.</span><span>{florenceStory ? "Симулятор собирает сцену" : "ИИ разыгрывает последствия"}</span></div>
       </div>
     </div>
   );
@@ -974,7 +984,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
           </div>
         </aside>
       </div>
-      {busy && <WorldThinking date={state.date} />}
+      {busy && <WorldThinking date={state.date} florenceStory={florenceStory} />}
     </main>
   );
 }
