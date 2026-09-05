@@ -239,7 +239,7 @@ export async function generateOutcome(env: Env, state: GameState, action: string
 
   try {
     for (let attempt = 0; attempt < (florence ? 2 : 1); attempt++) {
-    const result = (await env.AI.run("@cf/zai-org/glm-4.7-flash", {
+    const result = (await env.AI.run(florence ? "@cf/zai-org/glm-5.3-flash" : "@cf/zai-org/glm-4.7-flash", {
       messages,
       max_completion_tokens: florence ? 4500 : 1600,
       reasoning_effort: "low",
@@ -253,7 +253,7 @@ export async function generateOutcome(env: Env, state: GameState, action: string
       if (attempt === 0 && florence) continue;
       throw new Error(parsed ? 'ai_invalid_contract' : 'ai_invalid_json');
     }
-    return { ...outcome, usage: usageFromResponse(result.usage) };
+    return { ...outcome, model: florence ? '@cf/zai-org/glm-5.3-flash' : '@cf/zai-org/glm-4.7-flash', usage: usageFromResponse(result.usage) };
     }
     throw new Error('ai_invalid_contract');
   } catch (error) {

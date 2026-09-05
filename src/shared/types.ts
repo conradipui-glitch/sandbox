@@ -135,6 +135,7 @@ export interface TurnOutcome {
   scene: SceneCue;
   source: "ai" | "simulation";
   provider?: "deepseek" | "cloudflare" | "simulation";
+  model?: string;
   usage?: ModelUsage;
   resolution?: ActionResolution;
 }

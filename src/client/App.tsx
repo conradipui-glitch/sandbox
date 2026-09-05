@@ -630,7 +630,7 @@ function Outcome({ state }: { state: GameState }) {
   const outcome = state.lastOutcome;
   if (!outcome) return null;
   return (
-    <section className="outcome" id="turn-result" tabIndex={-1} data-provider={outcome.provider} data-tokens={outcome.usage?.totalTokens} data-scene={state.turn}>
+    <section className="outcome" id="turn-result" tabIndex={-1} data-provider={outcome.provider} data-model={outcome.model} data-tokens={outcome.usage?.totalTokens} data-scene={state.turn}>
       <div className="outcome-kicker"><Radio size={15} /> {state.status === 'active' ? 'После вашего решения' : 'Чем закончилась история'}</div>
       <h2>{outcome.headline}</h2>
       {state.scenarioId === 'florence-workshop'
