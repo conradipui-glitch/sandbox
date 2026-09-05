@@ -259,7 +259,10 @@ export async function generateOutcome(env: Env, state: GameState, action: string
     for (let attempt = 0; attempt < (florence ? 2 : 1); attempt++) {
     const result = (await env.AI.run("@cf/zai-org/glm-4.7-flash", {
       messages,
-      max_completion_tokens: florence ? 4500 : 1600,
+      // Keep the preview response comfortably inside the Worker request window.
+      // Florence asks for a complete scene card, not a long essay; 3k tokens is
+      // enough for the JSON contract and avoids timing out GLM on the long brief.
+      max_completion_tokens: florence ? 3000 : 1600,
       reasoning_effort: "low",
       chat_template_kwargs: { enable_thinking: false },
       response_format: { type: "json_object" },
