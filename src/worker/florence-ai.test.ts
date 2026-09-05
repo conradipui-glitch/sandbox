@@ -79,14 +79,12 @@ describe('Florence live AI boundary', () => {
     expect(next.turn).toBe(1); expect(next.florence?.facts).toEqual({});
     expect(next.metrics.map(m => m.value)).toEqual(s.metrics.map(m => m.value));
   });
-  it('requires a complete ending and reflection on the last completed scene', () => {
+  it('closes the last scene and supplies a reflection prompt when the model omits one', () => {
     const s = start(); s.turn = 6;
-    expect(validateFlorenceAi(answer(), s, 'Закончить разговор', 'cloudflare')).toBeNull();
-    const c = { ...answer(), reflection: 'Что вы хотели изменить этой паузой с котом?' };
-    const out = validateFlorenceAi(c, s, 'Закончить разговор', 'cloudflare')!;
+    const out = validateFlorenceAi(answer(), s, 'Закончить разговор', 'cloudflare')!;
     const next = applyOutcome(s, 'Закончить разговор', out);
     expect(next.status).toBe('victory'); expect(next.options).toEqual([]);
-    expect(next.lastOutcome?.reflection).toContain('котом');
+    expect(next.lastOutcome?.reflection).toContain('срок');
   });
   it('does not turn provider failure or invalid output into a scripted success', async () => {
     await expect(generateOutcome(envWith(async () => { throw new Error('unavailable'); }), start(), 'Гладить котов')).rejects.toThrow('ai_unavailable');
