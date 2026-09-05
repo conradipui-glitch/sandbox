@@ -153,7 +153,7 @@ const introDecks: Record<string, IntroSlide[]> = {
     { id: "people", kicker: "Джулиано Белли · ваш ученик", title: "«Мастер, я ещё могу работать»", body: "Джулиано девятнадцать. Со вчерашнего вечера у него жар, а руки дрожат от болезни и долгой работы. Он боится потерять заработок и снова берётся за кисть. Именно он рисует небо. Если отпустить его к врачу, эту работу придётся закончить вам или другому ученику.", note: "Джулиано заболел. До утра ученики ждут зарплату", scene: "platform" },
     { id: "condition", kicker: "Бартоломео Риччи · старшина гильдии", title: "Краску оплатили. Но её не хватает", body: "Риччи представляет гильдию — объединение городских художников. Она купила для вас синий пигмент в долг. В деревянном ящике должна была быть полная партия баночек с краской, но пришла лишь часть. На крышке сломана восковая печать дома кардинала: ящик вскрывали по дороге. Риччи хочет сверить доставку и понять, за что теперь платить.", note: "След есть. Кто виноват — пока неизвестно", scene: "train" },
     { id: "contract", kicker: "Лука Орсини · секретарь кардинала", title: "Деньги сейчас — но без вашего имени", body: "Под вечер приходит Лука. Он ведёт дела кардинала и приносит деньги: часть оплаты можно получить сегодня. Есть условие: на готовой стене должно остаться только имя кардинала как покровителя искусств. Имени художника не будет. Лука ждёт, согласитесь ли вы. Деньги помогли бы заплатить ученикам и купить краску.", note: "Заказчик предлагает оплату до завершения работы", scene: "telegram" },
-    { id: "signature", kicker: "В мастерской · вечер", title: "Лука ставит сумку на стол", body: "«Что мне передать кардиналу?» — спрашивает он. Джулиано замер у стены с кистью в руке. Рядом стоит недоставленный ящик с краской. Вам нужно решить, что делать с заказом и людьми до утра. Начните с разговора, предложите свои условия или сделайте то, чего от вас сейчас никто не ждёт.", note: "Вы — хозяин мастерской. Первый ответ за вами", scene: "departure" },
+    { id: "signature", kicker: "В мастерской · вечер", title: "Лука ставит сумку на стол", body: "«Что мне передать кардиналу?» — спрашивает он. Джулиано замер у стены с кистью в руке. Рядом стоит ящик, в котором не хватает оплаченной краски. Вам нужно решить, что делать с заказом и людьми до утра. Начните с разговора, предложите свои условия или сделайте то, чего от вас сейчас никто не ждёт.", note: "Вы — хозяин мастерской. Первый ответ за вами", scene: "departure" },
   ],
   "last-train-1917": [
     {
@@ -305,8 +305,8 @@ const fallbackScenarios: ScenarioSummary[] = [
     id: "florence-workshop",
     title: "Флоренция: Мастерская под давлением",
     period: "1512 · Флоренция",
-    role: "Мастер городской мастерской",
-    hook: "Кардинал требует роспись до заката. Подмастерье болен, гильдия ждёт взнос, а деньги предлагают ценой вашей подписи.",
+    role: "Художник и хозяин мастерской",
+    hook: "Заказчик хочет показать незавершённую роспись уже сегодня. Ваш ученик заболел, краски не хватает. Деньги предлагают сейчас — если вы уберёте со стены своё имя.",
     difficulty: "Доступно",
     accent: "#ba7650",
     available: true,
@@ -476,7 +476,7 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
   const showWorker = !trainStory && !florenceStory && slide.scene === "platform";
   const showIndustrialist = !trainStory && !florenceStory && slide.scene === "train";
   const sceneLabels: Record<IntroSlide["scene"], string> = { station: "перрон", telegram: "телеграф", train: "состав", platform: "разговор", departure: "отправление", cabinet: "кабинет" };
-  const florenceSceneLabels: Record<IntroSlide["scene"], string> = { station: "площадь", telegram: "условия", train: "пигмент", platform: "ученики", departure: "утро", cabinet: "мастерская" };
+  const florenceSceneLabels: Record<IntroSlide["scene"], string> = { station: "площадь", telegram: "условия", train: "пигмент", platform: "ученики", departure: "первый ответ", cabinet: "мастерская" };
   const florencePortrait = slide.id === 'people' ? florenceJuliano1512 : slide.id === 'condition' ? florenceGuildmaster1512 : ['contract', 'signature'].includes(slide.id) ? florenceSecretary1512 : null;
   const florenceBackdrop = slide.id === 'condition' ? florenceGuildhall1512 : slide.id === 'contract' ? florencePiazza1512 : florenceWorkshop1512;
   return (
@@ -539,7 +539,7 @@ function IntroDeck({ scenarioId, mode, onCancel, onBegin, textScale, onTextScale
     <main className={`intro-deck ${florenceStory ? "intro-deck-florence" : ""}`}>
       <header className="intro-header">
         <button type="button" className="intro-back" onClick={onCancel}><ArrowLeft size={18} /> К выбору истории</button>
-        <div className="intro-identity"><Seal>ИИ</Seal><div><span>Вводная хроника</span><small>{modeTitle} · {active + 1} из {slides.length}</small></div></div>
+        <div className="intro-identity"><Seal>ИИ</Seal><div><span>Вступление</span><small>{active + 1} из {slides.length}</small></div></div>
         <div className="intro-tools"><MusicToggle muted={musicMuted} onToggle={onMusicToggle} trackTitle={trackTitle} /><TextScaleControl value={textScale} onChange={onTextScale} /></div>
       </header>
       <div className="intro-progress" aria-label={`Слайд ${active + 1} из ${slides.length}`}>
@@ -630,12 +630,10 @@ function Outcome({ state }: { state: GameState }) {
   const outcome = state.lastOutcome;
   if (!outcome) return null;
   return (
-    <section className="outcome" id="turn-result" tabIndex={-1} data-provider={outcome.provider} data-tokens={outcome.usage?.totalTokens} data-scene={state.turn}>
+    <section className="outcome" id="turn-result" tabIndex={-1} data-provider={outcome.provider} data-model={outcome.model} data-tokens={outcome.usage?.totalTokens} data-scene={state.turn}>
       <div className="outcome-kicker"><Radio size={15} /> {state.status === 'active' ? 'После вашего решения' : 'Чем закончилась история'}</div>
       <h2>{outcome.headline}</h2>
-      {state.scenarioId === 'florence-workshop'
-        ? outcome.summary.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>)
-        : <p>{outcome.summary}</p>}
+      {outcome.summary.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>)}
       {outcome.resolution && <div className={`action-resolution action-resolution-${outcome.resolution.status}`}>
         <span>{outcome.resolution.status === "executed" ? "Что удалось сделать" : outcome.resolution.status === "conditional" ? "О чём ещё нужно договориться" : "Что помешало"}</span>
         <strong>{outcome.resolution.explanation}</strong>
@@ -648,7 +646,7 @@ function Outcome({ state }: { state: GameState }) {
         <span>В разговоре</span>
         {outcome.sceneDialogue.map((line, index) => {
           const portrait = /джулиан/i.test(line.speaker) ? florenceJuliano1512 : /лука|орсини/i.test(line.speaker) ? florenceSecretary1512 : /риччи|бартоломео/i.test(line.speaker) ? florenceGuildmaster1512 : null;
-          return <article className="dialogue-line" key={`${line.speaker}-${index}`}>{state.scenarioId === 'florence-workshop' && portrait && <img src={portrait} alt="" />}<div><strong>{line.speaker}</strong><p>«{line.line}»</p></div></article>;
+          return <article className="dialogue-line" key={`${line.speaker}-${index}`}>{state.scenarioId === 'florence-workshop' && portrait && <img src={portrait} alt="" />}<div><strong>{line.speaker}</strong><p>{/^[«"“]/.test(line.line.trim()) ? line.line : `«${line.line}»`}</p></div></article>;
         })}
       </div> : <div className="reaction-grid">
         {outcome.reactions.map((reaction) => <div key={reaction.faction}><span className={`stance stance-${reaction.stance}`}>{reaction.stance}</span><strong>{reaction.faction}</strong><p>{reaction.text}</p></div>)}
@@ -914,7 +912,7 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
             </div>
             <div className="scene-live" title={state.lastOutcome?.scene.atmosphere ?? undefined}><i /> Живая сцена</div>
           </section>
-          {florenceStory && <Outcome state={state} />}
+          <Outcome state={state} />
           {(!florenceStory || state.status === 'active') && <section className="briefing">
             <div className="briefing-index">{String(state.turn).padStart(2, "0")}</div>
             <div>
@@ -927,7 +925,6 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
               <h1>{florenceStory ? state.lastOutcome?.nextTitle || 'Секретарь заказчика ждёт ответа' : state.turn === 1 ? trainStory ? 'Один поезд. Кого отправить?' : 'Вам предстоит возглавить правительство' : 'Что изменилось и кто ждёт решения'}</h1>{briefingText.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
             </div>
           </section>}
-          {!florenceStory && <Outcome state={state} />}
           {state.status === "active" ? <DecisionComposer options={state.options} onSubmit={onTurn} busy={busy} /> : <div className="end-state">
             <h2>{florenceStory ? 'После этой ночи' : state.status === 'victory' ? 'Новый порядок устоял' : 'Государство распалось'}</h2>
             <p>{florenceStory ? state.lastOutcome?.reflection : 'Эта ветка истории завершена. Можно вернуться к точке давления и попробовать другой путь.'}</p>
@@ -1057,12 +1054,13 @@ function GameApp() {
       localStorage.setItem("living-history-session", state.id);
       setGame(state);
       setIntro(null);
+      window.scrollTo({ top: 0, behavior: 'instant' });
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Не удалось начать игру"); }
     finally { setBusy(false); }
   };
 
   const playTurn = async (submission: TurnSubmission) => {
-    if (!game) return;
+    if (!game || busy) return;
     setBusy(true); setError(null);
     try {
       const nextState = await api.playTurn(game.id, submission);
@@ -1073,7 +1071,7 @@ function GameApp() {
     finally { setBusy(false); }
   };
 
-  const exit = () => { localStorage.removeItem("living-history-session"); setGame(null); setError(null); };
+  const exit = () => { localStorage.removeItem("living-history-session"); setGame(null); setError(null); window.scrollTo({ top: 0, behavior: 'instant' }); };
   const requestStart = (scenarioId: string, mode: GameMode) => {
     setIntro({ scenarioId, mode: ["last-train-1917", "florence-workshop"].includes(scenarioId) ? "chronicle" : mode });
   };
