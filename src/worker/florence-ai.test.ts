@@ -37,6 +37,18 @@ describe('Florence live AI boundary', () => {
     expect(out.florence?.events?.[0]).toBe(revised.events[0]);
     expect(out.usage?.totalTokens).toBe(100);
   });
+  it('keeps a validated primary answer when the optional editor is unusable', async () => {
+    const draft = answer();
+    const request = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(draft) } }] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: '{}' } }] })));
+    vi.stubGlobal('fetch', request);
+    const env = { ...envWith(vi.fn()), DEEPSEEK_API_KEY: 'test-only-placeholder' };
+    const out = await generateOutcome(env, start(), 'Погладить кота');
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(out.headline).toBe(draft.headline);
+    expect(out.provider).toBe('deepseek');
+  });
   it('sends the complete edited action to the configured AI and uses new options', async () => {
     const action = 'Попросить Луку уйти. Подарить ему миниатюру с портретом девушки, раннюю работу Джулиано.';
     const run = vi.fn(async () => ({ response: JSON.stringify(answer()), usage: { prompt_tokens: 800, completion_tokens: 300 } }));

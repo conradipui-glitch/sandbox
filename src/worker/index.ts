@@ -230,21 +230,35 @@ export async function generateOutcome(env: Env, state: GameState, action: string
       const result = (await response.json()) as WorkersAiChatResponse;
       let parsed = parseAiJson(extractAiText(result));
       let usage = usageFromResponse(result.usage);
-      if (florence && parsed) {
-        const reviewResponse = await fetch('https://api.deepseek.com/chat/completions', {
-          method: 'POST', headers: { authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'content-type': 'application/json' },
-          body: JSON.stringify({ model: 'deepseek-v4-flash', messages: florenceEditorialMessages(state, action, parsed), thinking: { type: 'disabled' }, response_format: { type: 'json_object' }, max_tokens: 4500, temperature: 0.35, stream: false }),
-          signal: AbortSignal.timeout(25_000),
-        });
-        if (!reviewResponse.ok) throw new Error(`Narrative review failed: ${reviewResponse.status}`);
-        const reviewed = await reviewResponse.json() as WorkersAiChatResponse;
-        parsed = parseAiJson(extractAiText(reviewed));
-        const reviewUsage = usageFromResponse(reviewed.usage);
-        if (reviewUsage) usage = { inputTokens: (usage?.inputTokens ?? 0) + reviewUsage.inputTokens, outputTokens: (usage?.outputTokens ?? 0) + reviewUsage.outputTokens, totalTokens: (usage?.totalTokens ?? 0) + reviewUsage.totalTokens };
+      if (florence) {
+        // Validate the primary answer before asking the optional editor to touch it.
+        // A bad editorial pass must never erase an otherwise usable AI scene.
+        const draftOutcome = validateFlorenceAi(parsed, state, action, 'deepseek');
+        if (!draftOutcome) {
+          throw new Error(parsed ? 'ai_primary_invalid_contract' : 'ai_primary_invalid_json', { cause: parsed ? { fields: ['headline', 'summary', 'resolution', 'advanceScene', 'nextBriefing', 'nextOptions', 'reflection'].filter(k => k in parsed), status: parsed.resolution?.status, optionCount: parsed.nextOptions?.length, advanceType: typeof parsed.advanceScene } : undefined });
+        }
+        let finalOutcome = draftOutcome;
+        try {
+          const reviewResponse = await fetch('https://api.deepseek.com/chat/completions', {
+            method: 'POST', headers: { authorization: `Bearer ${env.DEEPSEEK_API_KEY}`, 'content-type': 'application/json' },
+            body: JSON.stringify({ model: 'deepseek-v4-flash', messages: florenceEditorialMessages(state, action, parsed), thinking: { type: 'disabled' }, response_format: { type: 'json_object' }, max_tokens: 4500, temperature: 0.35, stream: false }),
+            signal: AbortSignal.timeout(15_000),
+          });
+          if (!reviewResponse.ok) throw new Error(`Narrative review failed: ${reviewResponse.status}`);
+          const reviewed = await reviewResponse.json() as WorkersAiChatResponse;
+          const reviewedParsed = parseAiJson(extractAiText(reviewed));
+          const reviewedOutcome = validateFlorenceAi(reviewedParsed, state, action, 'deepseek');
+          const reviewUsage = usageFromResponse(reviewed.usage);
+          if (reviewUsage) usage = { inputTokens: (usage?.inputTokens ?? 0) + reviewUsage.inputTokens, outputTokens: (usage?.outputTokens ?? 0) + reviewUsage.outputTokens, totalTokens: (usage?.totalTokens ?? 0) + reviewUsage.totalTokens };
+          if (reviewedOutcome) finalOutcome = reviewedOutcome;
+          else console.warn('Narrative review returned an invalid contract; using validated draft');
+        } catch (reviewError) {
+          console.warn('Narrative review skipped; using validated draft', reviewError instanceof Error ? reviewError.message : reviewError);
+        }
+        return { ...finalOutcome, model: 'deepseek-v4-flash', usage };
       }
-      const outcome = florence ? validateFlorenceAi(parsed, state, action, 'deepseek') : validateAiOutcome(parsed, fallback!, "deepseek");
+      const outcome = validateAiOutcome(parsed, fallback!, "deepseek");
       if (outcome?.source === "ai") return { ...outcome, model: 'deepseek-v4-flash', usage };
-      if (florence) throw new Error(parsed ? 'ai_review_invalid_contract' : 'ai_review_invalid_json', { cause: parsed ? { fields: ['headline','summary','resolution','advanceScene','nextBriefing','nextOptions','reflection'].filter(k => k in parsed), status: parsed.resolution?.status, optionCount: parsed.nextOptions?.length, advanceType: typeof parsed.advanceScene } : undefined });
       console.warn("DeepSeek returned an invalid game outcome");
     } catch (error) {
       console.warn("DeepSeek fallback", error instanceof Error ? error.message : error);
