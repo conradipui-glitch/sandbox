@@ -220,7 +220,7 @@ export async function generateOutcome(env: Env, state: GameState, action: string
           messages,
           thinking: { type: "disabled" },
           response_format: { type: "json_object" },
-          max_tokens: florence ? 3000 : 1600,
+          max_tokens: florence ? 4500 : 1600,
           temperature: 0.72,
           stream: false,
         }),
@@ -238,9 +238,10 @@ export async function generateOutcome(env: Env, state: GameState, action: string
   }
 
   try {
+    for (let attempt = 0; attempt < (florence ? 2 : 1); attempt++) {
     const result = (await env.AI.run("@cf/zai-org/glm-4.7-flash", {
       messages,
-      max_completion_tokens: florence ? 3000 : 1600,
+      max_completion_tokens: florence ? 4500 : 1600,
       reasoning_effort: "low",
       chat_template_kwargs: { enable_thinking: false },
       response_format: { type: "json_object" },
@@ -248,11 +249,16 @@ export async function generateOutcome(env: Env, state: GameState, action: string
     })) as WorkersAiChatResponse;
     const parsed = parseAiJson(extractAiText(result));
     const outcome = florence ? validateFlorenceAi(parsed, state, action, 'cloudflare') : validateAiOutcome(parsed, fallback!, "cloudflare");
-    if (!outcome) throw new Error('AI outcome did not satisfy the Florence response contract');
+    if (!outcome) {
+      if (attempt === 0 && florence) continue;
+      throw new Error(parsed ? 'ai_invalid_contract' : 'ai_invalid_json');
+    }
     return { ...outcome, usage: usageFromResponse(result.usage) };
+    }
+    throw new Error('ai_invalid_contract');
   } catch (error) {
     console.warn("Workers AI fallback", error instanceof Error ? error.message : error);
-    if (florence) throw new Error('Не удалось получить ответ ведущего. Ваш ход сохранён в поле ввода, а история не изменилась. Попробуйте ещё раз.');
+    if (florence) throw new Error(error instanceof Error && ['ai_invalid_contract', 'ai_invalid_json'].includes(error.message) ? error.message : 'ai_unavailable');
     return fallback!;
   }
 }
@@ -358,7 +364,7 @@ export class HistorySession implements DurableObject {
       const actionSource = resolveActionSource(stored.state, action, body.source, cleanOptionId(body.optionId));
       let outcome: TurnOutcome;
       try { outcome = await generateOutcome(this.env, stored.state, action); }
-      catch { return errorResponse('Ведущий пока не смог ответить. Текст остался в поле ввода, ход не потрачен. Попробуйте ещё раз.', 503); }
+      catch (cause) { return json({ error: 'Ведущий пока не смог ответить. Текст остался в поле ввода, ход не потрачен. Попробуйте ещё раз.', code: cause instanceof Error && ['ai_invalid_contract', 'ai_invalid_json', 'ai_unavailable'].includes(cause.message) ? cause.message : 'ai_unavailable' }, 503); }
       const state = applyOutcome(stored.state, action, outcome);
       const processedKeys = key ? { ...stored.processedKeys, [key]: state } : stored.processedKeys;
       const trimmedKeys = Object.fromEntries(Object.entries(processedKeys).slice(-10));

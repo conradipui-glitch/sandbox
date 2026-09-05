@@ -680,7 +680,9 @@ button { color: inherit; }
 .landing .hero-art, .landing .eyebrow, .landing .promise-row { display: none; }
 .landing .lead { margin: 0; max-width: 900px; }
 .scenario-section { padding-top: 28px; }
-.scenario-grid { align-items: stretch; }
+.scenario-grid { align-items: stretch; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.scenario-meta { flex-wrap: wrap; gap: 8px; }
+.landing-florence .world-portal-heading h2 { color: #35271f; }
 .scenario-card { display: flex; flex-direction: column; min-width: 0; padding: 24px; cursor: default; }
 .scenario-card h3 { font-size: 25px; }
 .scenario-card p { font-size: calc(16px + var(--text-adjust)); }

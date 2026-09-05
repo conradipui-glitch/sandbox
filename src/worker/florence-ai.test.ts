@@ -63,7 +63,14 @@ describe('Florence live AI boundary', () => {
     expect(next.lastOutcome?.reflection).toContain('котом');
   });
   it('does not turn provider failure or invalid output into a scripted success', async () => {
-    await expect(generateOutcome(envWith(async () => { throw new Error('unavailable'); }), start(), 'Гладить котов')).rejects.toThrow('Не удалось');
-    await expect(generateOutcome(envWith(async () => ({ response: '{"headline":"ok","summary":"ok"}' })), start(), 'Гладить котов')).rejects.toThrow('Не удалось');
+    await expect(generateOutcome(envWith(async () => { throw new Error('unavailable'); }), start(), 'Гладить котов')).rejects.toThrow('ai_unavailable');
+    await expect(generateOutcome(envWith(async () => ({ response: '{"headline":"ok","summary":"ok"}' })), start(), 'Гладить котов')).rejects.toThrow('ai_invalid_contract');
+  });
+  it('retries malformed JSON once without spending a scene or losing the action', async () => {
+    const run = vi.fn().mockResolvedValueOnce({ response: '{"summary":' }).mockResolvedValueOnce({ response: JSON.stringify(answer()) });
+    const out = await generateOutcome(envWith(run), start(), 'Гладить котов');
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(out.florence?.trace).toHaveLength(1);
+    expect(out.florence?.trace[0].action).toBe('Гладить котов');
   });
 });
