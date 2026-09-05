@@ -244,9 +244,11 @@ export async function generateOutcome(env: Env, state: GameState, action: string
       }
       const outcome = florence ? validateFlorenceAi(parsed, state, action, 'deepseek') : validateAiOutcome(parsed, fallback!, "deepseek");
       if (outcome?.source === "ai") return { ...outcome, model: 'deepseek-v4-flash', usage };
+      if (florence) throw new Error(parsed ? 'ai_review_invalid_contract' : 'ai_review_invalid_json');
       console.warn("DeepSeek returned an invalid game outcome");
     } catch (error) {
       console.warn("DeepSeek fallback", error instanceof Error ? error.message : error);
+      if (florence) throw new Error(error instanceof Error && /^ai_[a-z_]+$/.test(error.message) ? error.message : error instanceof Error && error.name === 'TimeoutError' ? 'ai_primary_timeout' : error instanceof Error && error.message.startsWith('Narrative review failed') ? 'ai_review_http' : 'ai_primary_unavailable');
     }
   }
 
@@ -378,7 +380,7 @@ export class HistorySession implements DurableObject {
       const actionSource = resolveActionSource(stored.state, action, body.source, cleanOptionId(body.optionId));
       let outcome: TurnOutcome;
       try { outcome = await generateOutcome(this.env, stored.state, action); }
-      catch (cause) { return json({ error: 'Ведущий пока не смог ответить. Текст остался в поле ввода, ход не потрачен. Попробуйте ещё раз.', code: cause instanceof Error && ['ai_invalid_contract', 'ai_invalid_json', 'ai_unavailable'].includes(cause.message) ? cause.message : 'ai_unavailable' }, 503); }
+      catch (cause) { return json({ error: 'Ведущий пока не смог ответить. Текст остался в поле ввода, ход не потрачен. Попробуйте ещё раз.', code: cause instanceof Error && /^ai_[a-z_]+$/.test(cause.message) ? cause.message : 'ai_unavailable' }, 503); }
       const state = applyOutcome(stored.state, action, outcome);
       const processedKeys = key ? { ...stored.processedKeys, [key]: state } : stored.processedKeys;
       const trimmedKeys = Object.fromEntries(Object.entries(processedKeys).slice(-10));
