@@ -549,7 +549,7 @@ function IntroVisual({ slide, scenarioId }: { slide: IntroSlide; scenarioId: str
       {showWorker && <div className="intro-person intro-person-worker"><img src={novikova1917} alt="" /></div>}
       {showIndustrialist && <div className="intro-person intro-person-industrialist"><img src={vorontsova1917} alt="" /></div>}
       {florenceStory && <div className="intro-person intro-person-florence-juliano"><img src={florenceJuliano1512} alt="" /></div>}
-      {!trainStory && slide.scene === "telegram" && <div className="intro-pressure-tags"><span>ФРОНТ</span><span>ЗЕМЛЯ</span><span>ХЛЕБ</span></div>}
+      {!trainStory && !florenceStory && slide.scene === "telegram" && <div className="intro-pressure-tags"><span>ФРОНТ</span><span>ЗЕМЛЯ</span><span>ХЛЕБ</span></div>}
       <div className="intro-visual-line" />
       <span className="intro-visual-caption">{trainStory ? "Николаевский вокзал · живая хроника" : florenceStory ? "Флоренция · ночь мастерской" : "Таврический дворец · живая история"}</span>
     </div>
