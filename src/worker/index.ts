@@ -518,3 +518,9 @@ export default {
         console.error(error);
         return errorResponse("Внутренняя ошибка игрового движка", 500);
       }
+    }
+    return env.ASSETS.fetch(request);
+  },
+} satisfies ExportedHandler<Env>;
+
+export { ProductAnalytics } from "./product-analytics";
