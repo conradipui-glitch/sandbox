@@ -334,8 +334,6 @@ export function simulateTurn(state: GameState, action: string): TurnOutcome {
 }
 
 export function applyOutcome(state: GameState, action: string, outcome: TurnOutcome): GameState {
-  // The station story takes one night, not several days per conversation.
-  if (state.scenarioId === 'last-train-1917') outcome = { ...outcome, daysPassed: state.turn >= (gameModes[state.mode].turnLimit ?? Infinity) ? 1 : 0 };
   const staysInScene = state.scenarioId === "florence-workshop" && outcome.advanceScene === false;
   const date = new Date(`${state.date}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + outcome.daysPassed);

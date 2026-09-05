@@ -259,7 +259,6 @@ export async function generateOutcome(env: Env, state: GameState, action: string
     for (let attempt = 0; attempt < (florence ? 2 : 1); attempt++) {
     const result = (await env.AI.run("@cf/zai-org/glm-4.7-flash", {
       messages,
-      max_tokens: florence ? 4500 : 1600,
       max_completion_tokens: florence ? 4500 : 1600,
       reasoning_effort: "low",
       chat_template_kwargs: { enable_thinking: false },

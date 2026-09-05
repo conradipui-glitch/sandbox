@@ -24,15 +24,6 @@ export function florenceMessages(state: GameState, action: string) {
 
 На шестом совершённом ходе напиши полноценный эпилог (4–5 коротких абзацев): судьба заказа и денег, ученика, отношений и деталей, введённых игроком; что удалось и что осталось нерешённым. Финал может быть горьким, смешным или тёплым, но вырастает из действий. Последняя строка — конкретная сцена утра. Не обрывай текст. reflection — один необязательный вопрос о противоречии или выборе именно этого прохождения, без выводов о личности и без внушения «правильного» мотива. nextOptions в финале пустой.
 
-Перед отправкой проверь текст как редактор:
-— Не меняй срок на «завтрашний закат»: первоначальный показ сегодня вечером, игрок может просить утро. Согласие секретаря передать просьбу ещё не согласие кардинала перенести показ.
-— Если игрок спрашивает разрешения подарить чужую работу, дай ЯВНЫЙ ответ автора прямой речью (да, нет или условие). Молчание и «не стал спорить» не считаются согласием. Отметь сохранение имени на подарке, если об этом попросили.
-— Не придумывай слова, чувства, мотивы и новые поступки за игрока. В sceneDialogue только другие люди; реплики без внешних кавычек. Можно описывать только то, что следует из его действия.
-— Если хозяин работает сам, это не заставляет больного ученика работать. Не путай красную краску с охрой. Заголовок, описание и intent одного варианта обозначают ОДНО действие.
-— Два абзаца summary, всего 100–160 слов; НЕ добавляй заключений «время идёт», «вы понимаете», «судьба зависит», «нужно решить». NextBriefing — 2–3 предложения с конкретной новой репликой или событием; не повторяй меню вариантов в тексте. На обычном ходе весь JSON не длиннее 4500 символов; в финале до 6500.
-— Двигай интригу через проверяемые мелочи: отличающаяся отметка на ящике, свидетель доставки, имя девушки на миниатюре, условие ученика. Не раскрывай всё сразу. Необязательная деталь становится поводом для разговора, но кот не обязан чудесно найти украденную краску. Хотя бы ОДИН следующий вариант продолжает конкретную деталь текущего хода. Остальные открывают другой способ действовать.
-— Никаких расходов? cost = «Потрачено несколько минут; деньги и материалы не расходовались», если именно это произошло. Нет условия? requirement = "". В JSON обязательно все три nextOptions (кроме финала), их intent, resolution.status и advanceScene. Для бытового действия тоже верни ПОЛНЫЙ JSON, а не короткий ответ.
-
 Верни только JSON: {"headline":"понятное название последствия","summary":"абзацы через \\n\\n","nextTitle":"название следующей ситуации","nextBriefing":"новая ситуация","sceneDialogue":[{"speaker":"имя и роль","line":"реплика"}],"resolution":{"status":"executed|conditional|blocked","explanation":"что сделано и что не сделано, конкретно","requirement":"что требуется, только если есть условие","cost":"конкретная трата или оставшееся последствие"},"advanceScene":true,"facts":{"ключ_факта":true},"events":["событие"],"effects":[{"id":"legitimacy|economy|army|stability|diplomacy","delta":0,"reason":"причина"}],"nextOptions":[{"id":"unique-latin-id","title":"действие","description":"действие и его риск","intent":"готовый полный ход от первого лица","risk":"низкий|средний|высокий"}],"scene":{"locationId":"florence-workshop|florence-guildhall|florence-square","activeCharacterIds":["florence-juliano|florence-secretary|florence-guildmaster"],"propIds":[],"atmosphere":"обстановка"},"reflection":"только в финале"}` },
     { role: 'user' as const, content: JSON.stringify({ scene: state.turn, finalScene: state.turn >= 6, situation: state.briefing, previousResponse: state.lastOutcome ? { summary: state.lastOutcome.summary, dialogue: state.lastOutcome.sceneDialogue } : null, metrics: state.metrics, memory: state.florence ?? { facts: {}, trace: [], events: state.timeline.map(e => `${e.title}: ${e.description}`) }, action }) },
   ];
@@ -42,17 +33,6 @@ const ids: MetricId[] = ['legitimacy', 'economy', 'army', 'stability', 'diplomac
 const text = (s: unknown, max: number) => typeof s === 'string' ? s.trim().slice(0, max) : '';
 const object = (v: unknown): Record<string, unknown> => v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {};
 
-export function florenceEditorialMessages(state: GameState, action: string, draft: unknown) {
-  return [
-    { role: 'system' as const, content: `Ты редактор интерактивной новеллы. Исправь черновик, верни полный JSON с теми же полями. Это обязательная проверка причинности и русского текста, не пересказ.
-Сопоставь каждую часть полного действия игрока с результатом: она выполнена, встретила конкретное условие или не выполнена по названной причине. Не заменяй оплату врача обещанием оплаты без причины. Не заменяй согласие автора молчанием. Отказ доступен игроку без чужого разрешения. status описывает именно совершённый ход: погладить кота — executed, а не conditional из-за нерешённого заказа.
-Сверь summary, sceneDialogue, resolution и nextBriefing между собой и с памятью. Предмет на столе не может уже оказаться у кардинала без передачи. Если посланник ушёл без подарка, он возвращается с ответом на просьбу, не с благодарностью за полученный подарок. Уход и возвращение показывай в правильной последовательности, без дублей. Будущие варианты не являются событиями. Кто у врача, тот не разговаривает в мастерской. Жар не лечится пирожком или мазью для рук; не добавляй травму вместо болезни. Печать другой организации — улика, не доказательство кражи. Деньги тратятся только один раз. Срок — сегодняшний закат или согласованное утро, не завтрашний вечер. Игрок — хозяин мастерской, не отец ученика. Если status=blocked, ничего нового не происходит: кратко объясни ограничение и предложи близкие действия; не читай письмо, не раскрывай улики и не перемещай людей вместо игрока. events=[], effects без изменений, advanceScene=false.
-Удали канцелярит, рекламу механики, указания на баллы и надуманные чувства игрока. summary разбей на 2–3 небольших абзаца через \\n\\n, каждому свой момент. Реплики без внешних кавычек. headline короткий, 3–8 слов. В следующих трёх вариантах хотя бы один продолжает свежую деталь игрока; intent точно соответствует названию и не вкладывает в уста игрока непрошеные моральные мотивы. Не своди выбор к повторению «осмотреть ящик / отдохнуть / закончить работу»; предложи конкретную реплику, сделку или действие с ясной ценой.
-На finalScene закончи рассказ 4–5 короткими абзацами, используй личные детали прохождения, конкретно развяжи заказ, деньги, ученика и отношения. Не выдумывай согласие на невыбранный договор и не заполняй все пробелы счастливыми исходами. Последняя строка — зримое утро. reflection — открытый вопрос про конкретный выбор, без диагнозов и подсказывания мотива. nextOptions пустой. Сохрани все обязательные ключи исходного JSON, facts и events исправь вместе с текстом.` },
-    { role: 'user' as const, content: JSON.stringify({ finalScene: state.turn >= 6, scene: state.turn, situation: state.briefing, memory: state.florence, action, draft }) },
-  ];
-}
-
 /** Validate the model boundary. No keyword resolver and no silent scripted fallback. */
 export function validateFlorenceAi(raw: unknown, state: GameState, action: string, provider: 'deepseek' | 'cloudflare'): TurnOutcome | null {
   const c = object(raw), r = object(c.resolution), s = object(c.scene);
@@ -60,7 +40,7 @@ export function validateFlorenceAi(raw: unknown, state: GameState, action: strin
   const status = r.status as 'executed' | 'conditional' | 'blocked';
   const advance = c.advanceScene && status !== 'blocked';
   const terminal = advance && state.turn >= 6;
-  if (text(c.headline, 140).length < 3 || text(c.summary, 5000).length < 50 || text(r.explanation, 700).length < 8) return null;
+  if (text(c.headline, 140).length < 3 || text(c.summary, 5000).length < 50 || text(r.explanation, 700).length < 8 || !text(r.cost, 600)) return null;
   const options: DecisionOption[] = [];
   if (!terminal) {
     if (!Array.isArray(c.nextOptions) || c.nextOptions.length !== 3 || !text(c.nextBriefing, 1800)) return null;
@@ -85,9 +65,9 @@ export function validateFlorenceAi(raw: unknown, state: GameState, action: strin
   const effects = ids.map(id => { const e = effectList.find(e => e.id === id); return { id, delta: advance && typeof e?.delta === 'number' && Number.isFinite(e.delta) ? Math.max(-10, Math.min(10, Math.round(e.delta))) : 0, reason: text(e?.reason, 500) || 'Без изменений после этого решения' }; });
   const characters = Array.isArray(s.activeCharacterIds) ? s.activeCharacterIds.filter((v): v is string => typeof v === 'string' && ['florence-juliano', 'florence-secretary', 'florence-guildmaster'].includes(v)).slice(0, 2) : [];
   return {
-    headline: text(c.headline, 140), summary: text(c.summary, 5000), nextTitle: !advance ? state.lastOutcome?.nextTitle : text(c.nextTitle, 140), nextBriefing: terminal ? '' : !advance ? state.briefing : text(c.nextBriefing, 1800),
+    headline: text(c.headline, 140), summary: text(c.summary, 5000), nextTitle: text(c.nextTitle, 140), nextBriefing: terminal ? '' : text(c.nextBriefing, 1800),
     sceneDialogue: Array.isArray(c.sceneDialogue) ? c.sceneDialogue.map(object).filter(l => text(l.speaker, 100) && text(l.line, 700)).slice(0, 3).map(l => ({ speaker: text(l.speaker, 100), line: text(l.line, 700) })) : [],
-    resolution: { status, explanation: text(r.explanation, 700), cost: text(r.cost, 600) || 'Дополнительных затрат в этом действии не было.', ...(text(r.requirement, 600) && !/^(нет|none|null|не требуется)[.!]?$/i.test(text(r.requirement, 600)) ? { requirement: text(r.requirement, 600) } : {}) },
+    resolution: { status, explanation: text(r.explanation, 700), cost: text(r.cost, 600), ...(text(r.requirement, 600) ? { requirement: text(r.requirement, 600) } : {}) },
     advanceScene: advance, florence: memory, effects, nextOptions: options,
     scene: { locationId: ['florence-workshop', 'florence-guildhall', 'florence-square'].includes(String(s.locationId)) ? String(s.locationId) : 'florence-workshop', activeCharacterIds: characters, propIds: [], ambientId: null, atmosphere: text(s.atmosphere, 240) },
     daysPassed: terminal ? 1 : 0, dispatch: '', reactions: [], surprise: null, source: 'ai', provider, reflection: terminal ? text(c.reflection, 900) : undefined,
