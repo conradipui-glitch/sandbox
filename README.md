@@ -15,6 +15,14 @@
   интересами людей, дефицитом ресурсов и непредвиденными союзами.
 </p>
 
+<p align="center">
+  <a href="https://living-history-sandbox.conradipui.workers.dev/"><strong>▶ Играть в живое демо</strong></a>
+  &nbsp;·&nbsp;
+  <a href="docs/narrative-design.md">Нарративный дизайн</a>
+  &nbsp;·&nbsp;
+  <a href="docs/visual-bible.md">Визуальная библия</a>
+</p>
+
 ---
 
 ## ◼ Проблема
@@ -157,7 +165,6 @@ npm run dev
 ```
 
 ## 07 · Деплой
-
 Проект готов к публикации как единый Cloudflare Worker:
 
 ```bash
