@@ -1,4 +1,4 @@
-import type { GameMode } from "../shared/types";
+import type { DecisionOption, GameMode, GameState, Metric } from "../shared/types";
 
 export type FlorenceRolloutMode = "off" | "test" | "on";
 export type NewSessionRuntime = "legacy" | "engine";
@@ -11,21 +11,64 @@ export interface EngineBffEnv {
   ENGINE_FLORENCE_QUEST_ID?: string;
 }
 
+interface EngineResourceView {
+  id: string;
+  unit: string;
+  value: number;
+}
+
+interface EngineTerminalView {
+  reason: string;
+  outcome: string;
+}
+
 interface EnginePlayerView {
   sessionId: string;
   release: { questId: string; releaseId: string };
   revision: number;
   clock: { elapsedSeconds: number };
   entities: unknown[];
-  resources: unknown[];
+  resources: EngineResourceView[];
   items: unknown[];
-  terminal: unknown;
+  terminal: EngineTerminalView | null;
+}
+
+interface EngineSituationOption {
+  id: string;
+  status: "executed" | "conditional" | "blocked";
+  meaning: string | null;
+}
+
+interface EngineSituation {
+  questId: string;
+  revision: number;
+  elapsedSeconds: number;
+  beat: null | {
+    id: string;
+    title: string | null;
+    options: EngineSituationOption[];
+  };
 }
 
 interface EngineSessionCreateResponse {
   sessionId: string;
   credential: string;
   playerView: EnginePlayerView;
+  situation: EngineSituation;
+}
+
+interface EngineActionView {
+  optionId: string | null;
+  beatId: string | null;
+  status: "executed" | "conditional" | "blocked";
+  durationSeconds: number;
+  reasonCode: string | null;
+}
+
+interface EngineStatePayload {
+  playerView: EnginePlayerView;
+  situation: EngineSituation;
+  action?: EngineActionView;
 }
 
 export interface EngineRouteBinding {
@@ -42,14 +85,32 @@ export interface EngineRouteBinding {
   createdAt: string;
 }
 
+const FLORENCE_OPTION_TITLES: Readonly<Record<string, string>> = Object.freeze({
+  draft: "Предложить письменные условия",
+  healer: "Отправить Джулиано к лекарю",
+  close: "Остановить работу на ночь",
+  ledger: "Сверить записи поставки",
+  team: "Перераспределить работу",
+  refuse: "Отказаться убрать имя",
+  counter: "Выдвинуть встречное условие",
+  advance: "Принять аванс",
+  protect: "Зафиксировать ответственность",
+  pigment: "Проверить пигмент",
+  testimony: "Получить свидетельство",
+  withdraw: "Отозвать сделку",
+  public: "Вынести спор на публику",
+  "share-ledger": "Показать записи обеим сторонам",
+  rest: "Дать мастерской отдых",
+  deliver: "Предъявить подготовленный фрагмент",
+  sign: "Оставить подпись на работе",
+  workshop: "Сохранить мастерскую",
+});
+
 export function normalizeFlorenceRollout(value: unknown): FlorenceRolloutMode {
   return value === "test" || value === "on" ? value : "off";
 }
 
-/**
- * Runtime selection is evaluated exactly once, before a session id is bound.
- * Existing sessions never call this function again.
- */
+/** Runtime selection is evaluated once, before a public session id is bound. */
 export function chooseNewSessionRuntime(input: {
   scenarioId: string;
   rollout: unknown;
@@ -87,6 +148,21 @@ function isGameMode(value: unknown): value is GameMode {
   return value === "chronicle" || value === "campaign" || value === "sandbox";
 }
 
+function isEngineResource(value: unknown): value is EngineResourceView {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return isRuntimeId(record.id)
+    && typeof record.unit === "string"
+    && Number.isFinite(record.value);
+}
+
+function isEngineTerminal(value: unknown): value is EngineTerminalView | null {
+  if (value === null) return true;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return typeof record.reason === "string" && typeof record.outcome === "string";
+}
+
 function isEnginePlayerView(value: unknown): value is EnginePlayerView {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
@@ -100,9 +176,52 @@ function isEnginePlayerView(value: unknown): value is EnginePlayerView {
     && isRuntimeId((release as Record<string, unknown>).releaseId)
     && !!clock && typeof clock === "object" && !Array.isArray(clock)
     && Number.isSafeInteger((clock as Record<string, unknown>).elapsedSeconds)
+    && Number((clock as Record<string, unknown>).elapsedSeconds) >= 0
     && Array.isArray(record.entities)
-    && Array.isArray(record.resources)
-    && Array.isArray(record.items);
+    && Array.isArray(record.resources) && record.resources.every(isEngineResource)
+    && Array.isArray(record.items)
+    && isEngineTerminal(record.terminal);
+}
+
+function isSituationStatus(value: unknown): value is EngineSituationOption["status"] {
+  return value === "executed" || value === "conditional" || value === "blocked";
+}
+
+function isEngineSituation(value: unknown): value is EngineSituation {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  if (!isRuntimeId(record.questId)
+    || !Number.isSafeInteger(record.revision) || Number(record.revision) < 0
+    || !Number.isSafeInteger(record.elapsedSeconds) || Number(record.elapsedSeconds) < 0) return false;
+  if (record.beat === null) return true;
+  if (!record.beat || typeof record.beat !== "object" || Array.isArray(record.beat)) return false;
+  const beat = record.beat as Record<string, unknown>;
+  if (!isRuntimeId(beat.id) || !(beat.title === null || typeof beat.title === "string") || !Array.isArray(beat.options)) return false;
+  return beat.options.every((option) => {
+    if (!option || typeof option !== "object" || Array.isArray(option)) return false;
+    const candidate = option as Record<string, unknown>;
+    return isRuntimeId(candidate.id)
+      && isSituationStatus(candidate.status)
+      && (candidate.meaning === null || typeof candidate.meaning === "string");
+  });
+}
+
+function isEngineActionView(value: unknown): value is EngineActionView {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return (record.optionId === null || isRuntimeId(record.optionId))
+    && (record.beatId === null || isRuntimeId(record.beatId))
+    && isSituationStatus(record.status)
+    && Number.isSafeInteger(record.durationSeconds) && Number(record.durationSeconds) >= 0
+    && (record.reasonCode === null || typeof record.reasonCode === "string");
+}
+
+function isEngineStatePayload(value: unknown): value is EngineStatePayload {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return isEnginePlayerView(record.playerView)
+    && isEngineSituation(record.situation)
+    && (record.action === undefined || isEngineActionView(record.action));
 }
 
 function isEngineSessionCreateResponse(value: unknown): value is EngineSessionCreateResponse {
@@ -110,7 +229,8 @@ function isEngineSessionCreateResponse(value: unknown): value is EngineSessionCr
   const record = value as Record<string, unknown>;
   return isRuntimeId(record.sessionId)
     && isCredential(record.credential)
-    && isEnginePlayerView(record.playerView);
+    && isEnginePlayerView(record.playerView)
+    && isEngineSituation(record.situation);
 }
 
 function isEngineRouteBinding(value: unknown): value is EngineRouteBinding {
@@ -139,13 +259,106 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-function engineEnvelope(binding: EngineRouteBinding, payload: unknown) {
+function resourceValue(view: EnginePlayerView, id: string): number {
+  return view.resources.find((resource) => resource.id === id)?.value ?? 0;
+}
+
+function engineMetrics(view: EnginePlayerView): Metric[] {
+  return [
+    { id: "legitimacy", label: "Доверие гильдии", value: resourceValue(view, "guild-trust"), trend: 0 },
+    { id: "economy", label: "Деньги мастерской", value: resourceValue(view, "workshop-cash"), trend: 0 },
+    { id: "army", label: "Синий пигмент", value: resourceValue(view, "pigment-jars"), trend: 0 },
+    { id: "stability", label: "Готовность фрески", value: resourceValue(view, "fresco-progress"), trend: 0 },
+    { id: "diplomacy", label: "Доверие заказчика", value: resourceValue(view, "patron-trust"), trend: 0 },
+  ];
+}
+
+function engineOptions(situation: EngineSituation): DecisionOption[] {
+  if (!situation.beat) return [];
+  return situation.beat.options.map((option) => ({
+    id: option.id,
+    title: FLORENCE_OPTION_TITLES[option.id] ?? option.id,
+    description: option.meaning ?? "Авторский ход Living History Engine.",
+    risk: option.status === "blocked" ? "высокий" : option.status === "conditional" ? "средний" : "низкий",
+    intent: option.id,
+  }));
+}
+
+function engineGameState(
+  binding: EngineRouteBinding,
+  payload: EngineStatePayload,
+): GameState & { runtime: "engine"; engineReleaseId: string } {
+  const view = payload.playerView;
+  const options = engineOptions(payload.situation);
+  const terminal = view.terminal;
+  const lastOutcome = payload.action ? {
+    headline: terminal?.outcome ?? (payload.situation.beat?.title ?? "Решение зафиксировано"),
+    summary: payload.action.status === "blocked"
+      ? "Ход заблокирован правилами текущего состояния; мир не изменён."
+      : payload.action.status === "conditional"
+        ? "Попытка зафиксирована, но желаемый результат ещё не считается достигнутым."
+        : "Ход исполнен Living History Engine и изменения состояния зафиксированы.",
+    nextBriefing: payload.situation.beat?.title ?? terminal?.outcome,
+    dispatch: payload.action.optionId
+      ? (FLORENCE_OPTION_TITLES[payload.action.optionId] ?? payload.action.optionId)
+      : "Ход не исполнен",
+    effects: [],
+    reactions: [],
+    nextOptions: options,
+    daysPassed: 0,
+    surprise: null,
+    scene: {
+      locationId: "workshop",
+      activeCharacterIds: [],
+      propIds: [],
+      ambientId: null,
+      atmosphere: terminal ? "Итог решения" : "Мастерская под давлением",
+    },
+    source: "simulation" as const,
+    provider: "simulation" as const,
+    resolution: {
+      status: payload.action.status,
+      explanation: payload.action.reasonCode ?? (payload.action.status === "conditional"
+        ? "Условие или запрос зафиксирован без выдуманного успеха."
+        : payload.action.status === "blocked"
+          ? "Предусловия не выполнены; состояние не изменено."
+          : "Ход исполнен по авторским правилам Engine."),
+      cost: `${payload.action.durationSeconds} сек. игрового времени`,
+    },
+  } : null;
+
   return {
     id: binding.publicSessionId,
     scenarioId: binding.scenarioId,
     mode: binding.mode,
-    runtime: "engine" as const,
-    engine: payload,
+    scenarioTitle: "Флоренция: Мастерская под давлением",
+    role: "Художник и хозяин мастерской",
+    date: "1512-04-17",
+    turn: view.revision + 1,
+    status: terminal ? "victory" : "active",
+    briefing: terminal?.outcome
+      ?? payload.situation.beat?.title
+      ?? "История продолжается.",
+    objective: "К утру договориться с заказчиком о судьбе незаконченной росписи, сохранив причинность решений, людей и право на авторство.",
+    metrics: engineMetrics(view),
+    factions: [
+      { name: "Ученики мастерской", power: 52, mood: "Ждут решения мастера" },
+      { name: "Гильдия", power: 73, mood: "Сверяет доказательства" },
+      { name: "Сторона заказчика", power: 81, mood: "Ведёт переговоры" },
+    ],
+    options,
+    timeline: [{
+      id: "engine-origin",
+      date: "1512-04-17",
+      title: "Мастерская под давлением",
+      description: "Кардинал перенёс показ, ученик заболел, поставка пигмента спорна, а условия оплаты затрагивают авторство.",
+      kind: "origin",
+    }],
+    lastOutcome,
+    createdAt: binding.createdAt,
+    updatedAt: binding.createdAt,
+    runtime: "engine",
+    engineReleaseId: view.release.releaseId,
   };
 }
 
@@ -222,7 +435,7 @@ async function createEngineSession(env: EngineBffEnv, input: {
     return json({ error: "Session route collision", code: "SESSION_ROUTE_COLLISION" }, 409);
   }
 
-  return json(engineEnvelope(binding, { playerView: payload.playerView }), 201);
+  return json(engineGameState(binding, { playerView: payload.playerView, situation: payload.situation }), 201);
 }
 
 async function fetchEngineState(binding: EngineRouteBinding): Promise<{ response: Response; payload: unknown }> {
@@ -235,14 +448,14 @@ async function fetchEngineState(binding: EngineRouteBinding): Promise<{ response
 async function handleBoundEngineSession(request: Request, binding: EngineRouteBinding, action: string | undefined): Promise<Response> {
   if (request.method === "GET" && !action) {
     const upstream = await fetchEngineState(binding);
-    if (!upstream.response.ok) {
+    if (!upstream.response.ok || !isEngineStatePayload(upstream.payload)) {
       return json({ error: "Pinned Engine session is unavailable", code: "ENGINE_SESSION_UNAVAILABLE", upstreamStatus: upstream.response.status }, 503);
     }
-    return json(engineEnvelope(binding, upstream.payload));
+    return json(engineGameState(binding, upstream.payload));
   }
 
   if (request.method === "GET" && action === "metrics") {
-    return json({ error: "Engine metrics adapter is outside B11.2", code: "ENGINE_METRICS_ADAPTER_PENDING" }, 501);
+    return json({ error: "Engine metrics adapter is outside B11", code: "ENGINE_METRICS_ADAPTER_PENDING" }, 501);
   }
 
   if (request.method === "POST" && action === "turn") {
@@ -259,20 +472,17 @@ async function handleBoundEngineSession(request: Request, binding: EngineRouteBi
     }
 
     const current = await fetchEngineState(binding);
-    const currentView = current.payload && typeof current.payload === "object" && !Array.isArray(current.payload)
-      ? (current.payload as Record<string, unknown>).playerView
-      : null;
-    if (!current.response.ok || !isEnginePlayerView(currentView)) {
+    if (!current.response.ok || !isEngineStatePayload(current.payload)) {
       return json({ error: "Pinned Engine session is unavailable", code: "ENGINE_SESSION_UNAVAILABLE", upstreamStatus: current.response.status }, 503);
     }
 
     const upstreamBody = prepared
       ? {
-          expectedRevision: currentView.revision,
+          expectedRevision: current.payload.playerView.revision,
           action: { type: "authored.option", optionId },
         }
       : {
-          expectedRevision: currentView.revision,
+          expectedRevision: current.payload.playerView.revision,
           input: { kind: "text", text },
         };
     const upstream = await fetch(`${binding.engineBaseUrl}/v1/sessions/${encodeURIComponent(binding.engineSessionId)}/actions`, {
@@ -293,16 +503,19 @@ async function handleBoundEngineSession(request: Request, binding: EngineRouteBi
         upstream: payload,
       }, upstream.status >= 400 && upstream.status < 500 ? upstream.status : 503);
     }
-    return json(engineEnvelope(binding, payload));
+    if (!isEngineStatePayload(payload) || !payload.action) {
+      return json({ error: "Engine returned an incompatible player response", code: "ENGINE_RESPONSE_INVALID" }, 503);
+    }
+    return json(engineGameState(binding, payload));
   }
 
   return json({ error: "API route not found" }, 404);
 }
 
 /**
- * B11.2 wrapper. Legacy requests are delegated byte-for-byte. Only a newly
- * selected Florence Engine session receives a durable route binding; later
- * requests use that binding and never consult the rollout flag again.
+ * B11 wrapper. Legacy requests are delegated unchanged. New Engine sessions
+ * receive a durable binding and a server-side compatibility GameState view;
+ * the browser never calculates Engine effects or terminal outcomes.
  */
 export async function handleEngineBff(
   request: Request,
