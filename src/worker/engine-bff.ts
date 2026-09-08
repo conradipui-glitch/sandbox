@@ -1,0 +1,356 @@
+import type { GameMode } from "../shared/types";
+
+export type FlorenceRolloutMode = "off" | "test" | "on";
+export type NewSessionRuntime = "legacy" | "engine";
+
+export interface EngineBffEnv {
+  RUNTIME_ROUTE_SESSIONS: DurableObjectNamespace;
+  ENGINE_RUNTIME_URL?: string;
+  ENGINE_FLORENCE_ROLLOUT?: string;
+  ENGINE_FLORENCE_PROJECT_ID?: string;
+  ENGINE_FLORENCE_QUEST_ID?: string;
+}
+
+interface EnginePlayerView {
+  sessionId: string;
+  release: { questId: string; releaseId: string };
+  revision: number;
+  clock: { elapsedSeconds: number };
+  entities: unknown[];
+  resources: unknown[];
+  items: unknown[];
+  terminal: unknown;
+}
+
+interface EngineSessionCreateResponse {
+  sessionId: string;
+  credential: string;
+  playerView: EnginePlayerView;
+}
+
+export interface EngineRouteBinding {
+  version: 1;
+  runtime: "engine";
+  publicSessionId: string;
+  scenarioId: "florence-workshop";
+  mode: GameMode;
+  engineBaseUrl: string;
+  engineSessionId: string;
+  credential: string;
+  projectId: string;
+  questId: string;
+  createdAt: string;
+}
+
+export function normalizeFlorenceRollout(value: unknown): FlorenceRolloutMode {
+  return value === "test" || value === "on" ? value : "off";
+}
+
+/**
+ * Runtime selection is evaluated exactly once, before a session id is bound.
+ * Existing sessions never call this function again.
+ */
+export function chooseNewSessionRuntime(input: {
+  scenarioId: string;
+  rollout: unknown;
+  requestedRuntime?: unknown;
+}): NewSessionRuntime {
+  if (input.scenarioId !== "florence-workshop") return "legacy";
+  const rollout = normalizeFlorenceRollout(input.rollout);
+  if (rollout === "on") return "engine";
+  if (rollout === "test" && input.requestedRuntime === "engine") return "engine";
+  return "legacy";
+}
+
+export function normalizeEngineBaseUrl(value: unknown): string | null {
+  if (typeof value !== "string" || value.length < 1 || value.length > 2048) return null;
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) return null;
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function isRuntimeId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/.test(value);
+}
+
+function isCredential(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{32,256}$/.test(value);
+}
+
+function isGameMode(value: unknown): value is GameMode {
+  return value === "chronicle" || value === "campaign" || value === "sandbox";
+}
+
+function isEnginePlayerView(value: unknown): value is EnginePlayerView {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const release = record.release;
+  const clock = record.clock;
+  return isRuntimeId(record.sessionId)
+    && Number.isSafeInteger(record.revision)
+    && Number(record.revision) >= 0
+    && !!release && typeof release === "object" && !Array.isArray(release)
+    && isRuntimeId((release as Record<string, unknown>).questId)
+    && isRuntimeId((release as Record<string, unknown>).releaseId)
+    && !!clock && typeof clock === "object" && !Array.isArray(clock)
+    && Number.isSafeInteger((clock as Record<string, unknown>).elapsedSeconds)
+    && Array.isArray(record.entities)
+    && Array.isArray(record.resources)
+    && Array.isArray(record.items);
+}
+
+function isEngineSessionCreateResponse(value: unknown): value is EngineSessionCreateResponse {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return isRuntimeId(record.sessionId)
+    && isCredential(record.credential)
+    && isEnginePlayerView(record.playerView);
+}
+
+function isEngineRouteBinding(value: unknown): value is EngineRouteBinding {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return record.version === 1
+    && record.runtime === "engine"
+    && isRuntimeId(record.publicSessionId)
+    && record.scenarioId === "florence-workshop"
+    && isGameMode(record.mode)
+    && normalizeEngineBaseUrl(record.engineBaseUrl) === record.engineBaseUrl
+    && isRuntimeId(record.engineSessionId)
+    && isCredential(record.credential)
+    && isRuntimeId(record.projectId)
+    && isRuntimeId(record.questId)
+    && typeof record.createdAt === "string";
+}
+
+function json(data: unknown, status = 200): Response {
+  return Response.json(data, {
+    status,
+    headers: {
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
+
+function engineEnvelope(binding: EngineRouteBinding, payload: unknown) {
+  return {
+    id: binding.publicSessionId,
+    scenarioId: binding.scenarioId,
+    mode: binding.mode,
+    runtime: "engine" as const,
+    engine: payload,
+  };
+}
+
+function engineTarget(env: EngineBffEnv): { baseUrl: string; projectId: string; questId: string } | null {
+  const baseUrl = normalizeEngineBaseUrl(env.ENGINE_RUNTIME_URL);
+  const projectId = env.ENGINE_FLORENCE_PROJECT_ID;
+  const questId = env.ENGINE_FLORENCE_QUEST_ID;
+  if (!baseUrl || !isRuntimeId(projectId) || !isRuntimeId(questId)) return null;
+  return { baseUrl, projectId, questId };
+}
+
+async function readBinding(env: EngineBffEnv, publicSessionId: string): Promise<EngineRouteBinding | null> {
+  const stub = env.RUNTIME_ROUTE_SESSIONS.get(env.RUNTIME_ROUTE_SESSIONS.idFromName(publicSessionId));
+  const response = await stub.fetch("https://runtime-route/binding");
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`runtime_binding_read_${response.status}`);
+  const value = await response.json();
+  if (!isEngineRouteBinding(value)) throw new Error("runtime_binding_corrupt");
+  return value;
+}
+
+async function writeBinding(env: EngineBffEnv, binding: EngineRouteBinding): Promise<"created" | "replay" | "conflict"> {
+  const stub = env.RUNTIME_ROUTE_SESSIONS.get(env.RUNTIME_ROUTE_SESSIONS.idFromName(binding.publicSessionId));
+  const response = await stub.fetch("https://runtime-route/bind", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(binding),
+  });
+  if (response.status === 201) return "created";
+  if (response.status === 200) return "replay";
+  if (response.status === 409) return "conflict";
+  throw new Error(`runtime_binding_write_${response.status}`);
+}
+
+async function createEngineSession(env: EngineBffEnv, input: {
+  publicSessionId: string;
+  scenarioId: "florence-workshop";
+  mode: GameMode;
+}): Promise<Response> {
+  const target = engineTarget(env);
+  if (!target) {
+    return json({ error: "Engine test route is not configured", code: "ENGINE_ROUTE_NOT_CONFIGURED" }, 503);
+  }
+
+  const engineResponse = await fetch(`${target.baseUrl}/v1/sessions`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ projectId: target.projectId, questId: target.questId }),
+  });
+  const payload = await engineResponse.json().catch(() => null);
+  if (!engineResponse.ok || !isEngineSessionCreateResponse(payload)) {
+    return json({
+      error: "Engine session could not be created",
+      code: "ENGINE_SESSION_CREATE_FAILED",
+      upstreamStatus: engineResponse.status,
+    }, 503);
+  }
+
+  const binding: EngineRouteBinding = {
+    version: 1,
+    runtime: "engine",
+    publicSessionId: input.publicSessionId,
+    scenarioId: input.scenarioId,
+    mode: input.mode,
+    engineBaseUrl: target.baseUrl,
+    engineSessionId: payload.sessionId,
+    credential: payload.credential,
+    projectId: target.projectId,
+    questId: target.questId,
+    createdAt: new Date().toISOString(),
+  };
+  const stored = await writeBinding(env, binding);
+  if (stored !== "created") {
+    return json({ error: "Session route collision", code: "SESSION_ROUTE_COLLISION" }, 409);
+  }
+
+  return json(engineEnvelope(binding, { playerView: payload.playerView }), 201);
+}
+
+async function fetchEngineState(binding: EngineRouteBinding): Promise<{ response: Response; payload: unknown }> {
+  const response = await fetch(`${binding.engineBaseUrl}/v1/sessions/${encodeURIComponent(binding.engineSessionId)}`, {
+    headers: { authorization: `Bearer ${binding.credential}` },
+  });
+  return { response, payload: await response.json().catch(() => null) };
+}
+
+async function handleBoundEngineSession(request: Request, binding: EngineRouteBinding, action: string | undefined): Promise<Response> {
+  if (request.method === "GET" && !action) {
+    const upstream = await fetchEngineState(binding);
+    if (!upstream.response.ok) {
+      return json({ error: "Pinned Engine session is unavailable", code: "ENGINE_SESSION_UNAVAILABLE", upstreamStatus: upstream.response.status }, 503);
+    }
+    return json(engineEnvelope(binding, upstream.payload));
+  }
+
+  if (request.method === "GET" && action === "metrics") {
+    return json({ error: "Engine metrics adapter is outside B11.2", code: "ENGINE_METRICS_ADAPTER_PENDING" }, 501);
+  }
+
+  if (request.method === "POST" && action === "turn") {
+    const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+    const text = typeof body?.action === "string" ? body.action.trim().slice(0, 700) : "";
+    const idempotencyKey = typeof body?.idempotencyKey === "string" ? body.idempotencyKey : "";
+    if (text.length < 1 || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/.test(idempotencyKey)) {
+      return json({ error: "Invalid Engine turn request", code: "INVALID_ENGINE_TURN" }, 400);
+    }
+
+    const current = await fetchEngineState(binding);
+    const currentView = current.payload && typeof current.payload === "object" && !Array.isArray(current.payload)
+      ? (current.payload as Record<string, unknown>).playerView
+      : null;
+    if (!current.response.ok || !isEnginePlayerView(currentView)) {
+      return json({ error: "Pinned Engine session is unavailable", code: "ENGINE_SESSION_UNAVAILABLE", upstreamStatus: current.response.status }, 503);
+    }
+
+    const upstream = await fetch(`${binding.engineBaseUrl}/v1/sessions/${encodeURIComponent(binding.engineSessionId)}/actions`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${binding.credential}`,
+        "content-type": "application/json",
+        "idempotency-key": idempotencyKey,
+      },
+      body: JSON.stringify({
+        expectedRevision: currentView.revision,
+        input: { kind: "text", text },
+      }),
+    });
+    const payload = await upstream.json().catch(() => null);
+    if (!upstream.ok) {
+      return json({
+        error: "Engine turn failed",
+        code: "ENGINE_TURN_FAILED",
+        upstreamStatus: upstream.status,
+        upstream: payload,
+      }, upstream.status >= 400 && upstream.status < 500 ? upstream.status : 503);
+    }
+    return json(engineEnvelope(binding, payload));
+  }
+
+  return json({ error: "API route not found" }, 404);
+}
+
+/**
+ * B11.2 wrapper. Legacy requests are delegated byte-for-byte. Only a newly
+ * selected Florence Engine session receives a durable route binding; later
+ * requests use that binding and never consult the rollout flag again.
+ */
+export async function handleEngineBff(
+  request: Request,
+  env: EngineBffEnv,
+  legacyFetch: (request: Request) => Promise<Response>,
+): Promise<Response> {
+  const url = new URL(request.url);
+
+  if (request.method === "POST" && url.pathname === "/api/games") {
+    const clone = request.clone();
+    const body = await clone.json().catch(() => null) as Record<string, unknown> | null;
+    const scenarioId = typeof body?.scenarioId === "string" ? body.scenarioId : "russia-1917";
+    const runtime = chooseNewSessionRuntime({
+      scenarioId,
+      rollout: env.ENGINE_FLORENCE_ROLLOUT,
+      requestedRuntime: body?.runtime,
+    });
+    if (runtime === "legacy") return legacyFetch(request);
+
+    const mode: GameMode = isGameMode(body?.mode) ? body.mode : "chronicle";
+    return createEngineSession(env, {
+      publicSessionId: crypto.randomUUID(),
+      scenarioId: "florence-workshop",
+      mode,
+    });
+  }
+
+  const match = url.pathname.match(/^\/api\/games\/([0-9a-f-]+)(?:\/(turn|metrics))?$/i);
+  if (!match) return legacyFetch(request);
+  const publicSessionId = match[1];
+  if (!publicSessionId) return legacyFetch(request);
+  const binding = await readBinding(env, publicSessionId);
+  if (!binding) return legacyFetch(request);
+  return handleBoundEngineSession(request, binding, match[2]);
+}
+
+export class RuntimeRouteSession implements DurableObject {
+  constructor(private readonly ctx: DurableObjectState) {}
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/binding") {
+      const binding = await this.ctx.storage.get<EngineRouteBinding>("binding");
+      return binding ? json(binding) : json({ error: "not found" }, 404);
+    }
+
+    if (request.method === "POST" && url.pathname === "/bind") {
+      const candidate = await request.json().catch(() => null);
+      if (!isEngineRouteBinding(candidate)) return json({ error: "invalid binding" }, 400);
+      const existing = await this.ctx.storage.get<EngineRouteBinding>("binding");
+      if (existing) {
+        return JSON.stringify(existing) === JSON.stringify(candidate)
+          ? json(existing)
+          : json({ error: "binding conflict" }, 409);
+      }
+      await this.ctx.storage.put("binding", candidate);
+      return json(candidate, 201);
+    }
+
+    return json({ error: "not found" }, 404);
+  }
+}
