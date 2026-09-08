@@ -248,8 +248,13 @@ async function handleBoundEngineSession(request: Request, binding: EngineRouteBi
   if (request.method === "POST" && action === "turn") {
     const body = await request.json().catch(() => null) as Record<string, unknown> | null;
     const text = typeof body?.action === "string" ? body.action.trim().slice(0, 700) : "";
+    const source = body?.source;
+    const optionId = typeof body?.optionId === "string" ? body.optionId : "";
     const idempotencyKey = typeof body?.idempotencyKey === "string" ? body.idempotencyKey : "";
-    if (text.length < 1 || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/.test(idempotencyKey)) {
+    const prepared = source === "prepared";
+    if (!isRuntimeId(idempotencyKey)
+      || (prepared && !isRuntimeId(optionId))
+      || (!prepared && text.length < 1)) {
       return json({ error: "Invalid Engine turn request", code: "INVALID_ENGINE_TURN" }, 400);
     }
 
@@ -261,6 +266,15 @@ async function handleBoundEngineSession(request: Request, binding: EngineRouteBi
       return json({ error: "Pinned Engine session is unavailable", code: "ENGINE_SESSION_UNAVAILABLE", upstreamStatus: current.response.status }, 503);
     }
 
+    const upstreamBody = prepared
+      ? {
+          expectedRevision: currentView.revision,
+          action: { type: "authored.option", optionId },
+        }
+      : {
+          expectedRevision: currentView.revision,
+          input: { kind: "text", text },
+        };
     const upstream = await fetch(`${binding.engineBaseUrl}/v1/sessions/${encodeURIComponent(binding.engineSessionId)}/actions`, {
       method: "POST",
       headers: {
@@ -268,10 +282,7 @@ async function handleBoundEngineSession(request: Request, binding: EngineRouteBi
         "content-type": "application/json",
         "idempotency-key": idempotencyKey,
       },
-      body: JSON.stringify({
-        expectedRevision: currentView.revision,
-        input: { kind: "text", text },
-      }),
+      body: JSON.stringify(upstreamBody),
     });
     const payload = await upstream.json().catch(() => null);
     if (!upstream.ok) {
