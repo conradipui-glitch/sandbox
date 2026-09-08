@@ -29,3 +29,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Check production smoke probe syntax
+        run: node --check scripts/smoke-production.mjs
