@@ -40,6 +40,35 @@ function playerView(revision = 0) {
   };
 }
 
+function situation(revision = 0) {
+  const beats = [
+    {
+      id: "contract-pressure",
+      title: "Срок и условие заказчика",
+      options: [
+        { id: "draft", status: "conditional", meaning: "Предложить письменные условия." },
+        { id: "healer", status: "executed", meaning: "Отправить Джулиано к лекарю." },
+        { id: "close", status: "executed", meaning: "Остановить работу на ночь." },
+      ],
+    },
+    {
+      id: "evidence-and-team",
+      title: "Люди и доказательства",
+      options: [
+        { id: "ledger", status: "executed", meaning: "Сверить запись поставки." },
+        { id: "team", status: "executed", meaning: "Перераспределить работу." },
+        { id: "refuse", status: "executed", meaning: "Отказаться убрать имя." },
+      ],
+    },
+  ] as const;
+  return {
+    questId: "florence-workshop",
+    revision,
+    elapsedSeconds: revision * 60,
+    beat: beats[revision] ?? null,
+  };
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -85,10 +114,11 @@ describe("B11.2 runtime rollout boundary", () => {
           sessionId: "engine-session-1",
           credential: "abcdefghijklmnopqrstuvwxyzABCDEFGH123456",
           playerView: playerView(0),
+          situation: situation(0),
         }, { status: 201 });
       }
       if (request.method === "GET" && url.pathname === "/v1/sessions/engine-session-1") {
-        return Response.json({ playerView: playerView(0) });
+        return Response.json({ playerView: playerView(0), situation: situation(0) });
       }
       return Response.json({ error: "unexpected upstream request" }, { status: 500 });
     });
@@ -104,8 +134,9 @@ describe("B11.2 runtime rollout boundary", () => {
       legacyFetch,
     );
     expect(created.status).toBe(201);
-    const createdBody = await created.json() as { id: string; runtime: string };
+    const createdBody = await created.json() as { id: string; runtime: string; options: Array<{ id: string }> };
     expect(createdBody.runtime).toBe("engine");
+    expect(createdBody.options.map((option) => option.id)).toEqual(["draft", "healer", "close"]);
     expect(legacyCalls).toBe(0);
 
     env.ENGINE_FLORENCE_ROLLOUT = "off";
@@ -115,8 +146,9 @@ describe("B11.2 runtime rollout boundary", () => {
       legacyFetch,
     );
     expect(resumed.status).toBe(200);
-    const resumedBody = await resumed.json() as { runtime: string };
+    const resumedBody = await resumed.json() as { runtime: string; options: Array<{ id: string }> };
     expect(resumedBody.runtime).toBe("engine");
+    expect(resumedBody.options.map((option) => option.id)).toEqual(["draft", "healer", "close"]);
     expect(legacyCalls).toBe(0);
 
     const legacy = await handleEngineBff(
@@ -148,15 +180,27 @@ describe("B11.2 runtime rollout boundary", () => {
           sessionId: "engine-session-1",
           credential: "abcdefghijklmnopqrstuvwxyzABCDEFGH123456",
           playerView: playerView(0),
+          situation: situation(0),
         }, { status: 201 });
       }
       if (request.method === "GET" && url.pathname === "/v1/sessions/engine-session-1") {
-        return Response.json({ playerView: playerView(0) });
+        return Response.json({ playerView: playerView(0), situation: situation(0) });
       }
       if (request.method === "POST" && url.pathname === "/v1/sessions/engine-session-1/actions") {
         upstreamBodies.push(await request.json());
         upstreamKeys.push(request.headers.get("idempotency-key") ?? "");
-        return Response.json({ kind: "action_result", playerView: playerView(1) });
+        return Response.json({
+          kind: "action_result",
+          action: {
+            optionId: "draft",
+            beatId: "contract-pressure",
+            status: "conditional",
+            durationSeconds: 900,
+            reasonCode: null,
+          },
+          playerView: playerView(1),
+          situation: situation(1),
+        });
       }
       return Response.json({ error: "unexpected upstream request" }, { status: 500 });
     });
@@ -189,6 +233,10 @@ describe("B11.2 runtime rollout boundary", () => {
       legacyFetch,
     );
     expect(prepared.status).toBe(200);
+    const preparedBody = await prepared.json() as { runtime: string; options: Array<{ id: string }>; lastOutcome: { resolution: { status: string } } };
+    expect(preparedBody.runtime).toBe("engine");
+    expect(preparedBody.options.map((option) => option.id)).toEqual(["ledger", "team", "refuse"]);
+    expect(preparedBody.lastOutcome.resolution.status).toBe("conditional");
     expect(upstreamBodies[0]).toEqual({
       expectedRevision: 0,
       action: { type: "authored.option", optionId: "draft" },
