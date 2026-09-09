@@ -42,3 +42,8 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # Runtime secrets are managed in Cloudflare. Keep them intact across code deploys.
           command: deploy --keep-vars
+
+      - name: Smoke deployed Worker
+        env:
+          SMOKE_BASE_URL: https://living-history-sandbox.conradipui.workers.dev
+        run: node scripts/smoke-production.mjs

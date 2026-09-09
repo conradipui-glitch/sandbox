@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "living-history-sandbox",
-  "main": "src/worker/index.ts",
+  "main": "src/worker/b11-entry.ts",
   "compatibility_date": "2026-08-20",
   "workers_dev": true,
   "vars": {
@@ -28,6 +28,10 @@
       {
         "name": "PRODUCT_ANALYTICS",
         "class_name": "ProductAnalytics"
+      },
+      {
+        "name": "RUNTIME_ROUTE_SESSIONS",
+        "class_name": "RuntimeRouteSession"
       }
     ]
   },
@@ -39,6 +43,10 @@
     {
       "tag": "v2",
       "new_sqlite_classes": ["ProductAnalytics"]
+    },
+    {
+      "tag": "v3-b11-runtime-routing",
+      "new_sqlite_classes": ["RuntimeRouteSession"]
     }
   ],
   "observability": {
