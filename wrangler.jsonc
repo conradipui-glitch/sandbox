@@ -4,6 +4,12 @@
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-08-20",
   "workers_dev": true,
+  "vars": {
+    "ENGINE_RUNTIME_URL": "https://85.137.95.104.sslip.io:8743",
+    "ENGINE_FLORENCE_PROJECT_ID": "florence",
+    "ENGINE_FLORENCE_QUEST_ID": "quest",
+    "ENGINE_FLORENCE_ROLLOUT": "on"
+  },
   "ai": {
     "binding": "AI"
   },
