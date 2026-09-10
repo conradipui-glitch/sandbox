@@ -8,6 +8,7 @@
     "dev": "vite",
     "dev:worker": "wrangler dev",
     "build": "tsc -b && vite build",
+    "build:preview": "vite build --config vite.preview.config.ts",
     "preview": "wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "check": "tsc -b --pretty false",

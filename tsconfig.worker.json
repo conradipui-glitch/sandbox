@@ -8,6 +8,7 @@
     "types": ["@cloudflare/workers-types"],
     "strict": true,
     "skipLibCheck": true,
+    "jsx": "react-jsx",
     "noEmit": true
   },
   "include": ["src/worker", "src/shared"]

@@ -1,0 +1,135 @@
+:root {
+  --mp-bg: #12110f;
+  --mp-ink: #ded7c8;
+  --mp-paper: #e9e0cc;
+  --mp-muted: #938c7d;
+  --mp-accent: #c94c36;
+  --mp-panel: #1b1a17;
+  --mp-line: #2c2a25;
+}
+
+.mp-stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--mp-bg);
+  color: var(--mp-ink);
+}
+
+.mp-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.mp-background[data-fit="cover"] { object-fit: cover; }
+.mp-background[data-fit="contain"] { object-fit: contain; }
+.mp-background-empty { background: repeating-linear-gradient(45deg, var(--mp-panel), var(--mp-panel) 12px, var(--mp-bg) 12px, var(--mp-bg) 24px); }
+.mp-grid { position: absolute; inset: 0; pointer-events: none; }
+
+.mp-layer {
+  position: absolute;
+  width: 22%;
+}
+
+.mp-layer img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.mp-layer-anim { width: 100%; height: 100%; }
+.mp-anim-breathe { animation: mp-breathe 5.5s ease-in-out 1s infinite; transform-origin: 53% 75%; }
+.mp-anim-arrive { animation: mp-arrive 0.9s cubic-bezier(0.2, 0.8, 0.25, 1) both; }
+.mp-anim-none { animation: none; }
+
+@keyframes mp-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.006); }
+}
+
+@keyframes mp-arrive {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mp-layer-text {
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(18, 17, 15, 0.72);
+  border: 1px solid var(--mp-line);
+  border-radius: 6px;
+}
+
+.mp-layer-missing {
+  min-height: 64px;
+  border: 1px dashed var(--mp-muted);
+  border-radius: 6px;
+}
+
+.mp-caption {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  padding: 4px 10px;
+  background: rgba(18, 17, 15, 0.72);
+  border-radius: 6px;
+}
+
+.mp-choices { display: grid; gap: 8px; }
+.mp-choice {
+  min-height: 40px;
+  text-align: left;
+  background: var(--mp-panel);
+  color: var(--mp-ink);
+  border: 1px solid var(--mp-line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.mp-primary {
+  min-height: 40px;
+  background: var(--mp-accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.mp-intro, .mp-ending { display: grid; gap: 16px; }
+.mp-intro-body h1, .mp-ending-body h1 { font-size: 28px; margin: 0 0 8px; }
+.mp-intro-body p, .mp-ending-body p { line-height: 1.5; }
+
+.mp-card {
+  border: 1px solid var(--mp-line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--mp-panel);
+  color: var(--mp-ink);
+}
+
+.mp-card-cover { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.mp-card-cover-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  color: var(--mp-muted);
+  border-bottom: 1px dashed var(--mp-line);
+}
+
+.mp-card-body { padding: 16px; display: grid; gap: 8px; }
+.mp-card-body h2 { margin: 0; font-size: 20px; }
+.mp-card-body small { color: var(--mp-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-anim-breathe, .mp-anim-arrive { animation: none; }
+}
+
+.mp-stage[data-paused="1"] .mp-anim-breathe,
+.mp-stage[data-paused="1"] .mp-anim-arrive {
+  animation-play-state: paused;
+}
