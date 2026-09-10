@@ -79,6 +79,86 @@ export function publishedMissionSceneView(binding: PublishedMissionBinding): Mis
 }
 
 /**
+ * FIN-03 B04: the asset URL is pinned to the started session, not to the
+ * currently published revision. The same URL keeps resolving the assets of the
+ * revision the session was created from after a new version is published or the
+ * mission is unpublished; the BFF adds the session credential upstream.
+ */
+export function publishedMissionAssetUrl(
+  binding: Pick<PublishedMissionBinding, "scenarioRef" | "publicSessionId">,
+  assetId: string
+): string {
+  return `/api/missions/${encodeURIComponent(binding.scenarioRef)}/sessions/${encodeURIComponent(binding.publicSessionId)}/assets/${encodeURIComponent(assetId)}`;
+}
+
+export const PUBLISHED_MISSION_ASSET_PATH =
+  /^\/api\/missions\/([A-Za-z0-9][A-Za-z0-9._:%-]{0,199})\/sessions\/([A-Za-z0-9][A-Za-z0-9._:%-]{0,199})\/assets\/([A-Za-z0-9][A-Za-z0-9._:%-]{0,199})$/;
+
+/**
+ * Decodes one path segment that may arrive percent-encoded (a mission ref like
+ * `mission:slug:quest` is encoded as `mission%3Aslug%3Aquest`). Returns null for
+ * anything that is not a plain public id after decoding.
+ */
+export function decodeMissionIdSegment(segment: string): string | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+  return ID.test(decoded) ? decoded : null;
+}
+
+function assetError(status: number, code: string): Response {
+  // A failure, a 404 or an unauthenticated answer must never be cached as
+  // immutable — that is exactly how a stale picture survives an unpublish.
+  return Response.json({ error: "Published mission asset unavailable", code }, {
+    status,
+    headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" }
+  });
+}
+
+/**
+ * Fetches one asset of the session's pinned revision from the public mission
+ * API. The session credential is mandatory: it is what keeps the assets of an
+ * already started game readable after the mission is unpublished or a newer
+ * revision is published.
+ */
+export async function fetchPublishedMissionAsset(input: {
+  readonly fetchImpl?: typeof fetch;
+  readonly binding: PublishedMissionBinding;
+  readonly assetId: string;
+}): Promise<Response> {
+  if (!ID.test(input.assetId)) return assetError(400, "MISSION_BAD_ASSET");
+  const upstream = await (input.fetchImpl ?? fetch)(
+    `${input.binding.engineBaseUrl}/public/v1/missions/${encodeURIComponent(input.binding.scenarioRef)}/assets/${encodeURIComponent(input.assetId)}`,
+    { method: "GET", headers: { authorization: `Bearer ${input.binding.credential}` } }
+  ).catch(() => null);
+  if (!upstream) return assetError(503, "MISSION_ASSET_UNAVAILABLE");
+  if (!upstream.ok) {
+    return upstream.status === 404 ? assetError(404, "MISSION_ASSET_NOT_FOUND") : assetError(503, "MISSION_ASSET_UNAVAILABLE");
+  }
+  const body = await upstream.arrayBuffer().catch(() => null);
+  if (!body) return assetError(503, "MISSION_ASSET_UNAVAILABLE");
+  const revisionHash = /^[0-9a-f]{64}$/.test(input.binding.missionDoc.contentHash) ? input.binding.missionDoc.contentHash : null;
+  const headers: Record<string, string> = {
+    "content-type": upstream.headers.get("content-type") ?? "application/octet-stream",
+    "x-content-type-options": "nosniff"
+  };
+  if (revisionHash) {
+    // The URL is session-pinned and the ETag carries the pinned revision hash,
+    // so these bytes really are immutable. Without a revision identity they are
+    // not, and the response stays uncacheable.
+    headers.etag = `"${revisionHash.slice(0, 32)}-${input.assetId}"`;
+    headers["x-mission-revision"] = String(input.binding.missionDoc.contentRevision);
+    headers["cache-control"] = "private, max-age=31536000, immutable";
+  } else {
+    headers["cache-control"] = "private, no-store";
+  }
+  return new Response(body, { status: 200, headers });
+}
+
+/**
  * Re-reads the authoritative engine session. Used when the local binding may be
  * behind the engine — for example when a turn was applied but the response or
  * the storage write was lost.
@@ -161,7 +241,13 @@ export async function applyPublishedMissionTurn(input: {
   return { ok: true, binding: { ...input.binding, turn: session.turn, currentSceneId: session.currentSceneId, terminal }, view, target: response.payload?.target ?? null, ...(response.payload?.replay ? { replay: true } : {}) };
 }
 
-export function publishedMissionGameState(binding: PublishedMissionBinding, view: MissionBffSceneView, mode: GameMode, target: unknown = null): GameState {
+export function publishedMissionGameState(
+  binding: PublishedMissionBinding,
+  view: MissionBffSceneView,
+  mode: GameMode,
+  target: unknown = null,
+  contentSource: "live" | "pinned" = "live"
+): GameState {
   const ended = view.sceneId.startsWith("ending:");
   const options: DecisionOption[] = view.choices.map((choice) => ({ id: choice.choiceId, title: choice.label, description: "Выбор опубликованной миссии", risk: "средний", intent: "choice" }));
   const frame = buildMissionFrame({
@@ -169,12 +255,15 @@ export function publishedMissionGameState(binding: PublishedMissionBinding, view
     sceneId: binding.currentSceneId,
     endingId: binding.terminal?.endingId ?? null,
     turn: view.turn,
-    resolveAsset: (assetId) => `/api/missions/${encodeURIComponent(binding.scenarioRef)}/assets/${encodeURIComponent(assetId)}`
+    // Session-pinned URL: assets of the started game stay resolvable after a
+    // republish or an unpublish (see publishedMissionAssetUrl).
+    resolveAsset: (assetId) => publishedMissionAssetUrl(binding, assetId)
   });
   return {
     id: binding.publicSessionId, scenarioId: binding.scenarioRef, mode, scenarioTitle: binding.listing.title, role: binding.listing.role,
     date: binding.listing.period, turn: view.turn, status: ended ? "victory" : "active", briefing: `${view.title}\n\n${view.text}`,
     objective: binding.listing.hook, metrics: [], factions: [], options,
+    contentSource,
     timeline: [{ id: "mission-turn", date: binding.listing.period, title: `Ход ${view.turn}`, description: typeof target === "object" && target ? "Решение применено" : "Миссия начата", kind: "decision" }],
     // The authored frame is the only presentation source for a published
     // mission: the legacy scenario art must never be substituted for it.

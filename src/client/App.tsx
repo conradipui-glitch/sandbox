@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PublishedMissionStage, isPublishedMissionGame } from "./PublishedMissionStage";
 import {
   ArrowLeft,
@@ -22,6 +22,7 @@ import {
 import type { DecisionOption, GameMode, GameState, ProductAnalyticsOverview, ScenarioSummary, TurnSubmission } from "../shared/types";
 import { campaignActForTurn } from "../shared/campaign";
 import { api } from "./api";
+import { CatalogNotice, RetryToast, catalogNoticeText, failureMessage, shouldDropSession } from "./upstream-notices";
 import minister1917 from "./assets/characters/minister-1917.webp";
 import officer1917 from "./assets/characters/officer-stavka-1917.webp";
 import lidia1917 from "./assets/characters/lidia-vetrova-1917.webp";
@@ -1035,10 +1036,15 @@ function AnalyticsDashboard() {
 
 function GameApp() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>(fallbackScenarios);
+  const [catalogLive, setCatalogLive] = useState(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
   const [intro, setIntro] = useState<{ scenarioId: string; mode: GameMode } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // FIN-03 E17: an upstream failure is an explicit state with a retry, not a
+  // dead screen and not a silent fallback to stale content.
+  const [retry, setRetry] = useState<(() => void) | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [musicMuted, setMusicMuted] = useState(() => localStorage.getItem("living-history-music-muted") === "true");
   const [textScale, setTextScale] = useState<TextScale>(() => {
@@ -1046,38 +1052,70 @@ function GameApp() {
     return saved === "large" || saved === "xlarge" ? saved : "standard";
   });
 
-  useEffect(() => {
-    api.scenarios().then(setScenarios).catch(() => undefined);
-    const saved = localStorage.getItem("living-history-session");
-    if (saved) api.getGame(saved).then(setGame).catch(() => localStorage.removeItem("living-history-session"));
+  const fail = (cause: unknown, fallback: string, onRetry: (() => void) | null = null) => {
+    setError(failureMessage(cause, fallback));
+    setRetry(onRetry ? () => onRetry : null);
+  };
+
+  const loadCatalog = useCallback(async () => {
+    try {
+      const live = await api.scenarios();
+      setScenarios(live);
+      setCatalogLive(true);
+      setCatalogError(null);
+    } catch (cause) {
+      // The shipped fallback list is cached content: it must never look fresh.
+      setCatalogLive(false);
+      setCatalogError(failureMessage(cause, "движок каталога недоступен"));
+    }
   }, []);
+
+  const loadSession = useCallback(async (id: string) => {
+    setBusy(true); setError(null); setRetry(null);
+    try {
+      setGame(await api.getGame(id));
+    } catch (cause) {
+      // Only a genuine 404 means the saved session is gone.
+      if (shouldDropSession(cause)) localStorage.removeItem("living-history-session");
+      else fail(cause, "Не удалось восстановить сохранённую игру", () => void loadSession(id));
+    } finally { setBusy(false); }
+  }, []);
+
+  useEffect(() => {
+    void loadCatalog();
+    const saved = localStorage.getItem("living-history-session");
+    if (saved) void loadSession(saved);
+  }, [loadCatalog, loadSession]);
 
   const start = async (id: string, mode: GameMode) => {
     if (busy) return;
-    setBusy(true); setError(null);
+    setBusy(true); setError(null); setRetry(null);
     try {
       const state = await api.createGame(id, mode);
       localStorage.setItem("living-history-session", state.id);
       setGame(state);
       setIntro(null);
       window.scrollTo({ top: 0, behavior: 'instant' });
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Не удалось начать игру"); }
+    } catch (cause) { fail(cause, "Не удалось начать игру", () => void start(id, mode)); }
     finally { setBusy(false); }
   };
 
-  const playTurn = async (submission: TurnSubmission) => {
+  const playTurn = async (submission: TurnSubmission, attempt?: { submission: TurnSubmission; idempotencyKey: string }) => {
     if (!game || busy) return;
-    setBusy(true); setError(null);
+    // A retry replays the very same turn under the same idempotency key, so a
+    // lost response cannot apply the effect twice.
+    const pending = attempt ?? { submission, idempotencyKey: crypto.randomUUID() };
+    setBusy(true); setError(null); setRetry(null);
     try {
-      const nextState = await api.playTurn(game.id, submission);
+      const nextState = await api.playTurn(game.id, pending.submission, pending.idempotencyKey);
       setGame(nextState);
       await new Promise<void>((resolve) => window.setTimeout(resolve, 360));
     }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Мир не ответил на ход"); }
+    catch (cause) { fail(cause, "Мир не ответил на ход", () => void playTurn(pending.submission, pending)); }
     finally { setBusy(false); }
   };
 
-  const exit = () => { localStorage.removeItem("living-history-session"); setGame(null); setError(null); window.scrollTo({ top: 0, behavior: 'instant' }); };
+  const exit = () => { localStorage.removeItem("living-history-session"); setGame(null); setError(null); setRetry(null); window.scrollTo({ top: 0, behavior: 'instant' }); };
   const requestStart = (scenarioId: string, mode: GameMode) => {
     setIntro({ scenarioId, mode: ["last-train-1917", "florence-workshop"].includes(scenarioId) ? "chronicle" : mode });
   };
@@ -1118,7 +1156,7 @@ function GameApp() {
       : <Landing scenarios={scenarios} onStart={requestStart} busy={busy} textScale={textScale} onTextScale={changeTextScale} musicMuted={musicMuted} onMusicToggle={toggleMusic} trackTitle={activeTrack.title} />,
   [game, intro, scenarios, busy, textScale, musicMuted, activeTrack]);
 
-  return <div className={`app-root text-scale-${textScale}`} onPointerDown={unlockMusic}><audio ref={audioRef} src={activeTrack.src} preload="auto" aria-hidden="true" />{content}{error && <div className="error-toast"><ShieldAlert size={18} /><span>{error}</span><button onClick={() => setError(null)}>×</button></div>}</div>;
+  return <div className={`app-root text-scale-${textScale}`} onPointerDown={unlockMusic}><audio ref={audioRef} src={activeTrack.src} preload="auto" aria-hidden="true" />{content}{!game && <CatalogNotice text={catalogNoticeText(catalogLive, catalogError)} onRetry={() => void loadCatalog()} busy={busy} />}{error && <RetryToast message={error} onRetry={retry} busy={busy} onDismiss={() => { setError(null); setRetry(null); }} />}</div>;
 }
 
 export default function App() {

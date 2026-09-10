@@ -49,7 +49,11 @@ export interface FrameLayerInput {
   readonly z?: number;
 }
 
-/** Public, credentialless URL for one asset of a pinned published revision. */
+/**
+ * Same-origin URL for one asset of a pinned published revision. It is pinned to
+ * the started session, so the BFF can attach the session credential and keep the
+ * asset readable after a republish or an unpublish.
+ */
 export type FrameAssetResolver = (assetId: string) => string;
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;

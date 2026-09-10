@@ -66,7 +66,7 @@ it("renders an authored mission whose content is not Florence or the Train", asy
   });
   if (!created.ok) throw new Error("setup failed");
   const state = publishedMissionGameState(created.binding, created.view, "chronicle");
-  expect(state.presentation?.frame.scene.backgroundUrl).toBe("/api/missions/mission%3Achernobyl%3Ashift/assets/bunker-bg");
+  expect(state.presentation?.frame.scene.backgroundUrl).toBe("/api/missions/mission%3Achernobyl%3Ashift/sessions/browser-session-2/assets/bunker-bg");
   expect(state.presentation?.frame.scene.layers[0].name).toBe("Реактор");
   expect(state.presentation?.frame.title).toBe("Бункер");
 });

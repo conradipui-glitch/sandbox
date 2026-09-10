@@ -43,6 +43,11 @@ export function PublishedMissionStage({
           <small>{state.role} · Ход {frame.turn}</small>
         </div>
       </header>
+      {state.contentSource === "pinned" && (
+        <p className="mp-pinned-notice" role="status">
+          Движок сейчас недоступен: история продолжается на закреплённой версии этой миссии. Новые ходы отправятся, как только движок ответит.
+        </p>
+      )}
       <MissionSceneStage frame={frame} paused={busy} />
       <section className="mp-published-body">
         <h1>{frame.title}</h1>

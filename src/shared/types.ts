@@ -159,6 +159,13 @@ export interface GameState {
    * frame built from the pinned, immutable mission revision.
    */
   presentation?: PublishedMissionPresentation;
+  /**
+   * `pinned` means the live engine session could not be re-read (upstream
+   * 5xx/timeout, or the mission was withdrawn from publication) and the game
+   * continues on the authored revision pinned at session creation. The client
+   * must say so instead of presenting pinned content as freshly synchronised.
+   */
+  contentSource?: "live" | "pinned";
   id: string;
   scenarioId: string;
   mode: GameMode;

@@ -164,6 +164,12 @@ button { color: inherit; }
 @media (prefers-reduced-motion: reduce) { .world-thinking::before, .thinking-ring, .thinking-clock i, .thinking-clock b, .thinking-tick, .thinking-spark, .thinking-track i { animation: none; } }
 .end-state { border: 1px solid var(--line); margin-top: 35px; padding: 35px; text-align: center; }.end-state h2 { font: 28px "Prata"; }.end-state p { color: var(--muted); font-size: 11px; }.end-state button { min-height: 44px; margin: 20px auto 0; }
 .error-toast { position: fixed; right: 24px; bottom: 24px; z-index: 100; background: #e4d9c6; color: #342e28; padding: 13px 15px; display: flex; align-items: center; gap: 10px; box-shadow: 0 16px 45px rgba(0,0,0,.45); font-size: 11px; border-left: 3px solid var(--red); }.error-toast button { border: 0; background: transparent; font-size: 18px; cursor: pointer; color: #6e6256; }
+.error-toast .error-retry { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #fff4e8; background: var(--red); padding: 8px 12px; border-left: 0; }.error-toast .error-retry:disabled { opacity: .55; cursor: progress; }
+.error-toast .error-dismiss { font-size: 18px; line-height: 1; }
+.catalog-notice { position: fixed; right: 24px; bottom: 24px; z-index: 95; max-width: 380px; background: #171512; color: #e9e0cc; border-left: 3px solid #b8863f; padding: 11px 13px; display: flex; align-items: center; gap: 10px; font-size: 11px; box-shadow: 0 16px 45px rgba(0,0,0,.45); }
+.catalog-notice button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #8f887b; background: transparent; color: #e9e0cc; font-size: 11px; padding: 6px 10px; cursor: pointer; }
+.catalog-notice button:disabled { opacity: .55; cursor: progress; }
+.mp-pinned-notice { margin: 0; padding: 11px 18px; background: #2a2118; color: #e9e0cc; border-left: 3px solid #b8863f; font-size: 12px; }
 
 @media (max-width: 1100px) {
   .game-layout { grid-template-columns: 225px 1fr; }.chronicle { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); }.timeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }.timeline::before { display: none; }

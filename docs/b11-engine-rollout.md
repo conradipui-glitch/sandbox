@@ -64,3 +64,44 @@ After rollback, new Florence sessions are legacy. Existing legacy sessions remai
 The routing/pinning boundary is real, but the current Engine HTTP action service only exposes the earlier `core.paint` action path. The migrated Florence authored beats therefore are **not yet accepted as a playable semantic replacement**. B11.3 must add generic authored-option execution and run old/new canonical + counter-route comparison before `ENGINE_FLORENCE_ROLLOUT=on` is allowed.
 
 The Engine response is intentionally returned as a test envelope (`runtime: "engine"`, `engine: ...`) rather than pretending to be the legacy `GameState`. A client-compatible facade belongs to the semantic integration slice after the Engine can actually execute the migrated quest.
+
+## FIN-03 — published mission site contract (assets, unpublish, upstream failure)
+
+Status: **implemented locally on `feat/fin03-site-assets`, not verified against the live VPS engine.**
+
+### Assets belong to the session, not to the current publication
+
+A started game's asset URL is pinned to the session that owns it:
+
+```text
+GET /api/missions/{publicMissionId}/sessions/{publicSessionId}/assets/{assetId}
+```
+
+The BFF resolves the session binding from `PUBLISHED_MISSION_ROUTE_SESSIONS`, then calls the engine with the session credential:
+
+```text
+GET {engine}/public/v1/missions/{publicMissionId}/assets/{assetId}
+authorization: Bearer <session credential>
+```
+
+The browser never sees the credential. Because the request is credentialed, the engine answers with the revision the session was created from — the game keeps its own pictures after a republish or an unpublish, and `publishedMissionAssetUrl()` is the only place that builds the URL.
+
+Caching rules on the site side:
+
+- `etag` is derived from the pinned revision `contentHash` plus the asset id;
+- `cache-control: private, max-age=31536000, immutable` is emitted **only** when that revision hash is present and the upstream answer was a 2xx — those bytes are immutable;
+- every failure path (timeout, 5xx, 4xx, unknown session) answers `cache-control: no-store`, so a failed or unauthenticated answer can never be replayed as if it were the asset.
+
+### A withdrawn publication never becomes legacy content (E16)
+
+`GET /api/games/:id` reconciles with the engine first. If the engine session is no longer readable (unpublished, withdrawn, upstream down), the route no longer answers 404: the started game continues from the authored revision stored in its binding, the response is marked `contentSource: "pinned"` (header `x-lh-mission-source: pinned`), and the site shows that it is running on the pinned version. Legacy scenario art is never substituted for a published mission.
+
+### Upstream failure is an explicit state (E17)
+
+- `GET /api/scenarios` returns an explicit error (`cache-control: no-store`, `x-lh-catalog-state: unavailable`) when the catalog cannot be refreshed, instead of a stale list that looks freshly loaded; a successful refresh is marked `x-lh-catalog-state: live`.
+- The client keeps the shipped fallback list only until a live catalog arrives, and labels it as not refreshed, with a refresh button.
+- A failed turn, start or session reload becomes a toast with a **Повторить** button; a retry replays the same turn under the same idempotency key, so a lost response cannot apply the effect twice. Only a genuine 404 drops the saved session.
+
+### Not verified here
+
+Everything above is covered by vitest with a stubbed upstream. The live VPS engine behaviours — that a credentialed asset request really returns the pinned revision after unpublish, and the real latency/timeout shapes — can only be confirmed against the running engine and a browser pass.

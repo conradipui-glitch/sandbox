@@ -97,4 +97,41 @@ describe("R03/F06 published namespace never falls back to legacy", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("answers an explicit failure instead of a stale catalog when the catalog upstream times out (E17)", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("public/v1/missions")) throw new Error("catalog upstream timeout");
+      // A stale list answered as 200 here is exactly the defect: it must not be reached.
+      return Response.json([{ id: "florence-workshop", title: "Мастерская" }]);
+    }) as typeof fetch;
+    try {
+      const response = await worker.fetch(new Request("https://site.example/api/scenarios"), env());
+      expect(response.status).toBe(503);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(response.headers.get("x-lh-catalog-state")).toBe("unavailable");
+      const body = await response.json() as { code?: string; error?: string };
+      expect(body.code).toBe("PUBLIC_CATALOG_UNAVAILABLE");
+      expect(body.error).toBeTruthy();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("marks a successfully refreshed catalog as live", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("public/v1/missions")) return Response.json(catalog);
+      return Response.json([{ id: "florence-workshop", title: "Мастерская", period: "1492", role: "Подмастерье", hook: "Заказ гильдии" }]);
+    }) as typeof fetch;
+    try {
+      const response = await worker.fetch(new Request("https://site.example/api/scenarios"), env());
+      expect(response.status).toBe(200);
+      expect(response.headers.get("x-lh-catalog-state")).toBe("live");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

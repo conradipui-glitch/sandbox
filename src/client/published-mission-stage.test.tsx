@@ -14,9 +14,9 @@ function frame(overrides: Partial<PreviewFrameView> = {}): PreviewFrameView {
     title: "Бункер",
     text: "Гудит реактор.",
     scene: {
-      backgroundUrl: "/api/missions/mission%3Achernobyl%3Ashift/assets/bunker-bg",
+      backgroundUrl: "/api/missions/mission%3Achernobyl%3Ashift/sessions/session-1/assets/bunker-bg",
       backgroundFit: "cover",
-      layers: [{ id: "reactor", kind: "item", name: "Реактор", visible: true, assetUrl: "/api/missions/mission%3Achernobyl%3Ashift/assets/reactor", assetAlt: "Реактор", x: 0, y: 0, scale: 1, rotation: 0, flipH: false, flipV: false, opacity: 1, z: 1, animation: "none" }],
+      layers: [{ id: "reactor", kind: "item", name: "Реактор", visible: true, assetUrl: "/api/missions/mission%3Achernobyl%3Ashift/sessions/session-1/assets/reactor", assetAlt: "Реактор", x: 0, y: 0, scale: 1, rotation: 0, flipH: false, flipV: false, opacity: 1, z: 1, animation: "none" }],
       musicTitle: null
     },
     choices: [{ choiceId: "seal", label: "Герметизировать" }],
@@ -68,5 +68,26 @@ describe("R03 site renders the authored mission", () => {
 
   it("maps a chosen option to a mission turn submission", () => {
     expect(missionChoiceSubmission("seal")).toEqual({ action: "seal", source: "prepared", optionId: "seal" });
+  });
+
+  it("says plainly when the game continues on its pinned revision (E16)", () => {
+    const pinned = renderToString(
+      <PublishedMissionStage
+        state={{ ...state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame(), reaction: "start" }), contentSource: "pinned" }}
+        onTurn={() => {}} onExit={() => {}} busy={false}
+      />
+    );
+    expect(pinned).toContain("закреплённой версии");
+    // The authored content is still the only source of truth.
+    expect(pinned).toContain("Гудит реактор.");
+    expect(pinned).toContain("bunker-bg");
+
+    const live = renderToString(
+      <PublishedMissionStage
+        state={{ ...state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame(), reaction: "start" }), contentSource: "live" }}
+        onTurn={() => {}} onExit={() => {}} busy={false}
+      />
+    );
+    expect(live).not.toContain("закреплённой версии");
   });
 });

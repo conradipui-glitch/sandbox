@@ -5,7 +5,10 @@ import type { ScenarioSummary } from "../shared/types";
 import {
   applyPublishedMissionTurn,
   createPublishedMissionSession,
+  decodeMissionIdSegment,
+  fetchPublishedMissionAsset,
   isPublishedMissionBinding,
+  PUBLISHED_MISSION_ASSET_PATH,
   publishedMissionGameState,
   publishedMissionSceneView,
   reconcilePublishedMissionSession,
@@ -122,7 +125,23 @@ async function publishedRequest(request: Request, env: EngineBffEnv, url: URL): 
   }
 
   const sessionId = gameMatch?.[1] ?? turnMatch?.[1];
-  if (!sessionId) return null;
+  if (!sessionId) {
+    // FIN-03 B04: assets of an already started game. The URL is pinned to the
+    // session, so these requests must be answered from the session binding (and
+    // its credential) or not at all — never by legacy content.
+    const assetMatch = PUBLISHED_MISSION_ASSET_PATH.exec(url.pathname);
+    if (assetMatch && request.method === "GET") {
+      const scenarioRef = decodeMissionIdSegment(assetMatch[1]);
+      const assetSessionId = decodeMissionIdSegment(assetMatch[2]);
+      const assetId = decodeMissionIdSegment(assetMatch[3]);
+      const assetBinding = assetSessionId ? await readStoredBinding(namespace, assetSessionId) : null;
+      if (!scenarioRef || !assetId || !assetBinding || assetBinding.scenarioRef !== scenarioRef) {
+        return Response.json({ error: "Published mission asset not found", code: "MISSION_ASSET_NOT_FOUND" }, { status: 404, headers: { "cache-control": "no-store" } });
+      }
+      return fetchPublishedMissionAsset({ binding: assetBinding, assetId });
+    }
+    return null;
+  }
   const binding = await readStoredBinding(namespace, sessionId);
   if (!binding) return null;
   if (gameMatch && request.method === "GET") {
@@ -135,12 +154,16 @@ async function publishedRequest(request: Request, env: EngineBffEnv, url: URL): 
       }
       return Response.json(publishedMissionGameState(reconciled.binding, reconciled.view, reconciled.binding.mode), { headers: { "cache-control": "no-store" } });
     }
-    if (reconciled.status === 404) {
-      return Response.json({ error: "Published mission session not found", code: "PUBLIC_MISSION_SESSION_NOT_FOUND" }, { status: 404 });
-    }
+    // The engine session is no longer readable: the mission was unpublished,
+    // withdrawn, or the upstream is down. E16 forbids substituting legacy
+    // content for a published mission, and a dead screen is not an option
+    // either — the started game continues on its pinned authored revision and
+    // says so, so the player never reads stale content as freshly synced.
     const view = publishedMissionSceneView(binding);
-    if (!view) return Response.json({ error: "Published mission state unavailable", code: "PUBLIC_MISSION_STATE_INVALID" }, { status: 503 });
-    return Response.json(publishedMissionGameState(binding, view, binding.mode), { headers: { "cache-control": "no-store" } });
+    if (!view) return Response.json({ error: "Published mission state unavailable", code: "PUBLIC_MISSION_STATE_INVALID" }, { status: 503, headers: { "cache-control": "no-store" } });
+    return Response.json(publishedMissionGameState(binding, view, binding.mode, null, "pinned"), {
+      headers: { "cache-control": "no-store", "x-lh-mission-source": "pinned" }
+    });
   }
   if (turnMatch && request.method === "POST") {
     const body = await request.json().catch(() => null) as { optionId?: unknown; idempotencyKey?: unknown } | null;
@@ -159,7 +182,14 @@ export default {
     const catalogUrl = env.ENGINE_PUBLIC_CATALOG_URL;
     if (request.method === "GET" && url.pathname === "/api/scenarios" && typeof catalogUrl === "string" && catalogUrl.length > 0) {
       const catalog = await fetchPublishedCatalog(catalogUrl);
-      if (!catalog.ok) return Response.json({ error: "Published mission catalog unavailable", code: catalog.code }, { status: catalog.status });
+      // FIN-03 E17: a failed refresh is stated, never papered over with a cached
+      // or legacy list that would look freshly loaded.
+      if (!catalog.ok) {
+        return Response.json({ error: "Published mission catalog unavailable", code: catalog.code }, {
+          status: catalog.status,
+          headers: { "cache-control": "no-store", "x-lh-catalog-state": "unavailable" }
+        });
+      }
       // The published catalog is additive: legacy cards stay visible next to
       // the published ones instead of being replaced by them.
       let legacy: readonly unknown[] = [];
@@ -173,7 +203,7 @@ export default {
         legacy = [];
       }
       return Response.json(mergeScenarioCards(toScenarioSummaries(catalog.missions), legacy), {
-        headers: { "cache-control": "public, max-age=15, stale-while-revalidate=30", "x-content-type-options": "nosniff" }
+        headers: { "cache-control": "public, max-age=15, stale-while-revalidate=30", "x-content-type-options": "nosniff", "x-lh-catalog-state": "live" }
       });
     }
     const published = await publishedRequest(request, env, url);
