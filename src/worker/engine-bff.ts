@@ -6,6 +6,9 @@ export type NewSessionRuntime = "legacy" | "engine";
 export interface EngineBffEnv {
   RUNTIME_ROUTE_SESSIONS: DurableObjectNamespace;
   ENGINE_RUNTIME_URL?: string;
+  ENGINE_PUBLIC_CATALOG_URL?: string;
+  ENGINE_PUBLIC_MISSION_URL?: string;
+  PUBLIC_MISSION_ROUTE_SESSIONS?: DurableObjectNamespace;
   ENGINE_FLORENCE_ROLLOUT?: string;
   ENGINE_FLORENCE_PROJECT_ID?: string;
   ENGINE_FLORENCE_QUEST_ID?: string;

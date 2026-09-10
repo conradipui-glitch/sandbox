@@ -32,6 +32,10 @@
       {
         "name": "RUNTIME_ROUTE_SESSIONS",
         "class_name": "RuntimeRouteSession"
+      },
+      {
+        "name": "PUBLIC_MISSION_ROUTE_SESSIONS",
+        "class_name": "PublishedMissionRouteSession"
       }
     ]
   },
@@ -47,6 +51,10 @@
     {
       "tag": "v3-b11-runtime-routing",
       "new_sqlite_classes": ["RuntimeRouteSession"]
+    },
+    {
+      "tag": "v4-m06-published-missions",
+      "new_sqlite_classes": ["PublishedMissionRouteSession"]
     }
   ],
   "observability": {
