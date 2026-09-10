@@ -1,4 +1,5 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { PublishedMissionStage, isPublishedMissionGame } from "./PublishedMissionStage";
 import {
   ArrowLeft,
   ArrowRight,
@@ -813,6 +814,11 @@ function Game({ state, onTurn, onExit, busy, textScale, onTextScale, musicMuted,
   useEffect(() => {
     if (!busy && state.lastOutcome) document.getElementById('turn-result')?.scrollIntoView({ behavior: 'instant', block: 'start' });
   }, [state.updatedAt, busy]);
+  // A published authored mission renders through the shared mission renderer.
+  // It must never fall through to the legacy cabinet/train/Florence art.
+  if (isPublishedMissionGame(state)) {
+    return <PublishedMissionStage state={state} onTurn={onTurn} onExit={onExit} busy={busy} />;
+  }
   const stability = state.metrics.find((metric) => metric.id === "stability")?.value ?? 50;
   const armyReaction = state.lastOutcome?.reactions.find((reaction) => reaction.faction.includes("Став"));
   const activeCharacters = (state.lastOutcome?.scene.activeCharacterIds ?? (state.scenarioId === 'florence-workshop' ? ['florence-secretary', 'florence-juliano'] : [])).map(normalizeSceneCharacter);

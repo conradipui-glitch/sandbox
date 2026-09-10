@@ -7,7 +7,6 @@ import {
   reconcilePublishedMissionSession,
   type PublishedMissionBinding
 } from "./public-mission-bff";
-
 const doc = {
   contentRevision: 2,
   contentHash: "a".repeat(64),
@@ -36,6 +35,41 @@ async function started(): Promise<PublishedMissionBinding> {
   if (!created.ok) throw new Error("setup failed");
   return created.binding;
 }
+
+it("carries the authored frame so the site renders the mission, not legacy art", async () => {
+  const binding = await started();
+  const view = publishedMissionSceneView(binding)!;
+  const state = publishedMissionGameState(binding, view, "chronicle");
+  expect(state.presentation?.kind).toBe("published-mission");
+  expect(state.presentation?.frame.kind).toBe("scene");
+  expect(state.presentation?.frame.title).toBe("Старт");
+  expect(state.presentation?.frame.text).toBe("Ночь.");
+  expect(state.presentation?.frame.choices[0].choiceId).toBe("finish");
+  expect(state.presentation?.publicMissionId).toBe("mission:p:q");
+});
+
+it("renders an authored mission whose content is not Florence or the Train", async () => {
+  const docWithScreens = {
+    ...doc,
+    screens: {
+      intros: [],
+      scenes: { start: { background: { assetId: "bunker-bg", hash: "b".repeat(64) }, music: null, layers: [{ id: "reactor", kind: "item" as const, name: "Реактор", z: 1 }] } },
+      endings: {}
+    },
+    defaults: null
+  };
+  const doc0 = { ...docWithScreens, story: { ...docWithScreens.story, scenes: [{ id: "start", title: "Бункер", text: "Гудит реактор.", choices: [] }] } };
+  const created = await createPublishedMissionSession({
+    engineBaseUrl: "https://engine.example", publicMissionId: "mission:chernobyl:shift", publicSessionId: "browser-session-2", mode: "chronicle", listing,
+    newSessionId: () => "engine-session-2",
+    fetchImpl: async () => new Response(JSON.stringify({ mission: doc0, session: { currentSceneId: "start", turn: 0, world: null }, credential: "server-only" }), { status: 201 })
+  });
+  if (!created.ok) throw new Error("setup failed");
+  const state = publishedMissionGameState(created.binding, created.view, "chronicle");
+  expect(state.presentation?.frame.scene.backgroundUrl).toBe("/api/missions/mission%3Achernobyl%3Ashift/assets/bunker-bg");
+  expect(state.presentation?.frame.scene.layers[0].name).toBe("Реактор");
+  expect(state.presentation?.frame.title).toBe("Бункер");
+});
 
 it("keeps the ending after the browser reloads the game", async () => {
   const binding = await started();

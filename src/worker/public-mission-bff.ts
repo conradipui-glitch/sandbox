@@ -1,4 +1,5 @@
 import type { DecisionOption, GameMode, GameState, ScenarioSummary } from "../shared/types";
+import { buildMissionFrame, type FrameDocShape } from "../shared/mission-presentation/frame-build";
 import { missionSceneView, type MissionBffSceneView, type MissionDocShape } from "./mission-bff";
 
 export interface PublishedMissionTerminal {
@@ -163,11 +164,21 @@ export async function applyPublishedMissionTurn(input: {
 export function publishedMissionGameState(binding: PublishedMissionBinding, view: MissionBffSceneView, mode: GameMode, target: unknown = null): GameState {
   const ended = view.sceneId.startsWith("ending:");
   const options: DecisionOption[] = view.choices.map((choice) => ({ id: choice.choiceId, title: choice.label, description: "Выбор опубликованной миссии", risk: "средний", intent: "choice" }));
+  const frame = buildMissionFrame({
+    doc: binding.missionDoc as unknown as FrameDocShape,
+    sceneId: binding.currentSceneId,
+    endingId: binding.terminal?.endingId ?? null,
+    turn: view.turn,
+    resolveAsset: (assetId) => `/api/missions/${encodeURIComponent(binding.scenarioRef)}/assets/${encodeURIComponent(assetId)}`
+  });
   return {
     id: binding.publicSessionId, scenarioId: binding.scenarioRef, mode, scenarioTitle: binding.listing.title, role: binding.listing.role,
     date: binding.listing.period, turn: view.turn, status: ended ? "victory" : "active", briefing: `${view.title}\n\n${view.text}`,
     objective: binding.listing.hook, metrics: [], factions: [], options,
     timeline: [{ id: "mission-turn", date: binding.listing.period, title: `Ход ${view.turn}`, description: typeof target === "object" && target ? "Решение применено" : "Миссия начата", kind: "decision" }],
+    // The authored frame is the only presentation source for a published
+    // mission: the legacy scenario art must never be substituted for it.
+    ...(frame ? { presentation: { kind: "published-mission" as const, publicMissionId: binding.scenarioRef, frame, reaction: typeof target === "object" && target ? ("applied" as const) : ("start" as const) } } : {}),
     lastOutcome: null, createdAt: new Date(0).toISOString(), updatedAt: new Date().toISOString()
   };
 }

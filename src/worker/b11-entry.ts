@@ -1,6 +1,7 @@
 import legacyWorker, { HistorySession, ProductAnalytics } from "./index";
 import { handleEngineBff, RuntimeRouteSession, type EngineBffEnv } from "./engine-bff";
 import { fetchPublishedCatalog, toScenarioSummaries } from "./public-catalog";
+import type { ScenarioSummary } from "../shared/types";
 import {
   applyPublishedMissionTurn,
   createPublishedMissionSession,
@@ -52,6 +53,36 @@ function publicEngineBase(env: EngineBffEnv, catalogUrl: string): string | null 
   try { return new URL(catalogUrl).origin; } catch { return null; }
 }
 
+/** The published namespace is reserved: it must never fall through to legacy. */
+function isPublishedMissionRef(scenarioRef: string): boolean {
+  return scenarioRef.startsWith("mission:");
+}
+
+function isLegacyCard(value: unknown): value is { id: string } {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const card = value as Record<string, unknown>;
+  return typeof card.id === "string" && card.id.length > 0 && !isPublishedMissionRef(card.id);
+}
+
+/** Published cards first, then legacy cards; deduplicated by id. */
+function mergeScenarioCards(published: readonly ScenarioSummary[], legacy: readonly unknown[]): ScenarioSummary[] {
+  const merged: ScenarioSummary[] = [];
+  const seen = new Set<string>();
+  for (const card of published) {
+    if (seen.has(card.id)) continue;
+    seen.add(card.id);
+    merged.push(card);
+  }
+  const extra = legacy.filter(isLegacyCard).filter((card) => !seen.has(card.id)) as unknown as ScenarioSummary[];
+  extra.sort((left, right) => String(left.title).localeCompare(String(right.title), "ru"));
+  for (const card of extra) {
+    if (seen.has(card.id)) continue;
+    seen.add(card.id);
+    merged.push(card);
+  }
+  return merged;
+}
+
 async function publishedRequest(request: Request, env: EngineBffEnv, url: URL): Promise<Response | null> {
   const catalogUrl = env.ENGINE_PUBLIC_CATALOG_URL;
   const namespace = env.PUBLIC_MISSION_ROUTE_SESSIONS;
@@ -63,9 +94,16 @@ async function publishedRequest(request: Request, env: EngineBffEnv, url: URL): 
     const body = await request.clone().json().catch(() => null) as { scenarioId?: unknown; mode?: unknown } | null;
     if (!body || typeof body.scenarioId !== "string" || (body.mode !== "chronicle" && body.mode !== "campaign" && body.mode !== "sandbox")) return null;
     const catalog = await fetchPublishedCatalog(catalogUrl);
-    if (!catalog.ok) return null;
+    if (!catalog.ok) return Response.json({ error: "Published mission catalog unavailable", code: catalog.code }, { status: catalog.status });
     const mission = catalog.missions.find((entry) => entry.publicMissionId === body.scenarioId || entry.slug === body.scenarioId);
-    if (!mission) return null;
+    if (!mission) {
+      // A reserved published reference that the catalog does not know is a
+      // contract 404 — it must not silently become a legacy game.
+      if (isPublishedMissionRef(body.scenarioId)) {
+        return Response.json({ error: "Published mission not found", code: "PUBLIC_MISSION_NOT_FOUND" }, { status: 404 });
+      }
+      return null;
+    }
     const engineBaseUrl = publicEngineBase(env, catalogUrl);
     if (!engineBaseUrl) return Response.json({ error: "Published mission runtime unavailable", code: "PUBLIC_MISSION_RUNTIME_UNAVAILABLE" }, { status: 503 });
     const publicSessionId = crypto.randomUUID();
@@ -122,7 +160,19 @@ export default {
     if (request.method === "GET" && url.pathname === "/api/scenarios" && typeof catalogUrl === "string" && catalogUrl.length > 0) {
       const catalog = await fetchPublishedCatalog(catalogUrl);
       if (!catalog.ok) return Response.json({ error: "Published mission catalog unavailable", code: catalog.code }, { status: catalog.status });
-      return Response.json(toScenarioSummaries(catalog.missions), {
+      // The published catalog is additive: legacy cards stay visible next to
+      // the published ones instead of being replaced by them.
+      let legacy: readonly unknown[] = [];
+      try {
+        const legacyResponse = await legacyWorker.fetch(new Request(new URL("/api/scenarios", url.origin), { method: "GET" }), env as never);
+        if (legacyResponse.ok) {
+          const parsed = await legacyResponse.json().catch(() => null);
+          if (Array.isArray(parsed)) legacy = parsed;
+        }
+      } catch {
+        legacy = [];
+      }
+      return Response.json(mergeScenarioCards(toScenarioSummaries(catalog.missions), legacy), {
         headers: { "cache-control": "public, max-age=15, stale-while-revalidate=30", "x-content-type-options": "nosniff" }
       });
     }

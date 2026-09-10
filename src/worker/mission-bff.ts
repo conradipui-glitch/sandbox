@@ -6,6 +6,8 @@
  * this module is pure and tested with stubbed fetch.
  */
 
+import type { FrameDocShape } from "../shared/mission-presentation/frame-build";
+
 export interface MissionBffRegistryEntry {
   readonly projectId: string;
   readonly questId: string;
@@ -43,6 +45,9 @@ export interface MissionBffBinding {
 export interface MissionDocShape {
   readonly contentRevision: number;
   readonly contentHash: string;
+  /** Authored presentation of the pinned revision; drives the shared renderer. */
+  readonly screens?: FrameDocShape["screens"];
+  readonly defaults?: FrameDocShape["defaults"];
   readonly story: {
     readonly entrySceneId: string;
     readonly scenes: readonly {

@@ -1,6 +1,17 @@
 export type MetricId = "legitimacy" | "economy" | "army" | "stability" | "diplomacy";
 export type GameMode = "chronicle" | "campaign" | "sandbox";
 
+/**
+ * Discriminator for the game contract: a published authored mission renders
+ * through the shared mission renderer, a legacy scenario keeps its own art.
+ */
+export interface PublishedMissionPresentation {
+  readonly kind: "published-mission";
+  readonly publicMissionId: string;
+  readonly frame: import("./mission-presentation/view-model").PreviewFrameView;
+  readonly reaction: "applied" | "start";
+}
+
 export interface Metric {
   id: MetricId;
   label: string;
@@ -142,6 +153,12 @@ export interface TurnOutcome {
 
 export interface GameState {
   florence?: FlorenceMemory;
+  /**
+   * Present for a published mission. It tells the client to render the shared
+   * authored mission frame instead of the legacy scenario art, and carries the
+   * frame built from the pinned, immutable mission revision.
+   */
+  presentation?: PublishedMissionPresentation;
   id: string;
   scenarioId: string;
   mode: GameMode;
