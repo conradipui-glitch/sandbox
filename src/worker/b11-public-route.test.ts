@@ -21,6 +21,43 @@ class FakeNamespace {
 }
 
 describe("M06 generic published mission route", () => {
+  it("keeps the finale when the player reloads the page (F04)", async () => {
+    const originalFetch = globalThis.fetch;
+    const namespace = new FakeNamespace();
+    // The engine keeps the entry scene id at a finale and records the ending
+    // in the world; the authoritative GET must therefore be reconciled.
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "https://engine/public/v1/missions") return Response.json(catalog);
+      if (url.endsWith("/sessions") && init?.method === "POST") return new Response(JSON.stringify({ mission: doc, session: { currentSceneId: "start", turn: 0, world: null }, credential: "server-only" }), { status: 201 });
+      if (url.endsWith("/turns") && init?.method === "POST") {
+        return Response.json({ mission: doc, session: { currentSceneId: "start", turn: 1, world: { schemaVersion: "1.0", revision: 0, clock: { elapsedSeconds: 0 }, locations: [], entities: [], resources: [], items: [], terminal: { reason: "mission.ending", outcome: "done" } } }, target: { kind: "ending", endingId: "done" } });
+      }
+      if (init?.method === "GET" && url.includes("/sessions/")) {
+        return Response.json({ mission: doc, session: { currentSceneId: "start", turn: 1, world: { schemaVersion: "1.0", revision: 0, clock: { elapsedSeconds: 0 }, locations: [], entities: [], resources: [], items: [], terminal: { reason: "mission.ending", outcome: "done" } } } });
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    }) as typeof fetch;
+    try {
+      const env = { ENGINE_PUBLIC_CATALOG_URL: "https://engine/public/v1/missions", ENGINE_PUBLIC_MISSION_URL: "https://engine", PUBLIC_MISSION_ROUTE_SESSIONS: namespace } as any;
+      const created = await worker.fetch(new Request("https://site.example/api/games", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scenarioId: "mission:p:q", mode: "chronicle" }) }), env);
+      expect(created.status).toBe(201);
+      const game = await created.json() as { id: string };
+      const turned = await worker.fetch(new Request(`https://site.example/api/games/${game.id}/turn`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "finish", source: "prepared", optionId: "finish", idempotencyKey: "turn-1" }) }), env);
+      expect(turned.status).toBe(200);
+      expect((await turned.json() as { status: string }).status).toBe("victory");
+
+      const reloaded = await worker.fetch(new Request(`https://site.example/api/games/${game.id}`), env);
+      expect(reloaded.status).toBe(200);
+      const state = await reloaded.json() as { status: string; options: unknown[]; briefing: string };
+      expect(state.status).toBe("victory");
+      expect(state.options.length).toBe(0);
+      expect(state.briefing).toContain("Рассвет.");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("creates, reloads and advances a published card through the worker BFF", async () => {
     const originalFetch = globalThis.fetch;
     const namespace = new FakeNamespace();

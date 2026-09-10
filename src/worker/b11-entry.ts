@@ -7,6 +7,7 @@ import {
   isPublishedMissionBinding,
   publishedMissionGameState,
   publishedMissionSceneView,
+  reconcilePublishedMissionSession,
   type PublishedMissionBinding
 } from "./public-mission-bff";
 
@@ -87,6 +88,18 @@ async function publishedRequest(request: Request, env: EngineBffEnv, url: URL): 
   const binding = await readStoredBinding(namespace, sessionId);
   if (!binding) return null;
   if (gameMatch && request.method === "GET") {
+    // The engine session is authoritative: if a previous turn was applied but
+    // this binding write was lost, recover the real turn/ending before render.
+    const reconciled = await reconcilePublishedMissionSession({ binding });
+    if (reconciled.ok) {
+      if (reconciled.binding.turn !== binding.turn || reconciled.binding.terminal?.endingId !== binding.terminal?.endingId) {
+        await writeStoredBinding(namespace, reconciled.binding);
+      }
+      return Response.json(publishedMissionGameState(reconciled.binding, reconciled.view, reconciled.binding.mode), { headers: { "cache-control": "no-store" } });
+    }
+    if (reconciled.status === 404) {
+      return Response.json({ error: "Published mission session not found", code: "PUBLIC_MISSION_SESSION_NOT_FOUND" }, { status: 404 });
+    }
     const view = publishedMissionSceneView(binding);
     if (!view) return Response.json({ error: "Published mission state unavailable", code: "PUBLIC_MISSION_STATE_INVALID" }, { status: 503 });
     return Response.json(publishedMissionGameState(binding, view, binding.mode), { headers: { "cache-control": "no-store" } });

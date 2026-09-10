@@ -1,6 +1,11 @@
 import type { DecisionOption, GameMode, GameState, ScenarioSummary } from "../shared/types";
 import { missionSceneView, type MissionBffSceneView, type MissionDocShape } from "./mission-bff";
 
+export interface PublishedMissionTerminal {
+  readonly kind: "ending";
+  readonly endingId: string;
+}
+
 export interface PublishedMissionBinding {
   readonly version: 1;
   readonly publicSessionId: string;
@@ -13,6 +18,12 @@ export interface PublishedMissionBinding {
   readonly missionSessionId: string;
   readonly turn: number;
   readonly currentSceneId: string;
+  /**
+   * Canonical terminal of the engine session. The engine keeps the previous
+   * scene id at a finale and records the ending in the world, so the ending
+   * must be stored explicitly or a reload silently returns to the last scene.
+   */
+  readonly terminal: PublishedMissionTerminal | null;
 }
 
 export interface PublishedMissionTurnResult {
@@ -32,9 +43,24 @@ async function jsonResult(response: Response): Promise<{ ok: boolean; status: nu
   return { ok: response.ok, status: response.status, payload: await response.json().catch(() => null) };
 }
 
-function viewFor(doc: MissionDocShape, session: { currentSceneId: string; turn: number }, target?: any): MissionBffSceneView | null {
-  if (target?.kind === "ending" && typeof target.endingId === "string") {
-    const ending = doc.story.endings.find((entry) => entry.id === target.endingId);
+function terminalFromTarget(target: any): PublishedMissionTerminal | null {
+  return target?.kind === "ending" && typeof target.endingId === "string" ? { kind: "ending", endingId: target.endingId } : null;
+}
+
+/** The engine records a finale in `world.terminal`, keeping the previous scene id. */
+function terminalFromWorld(world: any): PublishedMissionTerminal | null {
+  const terminal = world?.terminal;
+  if (!terminal || typeof terminal !== "object") return null;
+  return typeof terminal.outcome === "string" ? { kind: "ending", endingId: terminal.outcome } : null;
+}
+
+function viewFor(
+  doc: MissionDocShape,
+  session: { currentSceneId: string; turn: number },
+  terminal: PublishedMissionTerminal | null = null
+): MissionBffSceneView | null {
+  if (terminal) {
+    const ending = doc.story.endings.find((entry) => entry.id === terminal.endingId);
     if (!ending) return null;
     return { sceneId: `ending:${ending.id}`, title: ending.title, text: ending.text, choices: [], turn: session.turn, contentRevision: doc.contentRevision, contentHash: doc.contentHash };
   }
@@ -48,7 +74,38 @@ function isMissionDoc(value: unknown): value is MissionDocShape {
 }
 
 export function publishedMissionSceneView(binding: PublishedMissionBinding): MissionBffSceneView | null {
-  return viewFor(binding.missionDoc, { currentSceneId: binding.currentSceneId, turn: binding.turn });
+  return viewFor(binding.missionDoc, { currentSceneId: binding.currentSceneId, turn: binding.turn }, binding.terminal ?? null);
+}
+
+/**
+ * Re-reads the authoritative engine session. Used when the local binding may be
+ * behind the engine — for example when a turn was applied but the response or
+ * the storage write was lost.
+ */
+export async function reconcilePublishedMissionSession(input: {
+  readonly fetchImpl?: typeof fetch;
+  readonly binding: PublishedMissionBinding;
+}): Promise<{ readonly ok: true; readonly binding: PublishedMissionBinding; readonly view: MissionBffSceneView } | { readonly ok: false; readonly status: number; readonly code: string }> {
+  const response = await (input.fetchImpl ?? fetch)(
+    `${input.binding.engineBaseUrl}/public/v1/missions/${encodeURIComponent(input.binding.scenarioRef)}/sessions/${encodeURIComponent(input.binding.missionSessionId)}`,
+    { method: "GET", headers: { authorization: `Bearer ${input.binding.credential}` } }
+  ).then(jsonResult).catch(() => null);
+  if (!response || !response.ok) {
+    return { ok: false, status: response?.status === 404 ? 404 : 503, code: typeof response?.payload?.error?.code === "string" ? response.payload.error.code : "MISSION_STATE_UNAVAILABLE" };
+  }
+  const session = response.payload?.session;
+  if (!session || typeof session.currentSceneId !== "string" || typeof session.turn !== "number" || !Number.isSafeInteger(session.turn)) {
+    return { ok: false, status: 503, code: "MISSION_STATE_UNAVAILABLE" };
+  }
+  const binding: PublishedMissionBinding = {
+    ...input.binding,
+    turn: session.turn,
+    currentSceneId: session.currentSceneId,
+    terminal: terminalFromWorld(session.world) ?? input.binding.terminal ?? null
+  };
+  const view = viewFor(binding.missionDoc, { currentSceneId: binding.currentSceneId, turn: binding.turn }, binding.terminal);
+  if (!view) return { ok: false, status: 503, code: "MISSION_STATE_INVALID" };
+  return { ok: true, binding, view };
 }
 
 export async function createPublishedMissionSession(input: {
@@ -77,7 +134,7 @@ export async function createPublishedMissionSession(input: {
   }
   const view = viewFor(mission, session);
   if (!view) return { ok: false, status: 503, code: "MISSION_SESSION_CREATE_FAILED" };
-  return { ok: true, view, binding: { version: 1, publicSessionId: input.publicSessionId, scenarioRef: input.publicMissionId, mode: input.mode, engineBaseUrl, credential, listing: input.listing, missionDoc: mission, missionSessionId, turn: session.turn, currentSceneId: session.currentSceneId } };
+  return { ok: true, view, binding: { version: 1, publicSessionId: input.publicSessionId, scenarioRef: input.publicMissionId, mode: input.mode, engineBaseUrl, credential, listing: input.listing, missionDoc: mission, missionSessionId, turn: session.turn, currentSceneId: session.currentSceneId, terminal: terminalFromWorld(session.world) } };
 }
 
 export async function applyPublishedMissionTurn(input: {
@@ -97,9 +154,10 @@ export async function applyPublishedMissionTurn(input: {
   }
   const session = response.payload?.session;
   if (!session || typeof session.currentSceneId !== "string" || typeof session.turn !== "number") return { ok: false, status: 503, code: "MISSION_TURN_FAILED" };
-  const view = viewFor(input.binding.missionDoc, session, response.payload?.target);
+  const terminal = terminalFromTarget(response.payload?.target) ?? terminalFromWorld(session.world) ?? input.binding.terminal ?? null;
+  const view = viewFor(input.binding.missionDoc, session, terminal);
   if (!view) return { ok: false, status: 503, code: "MISSION_TURN_FAILED" };
-  return { ok: true, binding: { ...input.binding, turn: session.turn, currentSceneId: session.currentSceneId }, view, target: response.payload?.target ?? null, ...(response.payload?.replay ? { replay: true } : {}) };
+  return { ok: true, binding: { ...input.binding, turn: session.turn, currentSceneId: session.currentSceneId, terminal }, view, target: response.payload?.target ?? null, ...(response.payload?.replay ? { replay: true } : {}) };
 }
 
 export function publishedMissionGameState(binding: PublishedMissionBinding, view: MissionBffSceneView, mode: GameMode, target: unknown = null): GameState {
@@ -117,5 +175,9 @@ export function publishedMissionGameState(binding: PublishedMissionBinding, view
 export function isPublishedMissionBinding(value: unknown): value is PublishedMissionBinding {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const binding = value as PublishedMissionBinding;
+  if (binding.terminal !== undefined && binding.terminal !== null) {
+    const terminal = binding.terminal as { kind?: unknown; endingId?: unknown };
+    if (terminal.kind !== "ending" || typeof terminal.endingId !== "string") return false;
+  }
   return binding.version === 1 && ID.test(binding.publicSessionId) && ID.test(binding.scenarioRef) && (binding.mode === "chronicle" || binding.mode === "campaign" || binding.mode === "sandbox") && typeof binding.engineBaseUrl === "string" && typeof binding.credential === "string" && isMissionDoc(binding.missionDoc) && ID.test(binding.missionSessionId) && Number.isSafeInteger(binding.turn) && typeof binding.currentSceneId === "string";
 }
