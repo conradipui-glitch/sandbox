@@ -1,5 +1,5 @@
 import type { DecisionOption, GameMode, GameState, ScenarioSummary } from "../shared/types";
-import { buildMissionFrame, type FrameDocShape } from "../shared/mission-presentation/frame-build";
+import { buildMissionFrame, buildMissionIntroFrames, type FrameDocShape } from "../shared/mission-presentation/frame-build";
 import { missionSceneView, type MissionBffSceneView, type MissionDocShape } from "./mission-bff";
 
 export interface PublishedMissionTerminal {
@@ -254,14 +254,23 @@ export function publishedMissionGameState(
 ): GameState {
   const ended = view.sceneId.startsWith("ending:");
   const options: DecisionOption[] = view.choices.map((choice) => ({ id: choice.choiceId, title: choice.label, description: "Выбор опубликованной миссии", risk: "средний", intent: "choice" }));
+  // Session-pinned URL: assets of the started game stay resolvable after a
+  // republish or an unpublish (see publishedMissionAssetUrl).
+  const resolveAsset = (assetId: string) => publishedMissionAssetUrl(binding, assetId);
   const frame = buildMissionFrame({
     doc: binding.missionDoc as unknown as FrameDocShape,
     sceneId: binding.currentSceneId,
     endingId: binding.terminal?.endingId ?? null,
     turn: view.turn,
-    // Session-pinned URL: assets of the started game stay resolvable after a
-    // republish or an unpublish (see publishedMissionAssetUrl).
-    resolveAsset: (assetId) => publishedMissionAssetUrl(binding, assetId)
+    resolveAsset
+  });
+  // The authored intro screens are the mission's opening framing. They are
+  // carried as paged frames next to the current scene; paging them is local to
+  // the player and never spends a gameplay turn.
+  const intros = buildMissionIntroFrames({
+    doc: binding.missionDoc as unknown as FrameDocShape,
+    turn: view.turn,
+    resolveAsset
   });
   return {
     id: binding.publicSessionId, scenarioId: binding.scenarioRef, mode, scenarioTitle: binding.listing.title, role: binding.listing.role,
@@ -271,7 +280,7 @@ export function publishedMissionGameState(
     timeline: [{ id: "mission-turn", date: binding.listing.period, title: `Ход ${view.turn}`, description: typeof target === "object" && target ? "Решение применено" : "Миссия начата", kind: "decision" }],
     // The authored frame is the only presentation source for a published
     // mission: the legacy scenario art must never be substituted for it.
-    ...(frame ? { presentation: { kind: "published-mission" as const, publicMissionId: binding.scenarioRef, frame, reaction: typeof target === "object" && target ? ("applied" as const) : ("start" as const) } } : {}),
+    ...(frame ? { presentation: { kind: "published-mission" as const, publicMissionId: binding.scenarioRef, frame, ...(intros.length > 0 ? { intros } : {}), reaction: typeof target === "object" && target ? ("applied" as const) : ("start" as const) } } : {}),
     lastOutcome: null, createdAt: new Date(0).toISOString(), updatedAt: new Date().toISOString()
   };
 }

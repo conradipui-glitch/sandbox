@@ -13,7 +13,13 @@ import {
   resolveScreenFit,
   type FrameAssetRefLike
 } from "./screen-composition";
-import { MISSION_RENDERER_VERSION, type PreviewFrameView, type PreviewLayerView, type PreviewSceneView } from "./view-model";
+import {
+  MISSION_RENDERER_VERSION,
+  type PreviewDialogueLineView,
+  type PreviewFrameView,
+  type PreviewLayerView,
+  type PreviewSceneView
+} from "./view-model";
 
 export interface FrameAssetRef {
   readonly assetId: string;
@@ -65,6 +71,8 @@ export interface FrameDocShape {
       readonly id: string;
       readonly title: string;
       readonly text: string;
+      /** The contract's `MissionScene.dialogue`: the authored lines, in order. */
+      readonly dialogue?: readonly { readonly id: string; readonly speakerId: string | null; readonly text: string }[];
       readonly choices: readonly { readonly id: string; readonly label: string }[];
     }[];
     readonly endings: readonly { readonly id: string; readonly title: string; readonly text: string }[];
@@ -128,6 +136,25 @@ function layerView(layer: FrameLayerInput, resolve: FrameAssetResolver, animatio
   };
 }
 
+const MAX_DIALOGUE_TEXT = 4_000;
+
+/**
+ * Maps the contract's authored dialogue lines. A line without an id or without
+ * text is dropped rather than invented; the speaker stays the contract's id,
+ * because the mission revision carries no speaker display name.
+ */
+function dialogueView(lines: FrameDocShape["story"]["scenes"][number]["dialogue"]): readonly PreviewDialogueLineView[] {
+  if (!Array.isArray(lines)) return Object.freeze([]);
+  const view: PreviewDialogueLineView[] = [];
+  for (const line of lines) {
+    if (!line || typeof line.id !== "string" || !ID.test(line.id)) continue;
+    if (typeof line.text !== "string" || line.text.length === 0) continue;
+    const speakerId = typeof line.speakerId === "string" && ID.test(line.speakerId) ? line.speakerId : null;
+    view.push({ lineId: line.id, speakerId, text: line.text.slice(0, MAX_DIALOGUE_TEXT) });
+  }
+  return Object.freeze(view);
+}
+
 /**
  * Renders one authored screen. The background is resolved as the screen's own
  * ref, the mission default it inherits, or nothing (the Studio's own/inherited/
@@ -181,7 +208,7 @@ export function buildMissionFrame(input: {
     const ending = doc.story.endings.find((entry) => entry.id === input.endingId);
     if (!ending) return null;
     const screen = doc.screens?.endings?.[ending.id];
-    return { kind: "ending", title: ending.title, text: ending.text, scene: screen ? screenScene(screen, doc.defaults ?? null, resolveAsset) : EMPTY_SCENE, choices: Object.freeze([]), ...base };
+    return { kind: "ending", title: ending.title, text: ending.text, scene: screen ? screenScene(screen, doc.defaults ?? null, resolveAsset) : EMPTY_SCENE, choices: Object.freeze([]), dialogue: Object.freeze([]), ...base };
   }
 
   const scene = doc.story.scenes.find((entry) => entry.id === input.sceneId);
@@ -193,19 +220,20 @@ export function buildMissionFrame(input: {
     text: scene.text,
     scene: screenScene(screen, doc.defaults ?? null, resolveAsset),
     choices: Object.freeze((scene.choices ?? []).map((choice) => ({ choiceId: choice.id, label: choice.label }))),
+    dialogue: dialogueView(scene.dialogue),
     ...base
   };
 }
 
-export function buildMissionIntroFrame(input: {
-  readonly doc: FrameDocShape;
-  readonly introId?: string;
-  readonly turn: number;
-  readonly resolveAsset: FrameAssetResolver;
-}): PreviewFrameView | null {
-  const intro = input.doc.screens?.intros?.find((entry) => !input.introId || entry.id === input.introId);
-  if (!intro) return null;
-  const backgroundUrl = intro.background && ID.test(intro.background.assetId) ? input.resolveAsset(intro.background.assetId) : null;
+function introFrame(
+  doc: FrameDocShape,
+  intro: { readonly id: string; readonly title: string; readonly body: string; readonly background: FrameAssetRef | null },
+  index: number,
+  count: number,
+  turn: number,
+  resolveAsset: FrameAssetResolver
+): PreviewFrameView {
+  const backgroundUrl = intro.background && ID.test(intro.background.assetId) ? resolveAsset(intro.background.assetId) : null;
   return {
     kind: "intro",
     title: intro.title,
@@ -222,11 +250,53 @@ export function buildMissionIntroFrame(input: {
       musicUrl: null
     },
     choices: Object.freeze([]),
-    turn: Number.isSafeInteger(input.turn) && input.turn >= 0 ? input.turn : 0,
-    contentRevision: input.doc.contentRevision,
-    contentHash: input.doc.contentHash,
+    dialogue: Object.freeze([]),
+    introPage: { index, count, hasNext: index < count - 1 },
+    turn: Number.isSafeInteger(turn) && turn >= 0 ? turn : 0,
+    contentRevision: doc.contentRevision,
+    contentHash: doc.contentHash,
     rendererVersion: MISSION_RENDERER_VERSION
   };
+}
+
+/**
+ * Builds one authored intro screen. The intro is selected by index or by id;
+ * the frame carries its place in the authored intro sequence, so the player can
+ * offer "Далее" until the last page and "Начать" on it. An index off the end is
+ * refused instead of being clamped to an invented page.
+ */
+export function buildMissionIntroFrame(input: {
+  readonly doc: FrameDocShape;
+  readonly introId?: string;
+  readonly introIndex?: number;
+  readonly turn: number;
+  readonly resolveAsset: FrameAssetResolver;
+}): PreviewFrameView | null {
+  const intros = input.doc.screens?.intros ?? [];
+  let index: number;
+  if (typeof input.introIndex === "number") {
+    if (!Number.isSafeInteger(input.introIndex) || input.introIndex < 0 || input.introIndex >= intros.length) return null;
+    index = input.introIndex;
+  } else {
+    index = typeof input.introId === "string" && input.introId.length > 0
+      ? intros.findIndex((entry) => entry.id === input.introId)
+      : intros.length > 0 ? 0 : -1;
+  }
+  const intro = intros[index];
+  if (!intro) return null;
+  return introFrame(input.doc, intro, index, intros.length, input.turn, input.resolveAsset);
+}
+
+/** Every authored intro screen as its own paged frame, in author order. */
+export function buildMissionIntroFrames(input: {
+  readonly doc: FrameDocShape;
+  readonly turn: number;
+  readonly resolveAsset: FrameAssetResolver;
+}): readonly PreviewFrameView[] {
+  const intros = input.doc.screens?.intros ?? [];
+  return Object.freeze(intros
+    .map((_, index) => buildMissionIntroFrame({ doc: input.doc, introIndex: index, turn: input.turn, resolveAsset: input.resolveAsset }))
+    .filter((frame): frame is PreviewFrameView => frame !== null));
 }
 
 /** Re-exported for the docs/tests that pin the authored asset-ref shape. */

@@ -155,8 +155,11 @@ it really is a library, not a stub:
   own aspect. Both keep the same centre and z-order, but the footprints differ, so
   a layer is not yet pixel-identical between the Studio model and the site.
 - **Dialogue lines and multi-intro paging** ("вступления с «Далее/Начать»",
-  "перелистывание вступлений не тратит ход") belong to the story-screen slice
-  (`feat/fin05-site-dialogue`, `fea316b`), not this composition slice; the
-  published frame still renders a single intro and does not surface
-  `scene.dialogue`.
-
+  "перелистывание вступлений не тратит ход") belong to the story-screen slice,
+  not this composition slice; the published frame still renders a single intro
+  and does not surface `scene.dialogue`. The engine worklog lists them as a
+  separate remaining item. *(Landed on `feat/fin05-site-dialogue` — see
+  `docs/fin05-site-story-screen.md`; both slices are integrated on
+  `feat/site-wave2-integration`.)*
+- **The real asset library** (upload, MIME, dimensions across browsers/restart)
+  is not part of this slice.

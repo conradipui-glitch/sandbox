@@ -9,6 +9,12 @@ export interface PublishedMissionPresentation {
   readonly kind: "published-mission";
   readonly publicMissionId: string;
   readonly frame: import("./mission-presentation/view-model").PreviewFrameView;
+  /**
+   * The authored intro screens of the pinned revision, in author order. They are
+   * shown before the mission's first turn; paging them is local to the player and
+   * does not spend a turn.
+   */
+  readonly intros?: readonly import("./mission-presentation/view-model").PreviewFrameView[];
   readonly reaction: "applied" | "start";
 }
 

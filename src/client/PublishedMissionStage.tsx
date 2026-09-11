@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import {
   MissionChoicePanel,
   MissionEndingScreen,
+  MissionIntroPager,
   MissionIntroScreen,
   MissionSceneStage,
   type MissionMusicControls
@@ -43,6 +44,7 @@ export function PublishedMissionStage({
   busy: boolean;
 }) {
   const [muted, setMuted] = useState(readStoredMute);
+  const [introsSeen, setIntrosSeen] = useState(false);
   const toggleMusic = useCallback(() => {
     setMuted((current) => {
       const next = !current;
@@ -60,6 +62,17 @@ export function PublishedMissionStage({
   if (!frame) return null;
   if (frame.kind === "ending") return <MissionEndingScreen frame={frame} onExit={onExit} music={music} />;
   if (frame.kind === "intro") return <MissionIntroScreen frame={frame} onBegin={() => onTurn({ action: "begin", source: "prepared" })} />;
+  // The authored intro screens frame the mission before its first turn. Paging
+  // them is local to the player — it spends no turn — and "Начать" on the last
+  // page just reveals the opening scene.
+  const intros = state.presentation?.intros ?? [];
+  if (!introsSeen && intros.length > 0 && frame.turn === 0) {
+    return (
+      <main className="mp-published" data-scenario-ref={state.scenarioId}>
+        <MissionIntroPager frames={intros} onBegin={() => setIntrosSeen(true)} />
+      </main>
+    );
+  }
   return (
     <main className="mp-published" data-scenario-ref={state.scenarioId}>
       <header className="mp-published-header">

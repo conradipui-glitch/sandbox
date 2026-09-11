@@ -247,4 +247,41 @@ describe("FIN-05 site half: the frame carries the authored fit/focal into the re
     expect(html).toContain('data-source-rect="0,0.5,0.5,0.5"');
     expect(html).toContain("transform-origin:left top");
   });
+
+  it("carries the authored fit/focal from the mission document into the rendered markup", () => {
+    // End to end: the authored revision (not a hand-built frame) -> buildMissionFrame
+    // -> MissionSceneStage, and every data-fit/data-focal/data-crop value on the DOM
+    // must equal what the shared model computes from the very same frame, so the
+    // published screen and the Studio's pure model cannot drift apart.
+    const authored = buildMissionFrame({
+      doc: {
+        ...doc,
+        screens: {
+          ...doc.screens,
+          scenes: {
+            piazza: {
+              ...doc.screens!.scenes!.piazza,
+              background: { assetId: "piazza-bg", hash: hash("b"), widthPx: 96, heightPx: 54 },
+              fit: "contain",
+              focal: { x: 0, y: 1 }
+            }
+          }
+        }
+      },
+      sceneId: "piazza",
+      turn: 0,
+      resolveAsset: resolve
+    });
+    const expected = backgroundDataAttributes(authored!.scene);
+    const html = renderToString(<MissionSceneStage frame={authored!} />);
+    for (const [name, value] of Object.entries(expected)) {
+      expect(html).toContain(`${name}="${value}"`);
+    }
+    expect(expected["data-fit"]).toBe("contain");
+    expect(expected["data-focal"]).toBe("0,1");
+    // The crop attribute agrees with the Studio's own fitScreenAsset for this asset.
+    const studioFit = fitScreenAsset(96 / 54, FRAME_ASPECT, "contain", { x: 0, y: 1 });
+    expect(expected["data-crop"]).toBe(studioFit.crop ? "1" : "0");
+    expect(html).toContain(`transform:scale(${Number(studioFit.scale.toFixed(4))})`);
+  });
 });
