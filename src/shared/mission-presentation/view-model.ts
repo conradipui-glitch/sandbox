@@ -56,12 +56,34 @@ export interface PreviewChoiceView {
   readonly label: string;
 }
 
+/**
+ * One authored dialogue line of a scene (the contract's `MissionDialogueLine`).
+ * The contract carries the speaker only as an id — there is no speaker display
+ * name in the mission revision, so none is invented here.
+ */
+export interface PreviewDialogueLineView {
+  readonly lineId: string;
+  readonly speakerId: string | null;
+  readonly text: string;
+}
+
+/** Paging of the authored intro screens: `Далее` while `hasNext`, else `Начать`. */
+export interface PreviewIntroPageView {
+  readonly index: number;
+  readonly count: number;
+  readonly hasNext: boolean;
+}
+
 export interface PreviewFrameView {
   readonly kind: "intro" | "scene" | "ending";
   readonly title: string;
   readonly text: string;
   readonly scene: PreviewSceneView;
   readonly choices: readonly PreviewChoiceView[];
+  /** The scene's authored dialogue, in author order; absent when there is none. */
+  readonly dialogue?: readonly PreviewDialogueLineView[];
+  /** Present on an authored intro screen that belongs to a multi-page intro. */
+  readonly introPage?: PreviewIntroPageView;
   readonly turn: number;
   readonly contentRevision: number;
   readonly contentHash: string;

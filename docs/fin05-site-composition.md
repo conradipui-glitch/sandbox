@@ -68,6 +68,7 @@ changes exactly when the author edits the visible/executable content.
   "перелистывание вступлений не тратит ход") belong to the story-screen slice,
   not this composition slice; the published frame still renders a single intro
   and does not surface `scene.dialogue`. The engine worklog lists them as a
-  separate remaining item.
+  separate remaining item. *(Landed on `feat/fin05-site-dialogue` — see
+  `docs/fin05-site-story-screen.md`.)*
 - **The real asset library** (upload, MIME, dimensions across browsers/restart)
   is not part of this slice.

@@ -116,3 +116,66 @@ describe("R03 site renders the authored mission", () => {
     expect(live).not.toContain("закреплённой версии");
   });
 });
+
+function introFrame(index: number, count: number, title: string): PreviewFrameView {
+  return {
+    kind: "intro",
+    title,
+    text: `Страница ${index + 1} вступления.`,
+    scene: { backgroundUrl: null, backgroundFit: "cover", layers: [], musicTitle: null },
+    choices: [],
+    introPage: { index, count, hasNext: index < count - 1 },
+    turn: 0,
+    contentRevision: 3,
+    contentHash: "a".repeat(64),
+    rendererVersion: "1.0.0"
+  };
+}
+
+describe("FIN-05 site slice: the published player plays dialogue and pages intros", () => {
+  it("shows the authored dialogue of the current scene", () => {
+    const withDialogue = frame({
+      dialogue: [
+        { lineId: "d1", speakerId: null, text: "Первая реплика" },
+        { lineId: "d2", speakerId: "keeper", text: "Вторая реплика" }
+      ]
+    });
+    const html = renderToString(
+      <PublishedMissionStage
+        state={state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: withDialogue, reaction: "start" })}
+        onTurn={() => {}} onExit={() => {}} busy={false}
+      />
+    );
+    expect(html).toContain("Первая реплика");
+    expect(html).not.toContain("Вторая реплика");
+    expect(html).toContain('data-dialogue-line="d1"');
+  });
+
+  it("pages the authored intros before the mission starts, without scene choices", () => {
+    const intros = [introFrame(0, 2, "Пролог"), introFrame(1, 2, "Второе вступление")];
+    const html = renderToString(
+      <PublishedMissionStage
+        state={state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame(), reaction: "start", intros })}
+        onTurn={() => {}} onExit={() => {}} busy={false}
+      />
+    );
+    expect(html).toContain("Пролог");
+    expect(html).toContain("Далее");
+    expect(html).toContain("1 / 2");
+    expect(html).not.toContain("Второе вступление");
+    // Paging an intro is local: the scene's choices are not offered yet.
+    expect(html).not.toContain("Герметизировать");
+  });
+
+  it("does not re-show the intros once the mission has moved on", () => {
+    const intros = [introFrame(0, 1, "Пролог")];
+    const html = renderToString(
+      <PublishedMissionStage
+        state={state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame({ turn: 2 }), reaction: "applied", intros })}
+        onTurn={() => {}} onExit={() => {}} busy={false}
+      />
+    );
+    expect(html).not.toContain("Пролог");
+    expect(html).toContain("Герметизировать");
+  });
+});

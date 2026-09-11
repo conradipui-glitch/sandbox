@@ -54,6 +54,12 @@ export interface MissionDocShape {
       readonly id: string;
       readonly title: string;
       readonly text: string;
+      /** The contract's `MissionScene.dialogue`. */
+      readonly dialogue?: readonly {
+        readonly id: string;
+        readonly speakerId: string | null;
+        readonly text: string;
+      }[];
       readonly choices: readonly {
         readonly id: string;
         readonly label: string;
