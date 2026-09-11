@@ -8,7 +8,15 @@ export const MISSION_RENDERER_VERSION = "1.0.0" as const;
 export const PREVIEW_BRIDGE_VERSION = 1 as const;
 
 export type PreviewLayerKind = "actor" | "item" | "text";
-export type PreviewLayerAnimation = "breathe" | "arrive" | "none";
+
+/**
+ * The author's animation preset vocabulary (mirrors the Studio's
+ * `screen-composition.ts`). `PreviewLayerAnimation` is the renderer class it
+ * maps to: `breath` is ambient, `fade`/`rise` are entrances.
+ */
+export const SCREEN_ANIMATION_PRESETS = ["none", "fade", "rise", "breath"] as const;
+export type ScreenAnimationPreset = (typeof SCREEN_ANIMATION_PRESETS)[number];
+export type PreviewLayerAnimation = "breathe" | "arrive" | "fade" | "rise" | "none";
 
 export interface PreviewLayerView {
   readonly id: string;
@@ -32,8 +40,15 @@ export interface PreviewLayerView {
 export interface PreviewSceneView {
   readonly backgroundUrl: string | null;
   readonly backgroundFit: "cover" | "contain";
+  /** Where the resolved background came from: the screen's own ref, the
+   * mission default it inherits, or nothing. */
+  readonly backgroundSource?: "own" | "inherited" | "none";
+  /** The author's animation preset for the whole screen (Studio default). */
+  readonly animationPreset?: ScreenAnimationPreset;
   readonly layers: readonly PreviewLayerView[];
   readonly musicTitle: string | null;
+  /** Same-origin URL of the authored music, or null when the screen has none. */
+  readonly musicUrl?: string | null;
 }
 
 export interface PreviewChoiceView {

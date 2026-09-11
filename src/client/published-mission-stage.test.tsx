@@ -70,6 +70,31 @@ describe("R03 site renders the authored mission", () => {
     expect(missionChoiceSubmission("seal")).toEqual({ action: "seal", source: "prepared", optionId: "seal" });
   });
 
+  it("renders the authored composition: preset, inherited background and music", () => {
+    const composed = frame({
+      scene: {
+        ...frame().scene,
+        backgroundSource: "inherited",
+        animationPreset: "rise",
+        layers: [{ ...frame().scene.layers[0], animation: "rise" }],
+        musicTitle: "bunker-theme",
+        musicUrl: "/api/missions/mission%3Achernobyl%3Ashift/sessions/session-1/assets/bunker-theme"
+      }
+    });
+    const html = renderToString(
+      <PublishedMissionStage
+        state={state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: composed, reaction: "start" })}
+        onTurn={() => {}} onExit={() => {}} busy={false}
+      />
+    );
+    expect(html).toContain('data-animation-preset="rise"');
+    expect(html).toContain("mp-anim-rise");
+    expect(html).toContain('data-background-source="inherited"');
+    expect(html).toContain("bunker-theme");
+    expect(html).toContain('data-music-state="playing"');
+    expect(html).toContain("Выключить звук");
+  });
+
   it("says plainly when the game continues on its pinned revision (E16)", () => {
     const pinned = renderToString(
       <PublishedMissionStage

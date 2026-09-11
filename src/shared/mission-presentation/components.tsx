@@ -1,22 +1,83 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   MissionCardView,
   PreviewChoiceView,
   PreviewFrameView
 } from "./view-model";
+import { resolveScreenMusic } from "./screen-composition";
 import { isSafePreviewUrl, layerAnimationClass, layerOuterStyle } from "./stage-model";
 
-export function MissionSceneStage({ frame, paused }: { frame: PreviewFrameView; paused?: boolean }) {
+/**
+ * Minimal surface of the audio element used here. This shared module is also
+ * type-checked by the worker project, which has no DOM lib, so the element is
+ * bound through a callback ref and handled as this narrow interface.
+ */
+interface PlayableAudio {
+  volume: number;
+  muted: boolean;
+  play(): Promise<void> | void;
+  pause(): void;
+}
+
+export interface MissionMusicControls {
+  readonly muted: boolean;
+  readonly onToggleMute: () => void;
+}
+
+/**
+ * Plays the authored music of a screen. The track is the one the author saved
+ * on the screen; the state follows the real mute toggle and the browser's
+ * autoplay decision (a blocked track offers "Играть" instead of pretending).
+ */
+export function MissionMusic({ url, title, muted, onToggleMute }: { url: string; title: string | null; muted: boolean; onToggleMute: () => void }) {
+  const [blocked, setBlocked] = useState(false);
+  const resolved = resolveScreenMusic({ hasTrack: true, muted, autoplayAllowed: !blocked });
+  const audioRef = useRef<PlayableAudio | null>(null);
+  const bindAudio = useCallback((element: unknown) => {
+    audioRef.current = (element as PlayableAudio | null) ?? null;
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = 0.22;
+    audio.muted = resolved.state === "muted" || resolved.state === "blocked";
+    if (resolved.shouldPlay) Promise.resolve(audio.play()).catch(() => setBlocked(true));
+    else audio.pause();
+  }, [resolved.state, resolved.shouldPlay]);
+
+  if (!isSafePreviewUrl(url)) return null;
+  return (
+    <div className="mp-music" data-music-state={resolved.state}>
+      <audio ref={bindAudio} className="mp-music-audio" src={url} loop preload="auto" />
+      <span className="mp-music-title">{title && title.length > 0 ? title : "Музыка сцены"}</span>
+      {resolved.state === "blocked" ? (
+        <button type="button" className="mp-music-button" onClick={() => setBlocked(false)}>
+          Играть
+        </button>
+      ) : (
+        <button type="button" className="mp-music-button" aria-pressed={resolved.state === "muted"} onClick={onToggleMute}>
+          {resolved.state === "muted" ? "Включить звук" : "Выключить звук"}
+        </button>
+      )}
+      <span className="mp-music-state">{resolved.label}</span>
+    </div>
+  );
+}
+
+export function MissionSceneStage({ frame, paused, music }: { frame: PreviewFrameView; paused?: boolean; music?: MissionMusicControls }) {
   const ordered = [...frame.scene.layers]
     .filter((layer) => layer.visible)
     .sort((a, b) => a.z - b.z);
   return (
-    <section className="mp-stage" aria-label={`Сцена: ${frame.title}`} data-paused={paused ? "1" : undefined}>
+    <section className="mp-stage" aria-label={`Сцена: ${frame.title}`} data-paused={paused ? "1" : undefined} data-animation-preset={frame.scene.animationPreset ?? "none"}>
       {frame.scene.backgroundUrl && isSafePreviewUrl(frame.scene.backgroundUrl) ? (
         <img
           className="mp-background"
           src={frame.scene.backgroundUrl as string}
           alt=""
           data-fit={frame.scene.backgroundFit}
+          data-background-source={frame.scene.backgroundSource ?? "own"}
         />
       ) : (
         <div className="mp-background mp-background-empty" aria-hidden="true" />
@@ -35,6 +96,9 @@ export function MissionSceneStage({ frame, paused }: { frame: PreviewFrameView; 
           </div>
         </div>
       ))}
+      {music && frame.scene.musicUrl ? (
+        <MissionMusic url={frame.scene.musicUrl} title={frame.scene.musicTitle} muted={music.muted} onToggleMute={music.onToggleMute} />
+      ) : null}
       <div className="mp-caption">
         <span>{frame.title}</span>
       </div>
@@ -83,10 +147,10 @@ export function MissionIntroScreen({ frame, onBegin }: { frame: PreviewFrameView
   );
 }
 
-export function MissionEndingScreen({ frame, onExit }: { frame: PreviewFrameView; onExit: () => void }) {
+export function MissionEndingScreen({ frame, onExit, music }: { frame: PreviewFrameView; onExit: () => void; music?: MissionMusicControls }) {
   return (
     <section className="mp-ending" aria-label={`Финал: ${frame.title}`}>
-      <MissionSceneStage frame={{ ...frame, choices: [] }} paused />
+      <MissionSceneStage frame={{ ...frame, choices: [] }} paused music={music} />
       <div className="mp-ending-body">
         <h1>{frame.title}</h1>
         <p>{frame.text}</p>

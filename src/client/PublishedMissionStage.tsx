@@ -1,11 +1,23 @@
+import { useCallback, useState } from "react";
 import {
   MissionChoicePanel,
   MissionEndingScreen,
   MissionIntroScreen,
-  MissionSceneStage
+  MissionSceneStage,
+  type MissionMusicControls
 } from "../shared/mission-presentation/components";
 import type { GameState, TurnSubmission } from "../shared/types";
 import "../shared/mission-presentation/tokens.css";
+
+const MUSIC_MUTED_KEY = "living-history-music-muted";
+
+function readStoredMute(): boolean {
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem(MUSIC_MUTED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
 
 /**
  * R03: a published authored mission renders through the shared mission
@@ -30,9 +42,23 @@ export function PublishedMissionStage({
   onExit: () => void;
   busy: boolean;
 }) {
+  const [muted, setMuted] = useState(readStoredMute);
+  const toggleMusic = useCallback(() => {
+    setMuted((current) => {
+      const next = !current;
+      try {
+        if (typeof localStorage !== "undefined") localStorage.setItem(MUSIC_MUTED_KEY, String(next));
+      } catch {
+        /* storage may be unavailable; the in-memory toggle still works */
+      }
+      return next;
+    });
+  }, []);
+  const music: MissionMusicControls = { muted, onToggleMute: toggleMusic };
+
   const frame = state.presentation?.frame;
   if (!frame) return null;
-  if (frame.kind === "ending") return <MissionEndingScreen frame={frame} onExit={onExit} />;
+  if (frame.kind === "ending") return <MissionEndingScreen frame={frame} onExit={onExit} music={music} />;
   if (frame.kind === "intro") return <MissionIntroScreen frame={frame} onBegin={() => onTurn({ action: "begin", source: "prepared" })} />;
   return (
     <main className="mp-published" data-scenario-ref={state.scenarioId}>
@@ -48,7 +74,7 @@ export function PublishedMissionStage({
           Движок сейчас недоступен: история продолжается на закреплённой версии этой миссии. Новые ходы отправятся, как только движок ответит.
         </p>
       )}
-      <MissionSceneStage frame={frame} paused={busy} />
+      <MissionSceneStage frame={frame} paused={busy} music={music} />
       <section className="mp-published-body">
         <h1>{frame.title}</h1>
         <p>{frame.text}</p>

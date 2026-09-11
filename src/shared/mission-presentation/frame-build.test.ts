@@ -80,3 +80,51 @@ describe("R03 frame builder renders authored data", () => {
     expect(withoutDefaults!.scene.backgroundUrl).toBeNull();
   });
 });
+
+describe("FIN-05 site half: the published frame carries the authored composition", () => {
+  it("applies the author's animation preset to every layer", () => {
+    const withPreset = buildMissionFrame({ doc: { ...doc, defaults: { ...doc.defaults!, animationPreset: "breath" } }, sceneId: "cellar", turn: 0, resolveAsset: resolve });
+    expect(withPreset!.scene.animationPreset).toBe("breath");
+    expect(withPreset!.scene.layers.every((layer) => layer.animation === "breathe")).toBe(true);
+
+    const rise = buildMissionFrame({ doc: { ...doc, defaults: { ...doc.defaults!, animationPreset: "rise" } }, sceneId: "cellar", turn: 0, resolveAsset: resolve });
+    expect(rise!.scene.layers.every((layer) => layer.animation === "rise")).toBe(true);
+
+    // An unknown preset is not invented.
+    const unknown = buildMissionFrame({ doc: { ...doc, defaults: { ...doc.defaults!, animationPreset: "sparkle" } }, sceneId: "cellar", turn: 0, resolveAsset: resolve });
+    expect(unknown!.scene.animationPreset).toBe("none");
+    expect(unknown!.scene.layers.every((layer) => layer.animation === "none")).toBe(true);
+  });
+
+  it("distinguishes an own background from an inherited one and from none", () => {
+    const own = buildMissionFrame({ doc, sceneId: "cellar", turn: 0, resolveAsset: resolve });
+    expect(own!.scene.backgroundSource).toBe("own");
+    expect(own!.scene.backgroundUrl).toBe("/api/missions/mission:p:q/assets/cellar-bg");
+
+    const inheritedDoc: FrameDocShape = {
+      ...doc,
+      screens: { ...doc.screens, scenes: { ...doc.screens!.scenes, yard: { background: null, inheritBackground: true, music: null, layers: [] } } }
+    };
+    const inherited = buildMissionFrame({ doc: inheritedDoc, sceneId: "yard", turn: 0, resolveAsset: resolve });
+    expect(inherited!.scene.backgroundSource).toBe("inherited");
+    expect(inherited!.scene.backgroundUrl).toBe("/api/missions/mission:p:q/assets/default-bg");
+
+    const optedOutDoc: FrameDocShape = {
+      ...doc,
+      screens: { ...doc.screens, scenes: { ...doc.screens!.scenes, yard: { background: null, inheritBackground: false, music: null, layers: [] } } }
+    };
+    const optedOut = buildMissionFrame({ doc: optedOutDoc, sceneId: "yard", turn: 0, resolveAsset: resolve });
+    expect(optedOut!.scene.backgroundSource).toBe("none");
+    expect(optedOut!.scene.backgroundUrl).toBeNull();
+  });
+
+  it("resolves the authored music into a session-pinned URL", () => {
+    const frame = buildMissionFrame({ doc, sceneId: "cellar", turn: 0, resolveAsset: resolve });
+    expect(frame!.scene.musicTitle).toBe("cellar-theme");
+    expect(frame!.scene.musicUrl).toBe("/api/missions/mission:p:q/assets/cellar-theme");
+
+    const silent = buildMissionFrame({ doc, sceneId: "yard", turn: 0, resolveAsset: resolve });
+    expect(silent!.scene.musicTitle).toBeNull();
+    expect(silent!.scene.musicUrl).toBeNull();
+  });
+});

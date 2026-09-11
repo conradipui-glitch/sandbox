@@ -44,6 +44,8 @@ export function layerOuterStyle(layer: AuthoredLayerInput): Record<string, strin
 export function layerAnimationClass(layer: AuthoredLayerInput): string {
   const animation = layer.animation ?? "breathe";
   if (animation === "arrive") return "mp-layer-anim mp-anim-arrive";
+  if (animation === "fade") return "mp-layer-anim mp-anim-fade";
+  if (animation === "rise") return "mp-layer-anim mp-anim-rise";
   if (animation === "none") return "mp-layer-anim mp-anim-none";
   return "mp-layer-anim mp-anim-breathe";
 }
