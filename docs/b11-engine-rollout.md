@@ -80,9 +80,11 @@ GET /api/missions/{publicMissionId}/sessions/{publicSessionId}/assets/{assetId}
 The BFF resolves the session binding from `PUBLISHED_MISSION_ROUTE_SESSIONS`, then calls the engine with the session credential:
 
 ```text
-GET {engine}/public/v1/missions/{publicMissionId}/assets/{assetId}
-authorization: Bearer <session credential>
+GET {engine}/public/v1/missions/{publicMissionId}/sessions/{engineSessionId}/assets/{assetId}
+authorization: Bearer [session-credential]
 ```
+
+The upstream URL is the engine's session-pinned route: the credential is bound to the engine session id the BFF received at create time, so the request must name that session (not the browser session id, and not the mission-scoped `/assets/{assetId}` path, which follows the current publication).
 
 The browser never sees the credential. Because the request is credentialed, the engine answers with the revision the session was created from — the game keeps its own pictures after a republish or an unpublish, and `publishedMissionAssetUrl()` is the only place that builds the URL.
 

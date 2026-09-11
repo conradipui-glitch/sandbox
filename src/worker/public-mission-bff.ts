@@ -130,8 +130,12 @@ export async function fetchPublishedMissionAsset(input: {
   readonly assetId: string;
 }): Promise<Response> {
   if (!ID.test(input.assetId)) return assetError(400, "MISSION_BAD_ASSET");
+  // The engine serves a started game's assets from the session-pinned route
+  // (the credential is bound to that engine session id), so the BFF must ask
+  // for `/sessions/{missionSessionId}/assets/{assetId}` — the mission-scoped
+  // `/assets/{assetId}` path only reflects the current publication.
   const upstream = await (input.fetchImpl ?? fetch)(
-    `${input.binding.engineBaseUrl}/public/v1/missions/${encodeURIComponent(input.binding.scenarioRef)}/assets/${encodeURIComponent(input.assetId)}`,
+    `${input.binding.engineBaseUrl}/public/v1/missions/${encodeURIComponent(input.binding.scenarioRef)}/sessions/${encodeURIComponent(input.binding.missionSessionId)}/assets/${encodeURIComponent(input.assetId)}`,
     { method: "GET", headers: { authorization: `Bearer ${input.binding.credential}` } }
   ).catch(() => null);
   if (!upstream) return assetError(503, "MISSION_ASSET_UNAVAILABLE");

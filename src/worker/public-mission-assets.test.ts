@@ -65,7 +65,9 @@ describe("FIN-03 B04 site side: assets of an already started published mission",
       }
     });
     // The credential is what keeps the asset available after unpublish/republish.
-    expect(seen[0].url).toBe("https://engine.example/public/v1/missions/mission%3Achernobyl%3Ashift/assets/bunker-bg");
+    // FIN-03 стыковка: the upstream URL is pinned to the *engine* session the
+    // credential was issued for, not the browser session id.
+    expect(seen[0].url).toBe("https://engine.example/public/v1/missions/mission%3Achernobyl%3Ashift/sessions/engine-session/assets/bunker-bg");
     expect(seen[0].authorization).toBe(`Bearer ${BINDING_CREDENTIAL}`);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("image/png");
@@ -184,6 +186,10 @@ describe("FIN-03 B04 worker route: /api/missions/:ref/sessions/:id/assets/:asset
       expect(asset.headers.get("content-type")).toBe("image/png");
       expect(byteList(await asset.arrayBuffer())).toEqual(byteList(pngBytes()));
       expect(assetRequests[0].authorization).toBe(`Bearer ${BINDING_CREDENTIAL}`);
+      // FIN-03 стыковка: the BFF must ask the engine's session-pinned asset
+      // route, never the mission-scoped path that follows the latest publication.
+      expect(assetRequests[0].url).toMatch(/\/public\/v1\/missions\/[^/]+\/sessions\/[^/]+\/assets\/bunker-bg$/);
+      expect(assetRequests[0].url).not.toBe("https://engine/public/v1/missions/mission%3Achernobyl%3Ashift/assets/bunker-bg");
     } finally {
       globalThis.fetch = originalFetch;
     }
