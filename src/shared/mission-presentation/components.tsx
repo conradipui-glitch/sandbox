@@ -5,7 +5,7 @@ import type {
   PreviewFrameView
 } from "./view-model";
 import { resolveScreenMusic } from "./screen-composition";
-import { isSafePreviewUrl, layerAnimationClass, layerOuterStyle } from "./stage-model";
+import { backgroundDataAttributes, backgroundStyle, isSafePreviewUrl, layerAnimationClass, layerOuterStyle } from "./stage-model";
 
 /**
  * Minimal surface of the audio element used here. This shared module is also
@@ -65,19 +65,46 @@ export function MissionMusic({ url, title, muted, onToggleMute }: { url: string;
   );
 }
 
+/**
+ * Minimal surface of the loaded background image: the real dimensions of the
+ * authored material, which is what turns the fit/focal projection into an exact
+ * crop. Bound through a callback ref/event because the worker project that
+ * type-checks this module has no DOM lib.
+ */
+interface MeasurableImage {
+  readonly naturalWidth: number;
+  readonly naturalHeight: number;
+}
+
 export function MissionSceneStage({ frame, paused, music }: { frame: PreviewFrameView; paused?: boolean; music?: MissionMusicControls }) {
   const ordered = [...frame.scene.layers]
     .filter((layer) => layer.visible)
     .sort((a, b) => a.z - b.z);
+  const backgroundUrl = frame.scene.backgroundUrl;
+  const [measuredAspect, setMeasuredAspect] = useState<number | null>(null);
+  useEffect(() => {
+    // A different screen is a different asset: nothing carries over.
+    setMeasuredAspect(null);
+  }, [backgroundUrl]);
+  const scene = { ...frame.scene, backgroundAspect: measuredAspect ?? frame.scene.backgroundAspect ?? null };
+  const measureBackground = useCallback((event: unknown) => {
+    // Narrowed by hand: the shared module must not depend on the DOM lib.
+    const element = (event as { readonly currentTarget?: MeasurableImage } | null)?.currentTarget;
+    if (element && element.naturalWidth > 0 && element.naturalHeight > 0) {
+      setMeasuredAspect(element.naturalWidth / element.naturalHeight);
+    }
+  }, []);
   return (
     <section className="mp-stage" aria-label={`Сцена: ${frame.title}`} data-paused={paused ? "1" : undefined} data-animation-preset={frame.scene.animationPreset ?? "none"}>
-      {frame.scene.backgroundUrl && isSafePreviewUrl(frame.scene.backgroundUrl) ? (
+      {backgroundUrl && isSafePreviewUrl(backgroundUrl) ? (
         <img
           className="mp-background"
-          src={frame.scene.backgroundUrl as string}
+          src={backgroundUrl as string}
           alt=""
-          data-fit={frame.scene.backgroundFit}
+          style={backgroundStyle(scene)}
           data-background-source={frame.scene.backgroundSource ?? "own"}
+          {...backgroundDataAttributes(scene)}
+          onLoad={measureBackground}
         />
       ) : (
         <div className="mp-background mp-background-empty" aria-hidden="true" />

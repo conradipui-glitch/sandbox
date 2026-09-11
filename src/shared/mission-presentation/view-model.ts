@@ -37,12 +37,31 @@ export interface PreviewLayerView {
   readonly animation: PreviewLayerAnimation;
 }
 
+/**
+ * The author's fit vocabulary (mirrors the Studio's `ScreenFitMode`): `contain`
+ * fits the whole asset and may leave bands, `cover` fills the frame and crops.
+ */
+export type PreviewFitMode = "cover" | "contain";
+
+export interface PreviewFocalPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
 export interface PreviewSceneView {
   readonly backgroundUrl: string | null;
-  readonly backgroundFit: "cover" | "contain";
+  readonly backgroundFit: PreviewFitMode;
   /** Where the resolved background came from: the screen's own ref, the
    * mission default it inherits, or nothing. */
   readonly backgroundSource?: "own" | "inherited" | "none";
+  /** The author's focal point of the background; defaults to the frame centre. */
+  readonly backgroundFocal?: PreviewFocalPoint;
+  /**
+   * Aspect (w/h) of the resolved background asset when the material library (or
+   * the loaded image) provides real dimensions; null/absent means unknown, and
+   * the stage falls back to CSS object-fit instead of the exact crop geometry.
+   */
+  readonly backgroundAspect?: number | null;
   /** The author's animation preset for the whole screen (Studio default). */
   readonly animationPreset?: ScreenAnimationPreset;
   readonly layers: readonly PreviewLayerView[];

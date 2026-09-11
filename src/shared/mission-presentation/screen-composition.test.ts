@@ -53,15 +53,18 @@ describe("FIN-05 site half: the authored screen composition resolves without sce
     const defaults = { background: { assetId: "default-bg", hash: hash("1") } };
     expect(resolveScreenBackground({ background: { assetId: "own-bg", hash: hash("2") }, inheritBackground: false }, defaults)).toEqual({
       assetId: "own-bg",
-      source: "own"
+      source: "own",
+      ref: { assetId: "own-bg", hash: hash("2") }
     });
     expect(resolveScreenBackground({ background: null, inheritBackground: true }, defaults)).toEqual({
       assetId: "default-bg",
-      source: "inherited"
+      source: "inherited",
+      ref: { assetId: "default-bg", hash: hash("1") }
     });
     expect(resolveScreenBackground({ background: null, inheritBackground: false }, defaults)).toEqual({
       assetId: null,
-      source: "none"
+      source: "none",
+      ref: null
     });
     // A screen without its own flag inherits by default, like the Studio default screen.
     expect(resolveScreenBackground({ background: null }, defaults).source).toBe("inherited");

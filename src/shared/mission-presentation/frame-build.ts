@@ -5,12 +5,22 @@
  * ending, and a public asset URL resolver. No scenario IDs, no fallback art.
  */
 
-import { normalizeAnimationPreset, presetToLayerAnimation, resolveScreenBackground, type FrameAssetRefLike } from "./screen-composition";
+import {
+  assetAspectFromRef,
+  normalizeAnimationPreset,
+  presetToLayerAnimation,
+  resolveScreenBackground,
+  resolveScreenFit,
+  type FrameAssetRefLike
+} from "./screen-composition";
 import { MISSION_RENDERER_VERSION, type PreviewFrameView, type PreviewLayerView, type PreviewSceneView } from "./view-model";
 
 export interface FrameAssetRef {
   readonly assetId: string;
   readonly hash: string;
+  /** Optional material-library dimensions, when the revision carries them. */
+  readonly widthPx?: number | null;
+  readonly heightPx?: number | null;
 }
 
 export interface FrameLayerInput {
@@ -34,6 +44,14 @@ export interface FrameScreenShape {
   readonly background: FrameAssetRef | null;
   /** Whether a screen without its own background may use the mission default. */
   readonly inheritBackground?: boolean;
+  /**
+   * The author's background fit (`contain`/`cover`) and focal point. The
+   * canonical screen carries no such field yet, so an absent value keeps the
+   * Studio default (cover, frame centre) — and any future authored value flows
+   * through without inventing a contract of its own.
+   */
+  readonly fit?: unknown;
+  readonly focal?: unknown;
   readonly layers: readonly FrameLayerInput[];
   readonly music: FrameAssetRef | null;
 }
@@ -123,13 +141,18 @@ function screenScene(
 ): PreviewSceneView {
   const background = resolveScreenBackground(screen ?? null, defaults ?? null);
   const backgroundUrl = background.assetId && ID.test(background.assetId) ? resolve(background.assetId) : null;
+  const fit = resolveScreenFit({ fit: screen?.fit, focal: screen?.focal });
   const animationPreset = normalizeAnimationPreset(defaults?.animationPreset);
   const animation = presetToLayerAnimation(animationPreset);
   const layers = (screen?.layers ?? []).map((layer) => layerView(layer, resolve, animation)).filter((layer): layer is PreviewLayerView => layer !== null);
   const musicId = screen?.music && typeof screen.music.assetId === "string" && ID.test(screen.music.assetId) ? screen.music.assetId : null;
   return {
     backgroundUrl,
-    backgroundFit: "cover",
+    backgroundFit: fit.mode,
+    // The focal point belongs to the asset the resource resolves to, so an
+    // authored screen keeps it even when the background is inherited.
+    backgroundFocal: fit.focal,
+    backgroundAspect: assetAspectFromRef(background.ref),
     backgroundSource: background.source,
     animationPreset,
     layers: Object.freeze(layers),
@@ -187,7 +210,17 @@ export function buildMissionIntroFrame(input: {
     kind: "intro",
     title: intro.title,
     text: intro.body,
-    scene: { backgroundUrl, backgroundFit: "cover", backgroundSource: backgroundUrl ? "own" : "none", animationPreset: "none", layers: Object.freeze([]), musicTitle: null, musicUrl: null },
+    scene: {
+      backgroundUrl,
+      backgroundFit: "cover",
+      backgroundFocal: resolveScreenFit({}).focal,
+      backgroundAspect: assetAspectFromRef(intro.background),
+      backgroundSource: backgroundUrl ? "own" : "none",
+      animationPreset: "none",
+      layers: Object.freeze([]),
+      musicTitle: null,
+      musicUrl: null
+    },
     choices: Object.freeze([]),
     turn: Number.isSafeInteger(input.turn) && input.turn >= 0 ? input.turn : 0,
     contentRevision: input.doc.contentRevision,
