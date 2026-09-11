@@ -107,3 +107,47 @@ Caching rules on the site side:
 ### Not verified here
 
 Everything above is covered by vitest with a stubbed upstream. The live VPS engine behaviours — that a credentialed asset request really returns the pinned revision after unpublish, and the real latency/timeout shapes — can only be confirmed against the running engine and a browser pass.
+
+## Publication link — `/p/<identifier>/` (site side)
+
+Status: **implemented locally on `feat/site-published-mission-link`; verified against a locally published Florence release, no deploy.**
+
+The Studio's publication panel shows the player link `<site-base>/p/<releaseId>/`. The site owns that route:
+
+- `GET /p/<identifier>/` (with or without the trailing slash) resolves the identifier against the published catalog and always serves the site shell, with the honest status: `200` for a published link, `404` for a link that names nothing published, `5xx` when the catalog cannot be read. The response carries `x-lh-mission-link: published | not-found | unavailable`.
+- `GET /api/missions/<identifier>` answers the published card (`{ mission: { publicMissionId, slug, releaseId, contentHash, channel, listing } }`), `404 PUBLIC_MISSION_NOT_FOUND`, or `5xx PUBLIC_CATALOG_UNAVAILABLE`. It starts no session.
+- `<identifier>` is any of the three public names of one publication: the canonical `publicMissionId` (`mission:<project>:<quest>`), the author's `slug`, or the `releaseId` the Studio links to.
+- The page then starts the session through the ordinary public `POST /api/games` with `mode: chronicle` and the mission's canonical `publicMissionId`. The client accepts the answer only when `presentation.kind === "published-mission"`; a legacy scenario that happens to share the id is refused, and an unknown `mission:` reference stays `404`. There is no legacy fallback behind a publication link.
+- `wrangler.jsonc` sends `/p/*` to the worker first so those statuses are real (the shell body still comes from the asset router).
+
+### The studio side (owned by another executor)
+
+The Studio takes the site address from `meta[name="lh-site-base"]` in its own `index.html`
+(see `studioSiteBaseUrl()` and `publicMissionUrl()` in `apps/studio/src/app.ts`). The exact line
+to insert is:
+
+```html
+<meta name="lh-site-base" content="https://living-history-sandbox.conradipui.workers.dev" />
+```
+
+The Studio strips a trailing slash and appends `/p/<releaseId>/`. A local stand uses the same tag
+with the local site origin (the verification run used `http://127.0.0.1:8791`).
+
+### Known gap: the session's starting world is not materialized
+
+A published mission's authored options change resources, and the engine refuses an effect whose
+resource does not exist in the session world (`MISSION_TURN_EFFECT_FAILED`, `resource_not_found`).
+The public session-create contract takes that world from the caller and the site sends an empty one,
+while the authoritative world is derived by the engine from the release's compiled blocks
+(`materializePublishedRuntimeTemplate` in `apps/server/src/published-release-resolver.ts`), which no
+public route exposes.
+
+Measured on the local Florence release (`release-...`, 6 scenes / 3 endings):
+
+- with the site's empty world: `close` (no effect) applies, `draft` / `healer` (resource effects) are
+  refused with `422 MISSION_TURN_EFFECT_FAILED`;
+- with the world of the release pin: `draft` applies (`200`).
+
+Until the public session-create materializes the world from the publication (or the catalog exposes
+it), a publication link opens the correct mission and plays its effect-free path only. This belongs
+to the engine's public contract, not to the site route.

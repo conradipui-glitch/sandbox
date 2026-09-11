@@ -1,0 +1,34 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "living-history-sandbox-local-verify",
+  "main": "../src/worker/b11-entry.ts",
+  "compatibility_date": "2026-08-20",
+  "workers_dev": false,
+  "vars": {
+    "ENGINE_PUBLIC_CATALOG_URL": "http://127.0.0.1:8921/public/v1/missions",
+    "ENGINE_PUBLIC_MISSION_URL": "http://127.0.0.1:8921",
+    "ENGINE_FLORENCE_PROJECT_ID": "florence",
+    "ENGINE_FLORENCE_QUEST_ID": "florence-workshop",
+    "ENGINE_FLORENCE_ROLLOUT": "on"
+  },
+  "assets": {
+    "directory": "../dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/p/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "HISTORY_SESSIONS", "class_name": "HistorySession" },
+      { "name": "PRODUCT_ANALYTICS", "class_name": "ProductAnalytics" },
+      { "name": "RUNTIME_ROUTE_SESSIONS", "class_name": "RuntimeRouteSession" },
+      { "name": "PUBLIC_MISSION_ROUTE_SESSIONS", "class_name": "PublishedMissionRouteSession" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["HistorySession"] },
+    { "tag": "v2", "new_sqlite_classes": ["ProductAnalytics"] },
+    { "tag": "v3-b11-runtime-routing", "new_sqlite_classes": ["RuntimeRouteSession"] },
+    { "tag": "v4-m06-published-missions", "new_sqlite_classes": ["PublishedMissionRouteSession"] }
+  ]
+}

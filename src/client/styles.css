@@ -788,3 +788,14 @@ button { color: inherit; }
   .scene-florence-world .scene-character.scene-slot-left { left: -58px; }
   .scene-florence-world .scene-character.scene-slot-right { right: -58px; }
 }
+
+/* The publication link page: `/p/<id>/` states before the mission is on screen. */
+.mission-link { min-height: 100vh; display: grid; place-items: center; padding: 48px 42px; }
+.mission-link-card { width: min(680px, 100%); border: 1px solid var(--line); padding: 46px 40px; text-align: center; background: radial-gradient(circle at 50% 0%, rgba(201, 76, 54, .08), transparent 62%), #16140f; }
+.mission-link-kicker { display: block; margin-bottom: 14px; color: var(--red); font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
+.mission-link-card h1 { margin: 0 0 16px; color: var(--paper); font: 400 30px/1.25 "Prata", serif; }
+.mission-link-card p { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.75; }
+.mission-link-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin-top: 24px; }
+.mission-link-card button, .mission-link-button { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 20px; border: 1px solid rgba(201, 76, 54, .55); background: rgba(201, 76, 54, .1); color: #f0e9dc; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; text-decoration: none; cursor: pointer; }
+.mission-link-card button:disabled { opacity: .55; cursor: default; }
+.mission-link-card button:hover, .mission-link-button:hover { background: rgba(201, 76, 54, .2); }

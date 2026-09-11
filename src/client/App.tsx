@@ -1,5 +1,7 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PublishedMissionStage, isPublishedMissionGame } from "./PublishedMissionStage";
+import { PublishedMissionLinkPage } from "./PublishedMissionLinkPage";
+import { siteRoute } from "./published-mission-link";
 import {
   ArrowLeft,
   ArrowRight,
@@ -1160,5 +1162,10 @@ function GameApp() {
 }
 
 export default function App() {
-  return window.location.pathname === "/analytics" ? <AnalyticsDashboard /> : <GameApp />;
+  const route = siteRoute(window.location.pathname);
+  if (route.kind === "analytics") return <AnalyticsDashboard />;
+  // The publication link is a page of its own: it never shows the landing list
+  // and never opens a legacy scenario.
+  if (route.kind === "published-mission") return <PublishedMissionLinkPage identifier={route.identifier} />;
+  return <GameApp />;
 }

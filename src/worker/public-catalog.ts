@@ -1,21 +1,7 @@
-import type { ScenarioSummary } from "../shared/types";
+import type { PublishedMissionCard, ScenarioSummary } from "../shared/types";
 
-export interface PublishedCatalogMission {
-  readonly publicMissionId: string;
-  readonly slug: string;
-  readonly releaseId: string;
-  readonly contentHash: string;
-  readonly channel: "production";
-  readonly listing: {
-    readonly title: string;
-    readonly summary: string;
-    readonly period: string;
-    readonly place: string;
-    readonly playerRole: string;
-    readonly estimatedMinutes: number;
-    readonly supportedModes: readonly string[];
-  };
-}
+/** The public catalog card: one authored mission as the engine publishes it. */
+export type PublishedCatalogMission = PublishedMissionCard;
 
 export type PublishedCatalogResult =
   | { readonly ok: true; readonly missions: readonly PublishedCatalogMission[] }
@@ -71,4 +57,23 @@ export function toScenarioSummaries(missions: readonly PublishedCatalogMission[]
     accent: "#c94c36",
     available: true,
   }));
+}
+
+/**
+ * Resolves one published mission by any identifier the public catalog exposes.
+ *
+ * The Studio's publication panel links players to `/p/<releaseId>/`, while the
+ * mission's own public id is `mission:<project>:<quest>` and the catalog also
+ * carries the author's `slug`. All three name the same publication, so the site
+ * accepts all three and always continues with the canonical `publicMissionId`.
+ */
+export function matchPublishedMission(
+  missions: readonly PublishedCatalogMission[],
+  identifier: string,
+): PublishedCatalogMission | null {
+  return missions.find((mission) =>
+    mission.publicMissionId === identifier
+    || mission.slug === identifier
+    || mission.releaseId === identifier
+  ) ?? null;
 }

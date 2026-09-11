@@ -1,6 +1,6 @@
 import legacyWorker, { HistorySession, ProductAnalytics } from "./index";
 import { handleEngineBff, RuntimeRouteSession, type EngineBffEnv } from "./engine-bff";
-import { fetchPublishedCatalog, toScenarioSummaries } from "./public-catalog";
+import { fetchPublishedCatalog, matchPublishedMission, toScenarioSummaries, type PublishedCatalogMission } from "./public-catalog";
 import type { ScenarioSummary } from "../shared/types";
 import {
   applyPublishedMissionTurn,
@@ -98,7 +98,7 @@ async function publishedRequest(request: Request, env: EngineBffEnv, url: URL): 
     if (!body || typeof body.scenarioId !== "string" || (body.mode !== "chronicle" && body.mode !== "campaign" && body.mode !== "sandbox")) return null;
     const catalog = await fetchPublishedCatalog(catalogUrl);
     if (!catalog.ok) return Response.json({ error: "Published mission catalog unavailable", code: catalog.code }, { status: catalog.status });
-    const mission = catalog.missions.find((entry) => entry.publicMissionId === body.scenarioId || entry.slug === body.scenarioId);
+    const mission = matchPublishedMission(catalog.missions, body.scenarioId);
     if (!mission) {
       // A reserved published reference that the catalog does not know is a
       // contract 404 — it must not silently become a legacy game.
@@ -176,9 +176,126 @@ async function publishedRequest(request: Request, env: EngineBffEnv, url: URL): 
   return null;
 }
 
+/**
+ * A failure of the publication catalog is a site-side 5xx. An upstream 404 on
+ * the catalog URL is a broken catalog, not a missing mission.
+ */
+function catalogFailureStatus(status: number): number {
+  return status >= 500 && status < 600 ? status : 503;
+}
+
+function noStoreJson(status: number, body: unknown, headers: Record<string, string> = {}): Response {
+  return Response.json(body, {
+    status,
+    headers: { "cache-control": "no-store", "x-content-type-options": "nosniff", ...headers },
+  });
+}
+
+/** `/api/missions/<identifier>`; the session/asset routes have more segments. */
+const PUBLISHED_MISSION_CARD_PATH = /^\/api\/missions\/([^/]+)$/;
+/** The publication link the Studio shows: `<site>/p/<releaseId>/`. */
+const PUBLISHED_MISSION_PAGE_PATH = /^\/p\/([^/]+)\/?$/;
+
+type PublishedMissionLookup =
+  | { readonly ok: true; readonly mission: PublishedCatalogMission }
+  | { readonly ok: false; readonly status: number; readonly code: string };
+
+/**
+ * Resolves one identifier against the published catalog. All three public names
+ * of a publication are accepted (`publicMissionId`, the author's `slug` and the
+ * linked `releaseId`), and a catalog that cannot be read is never reported as a
+ * missing mission.
+ */
+async function lookupPublishedMission(env: EngineBffEnv, identifier: string): Promise<PublishedMissionLookup> {
+  const catalogUrl = env.ENGINE_PUBLIC_CATALOG_URL;
+  if (typeof catalogUrl !== "string" || catalogUrl.length === 0) {
+    return { ok: false, status: 503, code: "PUBLIC_MISSION_RUNTIME_UNAVAILABLE" };
+  }
+  const catalog = await fetchPublishedCatalog(catalogUrl);
+  if (!catalog.ok) return { ok: false, status: catalogFailureStatus(catalog.status), code: catalog.code };
+  const mission = matchPublishedMission(catalog.missions, identifier);
+  if (!mission) return { ok: false, status: 404, code: "PUBLIC_MISSION_NOT_FOUND" };
+  return { ok: true, mission };
+}
+
+/**
+ * The page contract for a publication link. The Studio links players to
+ * `/p/<releaseId>/`, so the page itself must answer whether that link names a
+ * published mission: an unknown link is a 404 and a catalog failure is a 5xx.
+ * The body is always the site's own shell — the client renders the honest state
+ * from the same contract.
+ */
+async function servePublishedMissionPage(
+  request: Request,
+  env: EngineBffEnv & Record<string, unknown>,
+  url: URL
+): Promise<Response | null> {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  const match = PUBLISHED_MISSION_PAGE_PATH.exec(url.pathname);
+  if (!match) return null;
+  const identifier = decodeMissionIdSegment(match[1]);
+  let status = 200;
+  let link = "published";
+  if (!identifier) {
+    status = 404;
+    link = "not-found";
+  } else {
+    const lookup = await lookupPublishedMission(env, identifier);
+    if (!lookup.ok) {
+      // The shell is served either way: the player must see a page, and the
+      // status must tell the truth about the link.
+      status = lookup.status;
+      link = lookup.status === 404 ? "not-found" : "unavailable";
+    }
+  }
+  const shell = await legacyWorker.fetch(request, env as never);
+  // The shell is re-wrapped to carry the link's status, so the router's own
+  // encoding headers (content-encoding/content-length/etag) describe bytes that
+  // no longer exist. Forward only the content type and state the cache policy
+  // of this response explicitly.
+  const headers = new Headers();
+  const contentType = shell.headers.get("content-type");
+  if (contentType) headers.set("content-type", contentType);
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("x-lh-mission-link", link);
+  headers.set("cache-control", status === 200 ? "public, max-age=0, must-revalidate" : "no-store");
+  return new Response(request.method === "HEAD" ? null : shell.body, { status, headers });
+}
+
+/**
+ * The published card of one mission, without starting a session. The page needs
+ * the authored card before it offers the start, and the canonical
+ * `publicMissionId` is what keeps the later `POST /api/games` inside the
+ * published namespace instead of risking a legacy game.
+ */
+async function resolvePublishedMissionRequest(
+  request: Request,
+  env: EngineBffEnv & Record<string, unknown>,
+  url: URL
+): Promise<Response | null> {
+  const match = PUBLISHED_MISSION_CARD_PATH.exec(url.pathname);
+  if (!match || request.method !== "GET") return null;
+  const identifier = decodeMissionIdSegment(match[1]);
+  if (!identifier) return noStoreJson(404, { error: "Published mission not found", code: "PUBLIC_MISSION_NOT_FOUND" });
+  const lookup = await lookupPublishedMission(env, identifier);
+  if (!lookup.ok) {
+    return noStoreJson(
+      lookup.status,
+      {
+        error: lookup.status === 404 ? "Published mission not found" : "Published mission catalog unavailable",
+        code: lookup.code,
+      },
+      lookup.status === 404 ? {} : { "x-lh-catalog-state": "unavailable" }
+    );
+  }
+  return noStoreJson(200, { mission: lookup.mission });
+}
+
 export default {
   async fetch(request: Request, env: EngineBffEnv & Record<string, unknown>): Promise<Response> {
     const url = new URL(request.url);
+    const page = await servePublishedMissionPage(request, env, url);
+    if (page) return page;
     const catalogUrl = env.ENGINE_PUBLIC_CATALOG_URL;
     if (request.method === "GET" && url.pathname === "/api/scenarios" && typeof catalogUrl === "string" && catalogUrl.length > 0) {
       const catalog = await fetchPublishedCatalog(catalogUrl);
@@ -208,6 +325,8 @@ export default {
     }
     const published = await publishedRequest(request, env, url);
     if (published) return published;
+    const card = await resolvePublishedMissionRequest(request, env, url);
+    if (card) return card;
     return handleEngineBff(
       request,
       env,

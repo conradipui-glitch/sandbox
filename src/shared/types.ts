@@ -1,6 +1,31 @@
 export type MetricId = "legitimacy" | "economy" | "army" | "stability" | "diplomacy";
 export type GameMode = "chronicle" | "campaign" | "sandbox";
 
+/** The author's listing of a published mission, as the public catalog carries it. */
+export interface PublishedMissionListing {
+  readonly title: string;
+  readonly summary: string;
+  readonly period: string;
+  readonly place: string;
+  readonly playerRole: string;
+  readonly estimatedMinutes: number;
+  readonly supportedModes: readonly string[];
+}
+
+/**
+ * One published mission from the engine's public catalog. `publicMissionId` is
+ * the canonical reference the game contract uses; the Studio's player link names
+ * the same publication by `releaseId`, and authors know it by `slug`.
+ */
+export interface PublishedMissionCard {
+  readonly publicMissionId: string;
+  readonly slug: string;
+  readonly releaseId: string;
+  readonly contentHash: string;
+  readonly channel: "production";
+  readonly listing: PublishedMissionListing;
+}
+
 /**
  * Discriminator for the game contract: a published authored mission renders
  * through the shared mission renderer, a legacy scenario keeps its own art.

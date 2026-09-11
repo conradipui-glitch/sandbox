@@ -1,4 +1,4 @@
-import type { GameMode, GameState, ProductAnalyticsOverview, ScenarioSummary, SessionAnalyticsSummary, TurnSubmission } from "../shared/types";
+import type { GameMode, GameState, ProductAnalyticsOverview, PublishedMissionCard, ScenarioSummary, SessionAnalyticsSummary, TurnSubmission } from "../shared/types";
 
 const visitorStorageKey = "living-history-anonymous-visitor";
 
@@ -47,6 +47,12 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   scenarios: () => request<ScenarioSummary[]>("/api/scenarios"),
+  /**
+   * The published card behind a publication link. A link that names nothing
+   * published answers 404; a catalog that cannot be read answers 5xx — the page
+   * shows those two states differently.
+   */
+  publishedMission: (identifier: string) => request<{ mission: PublishedMissionCard }>(`/api/missions/${encodeURIComponent(identifier)}`),
   createGame: (scenarioId: string, mode: GameMode) =>
     request<GameState>("/api/games", { method: "POST", body: JSON.stringify({ scenarioId, mode, visitorId: anonymousVisitorId() }) }),
   getGame: (id: string) => request<GameState>(`/api/games/${id}`, { headers: { "x-lh-visitor-id": anonymousVisitorId() } }),
