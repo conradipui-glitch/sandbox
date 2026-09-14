@@ -103,6 +103,9 @@ export interface PreviewFrameView {
   readonly dialogue?: readonly PreviewDialogueLineView[];
   /** Present on an authored intro screen that belongs to a multi-page intro. */
   readonly introPage?: PreviewIntroPageView;
+  /** Optional authored context and takeaway of an intro page. */
+  readonly introKicker?: string;
+  readonly introNote?: string;
   readonly turn: number;
   readonly contentRevision: number;
   readonly contentHash: string;

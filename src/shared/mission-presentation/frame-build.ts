@@ -78,7 +78,14 @@ export interface FrameDocShape {
     readonly endings: readonly { readonly id: string; readonly title: string; readonly text: string }[];
   };
   readonly screens?: {
-    readonly intros?: readonly { readonly id: string; readonly title: string; readonly body: string; readonly background: FrameAssetRef | null }[];
+    readonly intros?: readonly {
+      readonly id: string;
+      readonly kicker?: string;
+      readonly title: string;
+      readonly body: string;
+      readonly note?: string;
+      readonly background: FrameAssetRef | null;
+    }[];
     readonly scenes?: Readonly<Record<string, FrameScreenShape>>;
     readonly endings?: Readonly<Record<string, FrameScreenShape>>;
   };
@@ -227,7 +234,14 @@ export function buildMissionFrame(input: {
 
 function introFrame(
   doc: FrameDocShape,
-  intro: { readonly id: string; readonly title: string; readonly body: string; readonly background: FrameAssetRef | null },
+  intro: {
+    readonly id: string;
+    readonly kicker?: string;
+    readonly title: string;
+    readonly body: string;
+    readonly note?: string;
+    readonly background: FrameAssetRef | null;
+  },
   index: number,
   count: number,
   turn: number,
@@ -252,6 +266,8 @@ function introFrame(
     choices: Object.freeze([]),
     dialogue: Object.freeze([]),
     introPage: { index, count, hasNext: index < count - 1 },
+    ...(typeof intro.kicker === "string" && intro.kicker.length > 0 ? { introKicker: intro.kicker } : {}),
+    ...(typeof intro.note === "string" && intro.note.length > 0 ? { introNote: intro.note } : {}),
     turn: Number.isSafeInteger(turn) && turn >= 0 ? turn : 0,
     contentRevision: doc.contentRevision,
     contentHash: doc.contentHash,

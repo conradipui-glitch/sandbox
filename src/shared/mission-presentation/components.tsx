@@ -294,8 +294,10 @@ export function MissionIntroScreen({
     >
       <MissionSceneStage frame={{ ...frame, choices: [] }} paused />
       <div className="mp-intro-body">
+        {frame.introKicker ? <span className="mp-intro-kicker">{frame.introKicker}</span> : null}
         <h1>{frame.title}</h1>
         <p>{frame.text}</p>
+        {frame.introNote ? <strong className="mp-intro-note">{frame.introNote}</strong> : null}
         {page ? <span className="mp-intro-progress">{`${page.index + 1} / ${page.count}`}</span> : null}
         {hasNext ? (
           <button type="button" className="mp-primary mp-intro-next" onClick={(event) => onNext?.(event.nativeEvent)}>

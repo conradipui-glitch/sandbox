@@ -26,6 +26,44 @@ export interface PublishedMissionCard {
   readonly listing: PublishedMissionListing;
 }
 
+export interface PublishedRuntimeResourceView {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly unit: string;
+  readonly value: number;
+  readonly min: number;
+  readonly max: number;
+  readonly delta: number;
+}
+
+export interface PublishedRuntimeParticipantView {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+  readonly status: string;
+  readonly locationId: string | null;
+  readonly locationTitle: string | null;
+}
+
+export interface PublishedMissionHistoryView {
+  readonly id: string;
+  readonly turn: number;
+  readonly choiceId: string;
+  readonly choiceLabel: string;
+  readonly fromTitle: string;
+  readonly toTitle: string;
+  readonly deltas: readonly { readonly resourceId: string; readonly delta: number }[];
+  readonly terminal: boolean;
+}
+
+export interface PublishedMissionRuntimeView {
+  readonly resources: readonly PublishedRuntimeResourceView[];
+  readonly participants: readonly PublishedRuntimeParticipantView[];
+  readonly history: readonly PublishedMissionHistoryView[];
+  readonly lastResolution: PublishedMissionHistoryView | null;
+}
+
 /**
  * Discriminator for the game contract: a published authored mission renders
  * through the shared mission renderer, a legacy scenario keeps its own art.
@@ -40,6 +78,8 @@ export interface PublishedMissionPresentation {
    * does not spend a turn.
    */
   readonly intros?: readonly import("./mission-presentation/view-model").PreviewFrameView[];
+  /** Authoritative runtime projection from the pinned release and session. */
+  readonly runtime?: PublishedMissionRuntimeView;
   readonly reaction: "applied" | "start";
 }
 

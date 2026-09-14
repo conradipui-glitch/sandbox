@@ -1,10 +1,57 @@
-import type { DecisionOption, GameMode, GameState, ScenarioSummary } from "../shared/types";
+import type { DecisionOption, GameMode, GameState, PublishedMissionRuntimeView, ScenarioSummary } from "../shared/types";
 import { buildMissionFrame, buildMissionIntroFrames, type FrameDocShape } from "../shared/mission-presentation/frame-build";
 import { missionSceneView, type MissionBffSceneView, type MissionDocShape } from "./mission-bff";
 
 export interface PublishedMissionTerminal {
   readonly kind: "ending";
   readonly endingId: string;
+}
+
+export interface PublishedRuntimeMetadata {
+  readonly schemaVersion: 1;
+  readonly locations: readonly { readonly id: string; readonly title: string; readonly description: string }[];
+  readonly participants: readonly { readonly id: string; readonly title: string; readonly description: string }[];
+  readonly resources: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly description: string;
+    readonly unit: string;
+    readonly min: number;
+    readonly max: number;
+  }[];
+}
+
+export interface PublishedWorldSnapshot {
+  readonly schemaVersion: string;
+  readonly revision: number;
+  readonly clock: { readonly elapsedSeconds: number };
+  readonly locations: readonly { readonly id: string }[];
+  readonly entities: readonly {
+    readonly id: string;
+    readonly type: string;
+    readonly status: string;
+    readonly locationId: string | null;
+  }[];
+  readonly resources: readonly {
+    readonly id: string;
+    readonly unit: string;
+    readonly value: number;
+    readonly min: number;
+    readonly max: number;
+  }[];
+  readonly items: readonly unknown[];
+  readonly terminal?: unknown;
+}
+
+export interface PublishedMissionHistoryEntry {
+  readonly id: string;
+  readonly turn: number;
+  readonly choiceId: string;
+  readonly choiceLabel: string;
+  readonly fromTitle: string;
+  readonly toTitle: string;
+  readonly deltas: readonly { readonly resourceId: string; readonly delta: number }[];
+  readonly terminal: boolean;
 }
 
 export interface PublishedMissionBinding {
@@ -19,6 +66,12 @@ export interface PublishedMissionBinding {
   readonly missionSessionId: string;
   readonly turn: number;
   readonly currentSceneId: string;
+  /** Public labels from the pinned compiled release. Absent on legacy bindings. */
+  readonly runtime?: PublishedRuntimeMetadata;
+  /** Last authoritative world snapshot. Absent on legacy bindings. */
+  readonly world?: PublishedWorldSnapshot;
+  /** Confirmed decisions made in this browser session. */
+  readonly history?: readonly PublishedMissionHistoryEntry[];
   /**
    * Canonical terminal of the engine session. The engine keeps the previous
    * scene id at a finale and records the ending in the world, so the ending
@@ -72,6 +125,70 @@ function isMissionDoc(value: unknown): value is MissionDocShape {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const doc = value as any;
   return Number.isSafeInteger(doc.contentRevision) && typeof doc.contentHash === "string" && doc.story && typeof doc.story.entrySceneId === "string" && Array.isArray(doc.story.scenes) && Array.isArray(doc.story.endings);
+}
+
+function isRuntimeMetadata(value: unknown): value is PublishedRuntimeMetadata {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const runtime = value as any;
+  const common = (entry: any) => entry && typeof entry.id === "string" && ID.test(entry.id) && typeof entry.title === "string" && typeof entry.description === "string";
+  return runtime.schemaVersion === 1
+    && Array.isArray(runtime.locations) && runtime.locations.every(common)
+    && Array.isArray(runtime.participants) && runtime.participants.every(common)
+    && Array.isArray(runtime.resources) && runtime.resources.every((entry: any) => common(entry)
+      && typeof entry.unit === "string" && Number.isFinite(entry.min) && Number.isFinite(entry.max));
+}
+
+function worldSnapshot(value: unknown): PublishedWorldSnapshot | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const world = value as any;
+  if (typeof world.schemaVersion !== "string" || !Number.isSafeInteger(world.revision) || !world.clock || !Number.isFinite(world.clock.elapsedSeconds) || !Array.isArray(world.locations) || !Array.isArray(world.entities) || !Array.isArray(world.resources) || !Array.isArray(world.items)) return undefined;
+  if (!world.locations.every((entry: any) => entry && typeof entry.id === "string" && ID.test(entry.id))) return undefined;
+  if (!world.entities.every((entry: any) => entry && typeof entry.id === "string" && ID.test(entry.id) && typeof entry.type === "string" && typeof entry.status === "string" && (entry.locationId === null || (typeof entry.locationId === "string" && ID.test(entry.locationId))))) return undefined;
+  if (!world.resources.every((entry: any) => entry && typeof entry.id === "string" && ID.test(entry.id) && typeof entry.unit === "string" && Number.isFinite(entry.value) && Number.isFinite(entry.min) && Number.isFinite(entry.max))) return undefined;
+  return {
+    schemaVersion: world.schemaVersion,
+    revision: world.revision,
+    clock: { elapsedSeconds: world.clock.elapsedSeconds },
+    locations: world.locations.map((entry: any) => ({ id: entry.id })),
+    entities: world.entities.map((entry: any) => ({ id: entry.id, type: entry.type, status: entry.status, locationId: entry.locationId ?? null })),
+    resources: world.resources.map((entry: any) => ({ id: entry.id, unit: entry.unit, value: entry.value, min: entry.min, max: entry.max })),
+    items: world.items,
+    terminal: world.terminal ?? null
+  };
+}
+
+function resourceDeltas(before: PublishedWorldSnapshot | undefined, after: PublishedWorldSnapshot | undefined): readonly { resourceId: string; delta: number }[] {
+  if (!before || !after) return [];
+  const previous = new Map(before.resources.map((entry) => [entry.id, entry.value]));
+  return after.resources
+    .map((entry) => ({ resourceId: entry.id, delta: entry.value - (previous.get(entry.id) ?? entry.value) }))
+    .filter((entry) => entry.delta !== 0);
+}
+
+function choiceLabel(binding: PublishedMissionBinding, choiceId: string): string {
+  const scene = binding.missionDoc.story.scenes.find((entry) => entry.id === binding.currentSceneId);
+  return scene?.choices.find((choice) => choice.id === choiceId)?.label ?? choiceId;
+}
+
+function runtimeView(binding: PublishedMissionBinding): PublishedMissionRuntimeView | undefined {
+  if (!binding.runtime || !binding.world) return undefined;
+  const lastResolution = binding.history?.at(-1) ?? null;
+  const deltas = new Map((lastResolution?.deltas ?? []).map((entry) => [entry.resourceId, entry.delta]));
+  const locations = new Map(binding.runtime.locations.map((entry) => [entry.id, entry.title]));
+  const entities = new Map(binding.world.entities.map((entry) => [entry.id, entry]));
+  const resources = new Map(binding.world.resources.map((entry) => [entry.id, entry]));
+  return {
+    resources: binding.runtime.resources.flatMap((definition) => {
+      const state = resources.get(definition.id);
+      return state ? [{ ...definition, value: state.value, min: state.min, max: state.max, unit: state.unit, delta: deltas.get(definition.id) ?? 0 }] : [];
+    }),
+    participants: binding.runtime.participants.flatMap((definition) => {
+      const state = entities.get(definition.id);
+      return state ? [{ ...definition, status: state.status, locationId: state.locationId, locationTitle: state.locationId ? locations.get(state.locationId) ?? null : null }] : [];
+    }),
+    history: [...(binding.history ?? [])],
+    lastResolution
+  };
 }
 
 export function publishedMissionSceneView(binding: PublishedMissionBinding): MissionBffSceneView | null {
@@ -182,10 +299,12 @@ export async function reconcilePublishedMissionSession(input: {
   if (!session || typeof session.currentSceneId !== "string" || typeof session.turn !== "number" || !Number.isSafeInteger(session.turn)) {
     return { ok: false, status: 503, code: "MISSION_STATE_UNAVAILABLE" };
   }
+  const world = worldSnapshot(session.world);
   const binding: PublishedMissionBinding = {
     ...input.binding,
     turn: session.turn,
     currentSceneId: session.currentSceneId,
+    ...(world ? { world } : {}),
     terminal: terminalFromWorld(session.world) ?? input.binding.terminal ?? null
   };
   const view = viewFor(binding.missionDoc, { currentSceneId: binding.currentSceneId, turn: binding.turn }, binding.terminal);
@@ -219,7 +338,29 @@ export async function createPublishedMissionSession(input: {
   }
   const view = viewFor(mission, session);
   if (!view) return { ok: false, status: 503, code: "MISSION_SESSION_CREATE_FAILED" };
-  return { ok: true, view, binding: { version: 1, publicSessionId: input.publicSessionId, scenarioRef: input.publicMissionId, mode: input.mode, engineBaseUrl, credential, listing: input.listing, missionDoc: mission, missionSessionId, turn: session.turn, currentSceneId: session.currentSceneId, terminal: terminalFromWorld(session.world) } };
+  const world = worldSnapshot(session.world);
+  const runtime = isRuntimeMetadata(response.payload?.runtime) ? response.payload.runtime : undefined;
+  return {
+    ok: true,
+    view,
+    binding: {
+      version: 1,
+      publicSessionId: input.publicSessionId,
+      scenarioRef: input.publicMissionId,
+      mode: input.mode,
+      engineBaseUrl,
+      credential,
+      listing: input.listing,
+      missionDoc: mission,
+      missionSessionId,
+      turn: session.turn,
+      currentSceneId: session.currentSceneId,
+      ...(runtime ? { runtime } : {}),
+      ...(world ? { world } : {}),
+      history: [],
+      terminal: terminalFromWorld(session.world)
+    }
+  };
 }
 
 export async function applyPublishedMissionTurn(input: {
@@ -242,7 +383,32 @@ export async function applyPublishedMissionTurn(input: {
   const terminal = terminalFromTarget(response.payload?.target) ?? terminalFromWorld(session.world) ?? input.binding.terminal ?? null;
   const view = viewFor(input.binding.missionDoc, session, terminal);
   if (!view) return { ok: false, status: 503, code: "MISSION_TURN_FAILED" };
-  return { ok: true, binding: { ...input.binding, turn: session.turn, currentSceneId: session.currentSceneId, terminal }, view, target: response.payload?.target ?? null, ...(response.payload?.replay ? { replay: true } : {}) };
+  const nextWorld = worldSnapshot(session.world);
+  const previousView = viewFor(input.binding.missionDoc, { currentSceneId: input.binding.currentSceneId, turn: input.binding.turn }, input.binding.terminal ?? null);
+  const historyEntry: PublishedMissionHistoryEntry = {
+    id: `turn-${session.turn}`,
+    turn: session.turn,
+    choiceId: input.choiceId,
+    choiceLabel: choiceLabel(input.binding, input.choiceId),
+    fromTitle: previousView?.title ?? input.binding.currentSceneId,
+    toTitle: view.title,
+    deltas: resourceDeltas(input.binding.world, nextWorld),
+    terminal: terminal !== null
+  };
+  return {
+    ok: true,
+    binding: {
+      ...input.binding,
+      turn: session.turn,
+      currentSceneId: session.currentSceneId,
+      ...(nextWorld ? { world: nextWorld } : {}),
+      history: [...(input.binding.history ?? []), historyEntry],
+      terminal
+    },
+    view,
+    target: response.payload?.target ?? null,
+    ...(response.payload?.replay ? { replay: true } : {})
+  };
 }
 
 export function publishedMissionGameState(
@@ -272,6 +438,7 @@ export function publishedMissionGameState(
     turn: view.turn,
     resolveAsset
   });
+  const runtime = runtimeView(binding);
   return {
     id: binding.publicSessionId, scenarioId: binding.scenarioRef, mode, scenarioTitle: binding.listing.title, role: binding.listing.role,
     date: binding.listing.period, turn: view.turn, status: ended ? "victory" : "active", briefing: `${view.title}\n\n${view.text}`,
@@ -280,7 +447,14 @@ export function publishedMissionGameState(
     timeline: [{ id: "mission-turn", date: binding.listing.period, title: `Ход ${view.turn}`, description: typeof target === "object" && target ? "Решение применено" : "Миссия начата", kind: "decision" }],
     // The authored frame is the only presentation source for a published
     // mission: the legacy scenario art must never be substituted for it.
-    ...(frame ? { presentation: { kind: "published-mission" as const, publicMissionId: binding.scenarioRef, frame, ...(intros.length > 0 ? { intros } : {}), reaction: typeof target === "object" && target ? ("applied" as const) : ("start" as const) } } : {}),
+    ...(frame ? { presentation: {
+      kind: "published-mission" as const,
+      publicMissionId: binding.scenarioRef,
+      frame,
+      ...(intros.length > 0 ? { intros } : {}),
+      ...(runtime ? { runtime } : {}),
+      reaction: typeof target === "object" && target ? ("applied" as const) : ("start" as const)
+    } } : {}),
     lastOutcome: null, createdAt: new Date(0).toISOString(), updatedAt: new Date().toISOString()
   };
 }

@@ -39,6 +39,41 @@ function state(presentation?: GameState["presentation"]): GameState {
 }
 
 describe("R03 site renders the authored mission", () => {
+  it("renders authoritative runtime panels and the confirmed decision history", () => {
+    const richState = state({
+      kind: "published-mission",
+      publicMissionId: "mission:chernobyl:shift",
+      frame: frame(),
+      reaction: "applied",
+      runtime: {
+        resources: [{ id: "coal", title: "Запас угля", description: "Топливо.", unit: "тонна", value: 3, min: 0, max: 10, delta: -2 }],
+        participants: [{ id: "porter", title: "Носильщик", description: "Ждёт приказа.", status: "waiting", locationId: "yard", locationTitle: "Двор" }],
+        history: [{ id: "turn-1", turn: 1, choiceId: "seal", choiceLabel: "Герметизировать", fromTitle: "Бункер", toTitle: "Контур закрыт", deltas: [{ resourceId: "coal", delta: -2 }], terminal: false }],
+        lastResolution: { id: "turn-1", turn: 1, choiceId: "seal", choiceLabel: "Герметизировать", fromTitle: "Бункер", toTitle: "Контур закрыт", deltas: [{ resourceId: "coal", delta: -2 }], terminal: false }
+      }
+    });
+    const html = renderToString(<PublishedMissionStage state={richState} onTurn={() => {}} onExit={() => {}} busy={false} />);
+    expect(html).toContain("Состояние мира");
+    expect(html).toContain("Запас угля");
+    expect(html).toContain("3 / 10");
+    expect(html).toContain("−2 после решения");
+    expect(html).toContain("Участники");
+    expect(html).toContain("Носильщик");
+    expect(html).toContain("Ждёт приказа.");
+    expect(html).toContain("События истории");
+    expect(html).toContain("Герметизировать");
+    expect(html).toContain("Контур закрыт");
+    expect(html).toContain("После вашего решения");
+  });
+
+  it("shows a real processing overlay while a published turn is pending", () => {
+    const html = renderToString(
+      <PublishedMissionStage state={state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame(), reaction: "start" })} onTurn={() => {}} onExit={() => {}} busy />
+    );
+    expect(html).toContain("Мир отвечает на ваше решение");
+    expect(html).toContain("История применяет последствия");
+  });
+
   it("detects a published mission through the contract discriminator", () => {
     expect(isPublishedMissionGame(state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame(), reaction: "start" }))).toBe(true);
     expect(isPublishedMissionGame(state())).toBe(false);
@@ -152,7 +187,10 @@ describe("FIN-05 site slice: the published player plays dialogue and pages intro
   });
 
   it("pages the authored intros before the mission starts, without scene choices", () => {
-    const intros = [introFrame(0, 2, "Пролог"), introFrame(1, 2, "Второе вступление")];
+    const intros = [
+      { ...introFrame(0, 2, "Пролог"), introKicker: "Флоренция · 1512", introNote: "Первый ответ за вами" } as PreviewFrameView,
+      introFrame(1, 2, "Второе вступление")
+    ];
     const html = renderToString(
       <PublishedMissionStage
         state={state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame(), reaction: "start", intros })}
@@ -160,6 +198,8 @@ describe("FIN-05 site slice: the published player plays dialogue and pages intro
       />
     );
     expect(html).toContain("Пролог");
+    expect(html).toContain("Флоренция · 1512");
+    expect(html).toContain("Первый ответ за вами");
     expect(html).toContain("Далее");
     expect(html).toContain("1 / 2");
     expect(html).not.toContain("Второе вступление");
@@ -184,7 +224,10 @@ describe("FIN-05 site slice: the published player plays dialogue and pages intro
     expect(html).not.toContain("mp-choices");
     expect(html).not.toContain("Герметизировать");
     expect(html).not.toContain("Гудит реактор.");
-    expect(html).not.toContain("К списку миссий");
+    // The intro keeps the explicit route back to the mission listing, matching
+    // the original player, but exposes no gameplay controls or scene content.
+    expect(html).toContain("К списку миссий");
+    expect(html).toContain("Вступление");
   });
 
   it("does not re-show the intros once the mission has moved on", () => {
