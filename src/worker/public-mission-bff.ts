@@ -127,6 +127,18 @@ function isMissionDoc(value: unknown): value is MissionDocShape {
   return Number.isSafeInteger(doc.contentRevision) && typeof doc.contentHash === "string" && doc.story && typeof doc.story.entrySceneId === "string" && Array.isArray(doc.story.scenes) && Array.isArray(doc.story.endings);
 }
 
+/**
+ * The input modes the pinned revision declares in its own listing. A mission
+ * that does not declare `free-input` is played by its authored choices only, and
+ * the player must not be offered a field the engine will refuse.
+ */
+export function missionInputModes(doc: MissionDocShape): readonly string[] {
+  const modes = (doc as { readonly listing?: { readonly supportedModes?: unknown } }).listing?.supportedModes;
+  return Array.isArray(modes) && modes.length > 0 && modes.every((mode) => typeof mode === "string")
+    ? (modes as readonly string[])
+    : ["choice"];
+}
+
 function isRuntimeMetadata(value: unknown): value is PublishedRuntimeMetadata {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const runtime = value as any;
@@ -453,6 +465,7 @@ export function publishedMissionGameState(
       frame,
       ...(intros.length > 0 ? { intros } : {}),
       ...(runtime ? { runtime } : {}),
+      inputModes: missionInputModes(binding.missionDoc),
       reaction: typeof target === "object" && target ? ("applied" as const) : ("start" as const)
     } } : {}),
     lastOutcome: null, createdAt: new Date(0).toISOString(), updatedAt: new Date().toISOString()

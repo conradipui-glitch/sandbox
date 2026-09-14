@@ -322,6 +322,7 @@
 .mp-decision-help summary { padding: 11px 14px; color: #b3ac9d; font-size: 12px; cursor: pointer; }
 .mp-decision-help summary:focus-visible { outline: 1px solid var(--mp-accent); outline-offset: -2px; }
 .mp-decision-help p { margin: 0; padding: 0 14px 13px; color: #938c7d; font-size: 12px; line-height: 1.6; }
+.mp-decision-note { margin: 16px 0 0; color: #7f796d; font-size: 12px; line-height: 1.6; }
 .mp-freeform { display: grid; gap: 9px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--mp-line); }
 .mp-freeform label { color: #b3ac9d; font-size: 12px; letter-spacing: .04em; }
 .mp-freeform textarea { width: 100%; min-height: 116px; padding: 13px 15px; border: 1px solid #403d36; border-radius: 3px; background: #141310; color: var(--mp-ink); font: inherit; font-size: 15px; line-height: 1.55; resize: vertical; }

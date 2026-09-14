@@ -108,12 +108,24 @@ describe("R03 site renders the authored mission", () => {
 
   it("offers the authored choices together with a free-text turn, like the original player", () => {
     const html = renderToString(
-      <PublishedMissionStage state={state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame(), reaction: "start" })} onTurn={() => {}} onExit={() => {}} busy={false} />
+      <PublishedMissionStage state={state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame(), reaction: "start", inputModes: ["choice", "free-input"] })} onTurn={() => {}} onExit={() => {}} busy={false} />
     );
     expect(html).toContain("Герметизировать");
     expect(html).toContain("mp-player-action");
     expect(html).toContain("можно написать что угодно своими словами");
     expect(html).toContain("Разыграть ход");
+  });
+
+  it("does not offer a typed turn the engine would refuse", () => {
+    // Florence's pinned revision declares `choice` only, so the field is absent
+    // and the player is told why instead of meeting a 400.
+    const html = renderToString(
+      <PublishedMissionStage state={state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame(), reaction: "start", inputModes: ["choice"] })} onTurn={() => {}} onExit={() => {}} busy={false} />
+    );
+    expect(html).toContain("Герметизировать");
+    expect(html).not.toContain("mp-player-action");
+    expect(html).not.toContain("Разыграть ход");
+    expect(html).toContain("свободный ход автор для неё не открывал");
   });
 
   it("sends a picked choice as prepared and typed words as freeform", () => {

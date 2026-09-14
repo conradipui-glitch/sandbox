@@ -45,6 +45,10 @@ export interface MissionBffBinding {
 export interface MissionDocShape {
   readonly contentRevision: number;
   readonly contentHash: string;
+  /** The mission's own listing, including the input modes it opens to players. */
+  readonly listing?: {
+    readonly supportedModes?: readonly string[];
+  };
   /** Authored presentation of the pinned revision; drives the shared renderer. */
   readonly screens?: FrameDocShape["screens"];
   readonly defaults?: FrameDocShape["defaults"];

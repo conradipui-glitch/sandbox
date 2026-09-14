@@ -80,6 +80,11 @@ export interface PublishedMissionPresentation {
   readonly intros?: readonly import("./mission-presentation/view-model").PreviewFrameView[];
   /** Authoritative runtime projection from the pinned release and session. */
   readonly runtime?: PublishedMissionRuntimeView;
+  /**
+   * The input modes the pinned revision declares in its listing. The player's
+   * decision box offers a typed turn only when `free-input` is among them.
+   */
+  readonly inputModes?: readonly string[];
   readonly reaction: "applied" | "start";
 }
 

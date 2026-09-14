@@ -138,10 +138,12 @@ function PublishedChronicle({ runtime }: { runtime: PublishedMissionRuntimeView 
 function PublishedDecisionComposer({
   choices,
   disabled,
+  allowFreeform,
   onTurn
 }: {
   choices: readonly PreviewChoiceView[];
   disabled: boolean;
+  allowFreeform: boolean;
   onTurn: (submission: TurnSubmission) => void;
 }) {
   const [text, setText] = useState("");
@@ -157,6 +159,30 @@ function PublishedDecisionComposer({
     setText(choice.label);
   };
   const ready = text.trim().length >= 4;
+
+  // A mission that does not declare `free-input` is played by its authored
+  // choices only: no field is offered that the engine would refuse.
+  if (!allowFreeform) {
+    return (
+      <section className="mp-decision" aria-label="Что вы сделаете">
+        <h2>Что вы сделаете?</h2>
+        <div className="mp-choices" role="group" aria-label="Варианты решения">
+          {choices.map((choice) => (
+            <button
+              key={choice.choiceId}
+              type="button"
+              className="mp-choice"
+              disabled={disabled}
+              onClick={() => onTurn(missionChoiceSubmission(choice.choiceId))}
+            >
+              {choice.label}
+            </button>
+          ))}
+        </div>
+        <p className="mp-decision-note">Эта миссия играется выбором вариантов: свободный ход автор для неё не открывал.</p>
+      </section>
+    );
+  }
 
   return (
     <section className="mp-decision" aria-label="Что вы сделаете">
@@ -314,7 +340,12 @@ export function PublishedMissionStage({
             <h1>{frame.title}</h1>
             <p>{frame.text}</p>
           </section>
-          <PublishedDecisionComposer choices={frame.choices} disabled={busy} onTurn={onTurn} />
+          <PublishedDecisionComposer
+            choices={frame.choices}
+            disabled={busy}
+            allowFreeform={(presentation?.inputModes ?? ["choice"]).includes("free-input")}
+            onTurn={onTurn}
+          />
         </div>
         {runtime ? <PublishedChronicle runtime={runtime} /> : <aside className="mp-runtime-chronicle mp-runtime-unavailable">Хроника начнётся в следующем выпуске.</aside>}
       </div>

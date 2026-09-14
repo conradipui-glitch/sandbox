@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPublishedMissionTurn, createPublishedMissionSession, publishedMissionGameState } from "./public-mission-bff";
+import { applyPublishedMissionTurn, createPublishedMissionSession, missionInputModes, publishedMissionGameState } from "./public-mission-bff";
 
   const doc = {
     contentRevision: 2,
@@ -100,4 +100,15 @@ it("carries the authored dialogue and the paged intros in the published state (F
   // so paging an intro never consumes a gameplay turn.
   expect(state.presentation?.intros?.map((page) => page.title)).toEqual(["Пролог"]);
   expect(state.presentation?.intros?.[0].introPage).toEqual({ index: 0, count: 1, hasNext: false });
+});
+
+it("carries the input modes the pinned revision declares, so the player is never offered a refused turn", () => {
+  // A doc without a listing declares choices only...
+  expect(missionInputModes(doc)).toEqual(["choice"]);
+  // ...and one that opens free input says so.
+  const withFreeInput = { ...doc, listing: { supportedModes: ["choice", "free-input"] } };
+  expect(missionInputModes(withFreeInput)).toEqual(["choice", "free-input"]);
+  // A malformed listing is never read as "everything is allowed".
+  expect(missionInputModes({ ...doc, listing: { supportedModes: [] } })).toEqual(["choice"]);
+  expect(missionInputModes({ ...doc, listing: { supportedModes: [7] as unknown as string[] } })).toEqual(["choice"]);
 });
