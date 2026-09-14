@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   MissionEndingScreen,
   MissionIntroPager,
+  MissionMusicToggle,
   MissionSceneStage,
   type MissionMusicControls
 } from "../shared/mission-presentation/components";
@@ -220,7 +221,8 @@ function PublishedThinking() {
   );
 }
 
-function PublishedHeader({ state, onExit, intro = false }: { state: GameState; onExit: () => void; intro?: boolean }) {
+function PublishedHeader({ state, onExit, intro = false, music }: { state: GameState; onExit: () => void; intro?: boolean; music?: MissionMusicControls }) {
+  const hasTrack = Boolean(state.presentation?.frame?.scene.musicUrl);
   return (
     <header className="mp-published-header">
       <button type="button" className="mp-published-back" onClick={onExit}>← К списку миссий</button>
@@ -228,7 +230,10 @@ function PublishedHeader({ state, onExit, intro = false }: { state: GameState; o
         <span>{intro ? "Вступление" : state.scenarioTitle}</span>
         <small>{intro ? state.scenarioTitle : state.role}</small>
       </div>
-      <div className="mp-published-turn">{intro ? "Вступление" : state.status === "active" ? `Ход ${state.turn + 1}` : "Финал"}</div>
+      <div className="mp-published-actions">
+        {music ? <MissionMusicToggle controls={music} hasTrack={hasTrack} /> : null}
+        <div className="mp-published-turn">{intro ? "Вступление" : state.status === "active" ? `Ход ${state.turn + 1}` : "Финал"}</div>
+      </div>
     </header>
   );
 }
@@ -245,6 +250,7 @@ export function PublishedMissionStage({
   busy: boolean;
 }) {
   const [muted, setMuted] = useState(readStoredMute);
+  const [blocked, setBlocked] = useState(false);
   const [introsSeen, setIntrosSeen] = useState(false);
   const toggleMusic = useCallback(() => {
     setMuted((current) => {
@@ -257,7 +263,10 @@ export function PublishedMissionStage({
       return next;
     });
   }, []);
-  const music: MissionMusicControls = { muted, onToggleMute: toggleMusic };
+  // Stable: the audio effect depends on this, so a new identity would re-run it.
+  const unblockMusic = useCallback(() => setBlocked(false), []);
+  const markMusicBlocked = useCallback(() => setBlocked(true), []);
+  const music: MissionMusicControls = { muted, blocked, onToggleMute: toggleMusic, onUnblock: unblockMusic, onToggleBlocked: markMusicBlocked };
 
   const presentation = state.presentation;
   const frame = presentation?.frame;
@@ -267,7 +276,7 @@ export function PublishedMissionStage({
   if (!introsSeen && intros.length > 0 && frame.turn === 0) {
     return (
       <main className="mp-published mp-published-intro" data-scenario-ref={state.scenarioId}>
-        <PublishedHeader state={state} onExit={onExit} intro />
+        <PublishedHeader state={state} onExit={onExit} intro music={music} />
         <MissionIntroPager frames={intros} onBegin={() => setIntrosSeen(true)} />
       </main>
     );
@@ -277,7 +286,7 @@ export function PublishedMissionStage({
   if (frame.kind === "ending") {
     return (
       <main className="mp-published" data-scenario-ref={state.scenarioId}>
-        <PublishedHeader state={state} onExit={onExit} />
+        <PublishedHeader state={state} onExit={onExit} music={music} />
         <div className="mp-runtime-layout">
           {runtime ? <PublishedResourcePanel runtime={runtime} /> : <aside className="mp-runtime-rail mp-runtime-unavailable">Состояние мира недоступно для этого выпуска.</aside>}
           <section className="mp-runtime-main"><PublishedResolution runtime={runtime ?? { resources: [], participants: [], history: [], lastResolution: null }} /><MissionEndingScreen frame={frame} onExit={onExit} music={music} /></section>
@@ -289,7 +298,7 @@ export function PublishedMissionStage({
 
   return (
     <main className="mp-published" data-scenario-ref={state.scenarioId}>
-      <PublishedHeader state={state} onExit={onExit} />
+      <PublishedHeader state={state} onExit={onExit} music={music} />
       {state.contentSource === "pinned" && (
         <p className="mp-pinned-notice" role="status">
           Движок сейчас недоступен: история продолжается на закреплённой версии этой миссии. Новые ходы отправятся, как только движок ответит.

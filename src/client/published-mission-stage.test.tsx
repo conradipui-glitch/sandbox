@@ -155,9 +155,13 @@ describe("R03 site renders the authored mission", () => {
     expect(html).toContain("mp-anim-rise");
     expect(html).toContain('data-background-source="inherited"');
     expect(html).toContain("bunker-theme");
-    expect(html).toContain("Музыка сцены");
+    // The music control is a header icon, exactly like the original player: no
+    // caption is printed over the artwork.
+    expect(html).toContain("mp-music-toggle");
     expect(html).toContain('data-music-state="playing"');
-    expect(html).toContain("Выключить звук");
+    expect(html).toContain("Выключить музыку");
+    expect(html).not.toContain("mp-music-state");
+    expect(html).not.toContain("браузер блокирует автозапуск");
   });
 
   it("says plainly when the game continues on its pinned revision (E16)", () => {

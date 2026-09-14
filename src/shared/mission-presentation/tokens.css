@@ -89,32 +89,28 @@
   border-radius: 6px;
 }
 
-.mp-music {
-  position: absolute;
-  right: 12px;
-  top: 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  background: rgba(18, 17, 15, 0.72);
-  border: 1px solid var(--mp-line);
-  border-radius: 6px;
-  font-size: 12px;
-}
-
+/* The track is played by the audio element alone; the player's control is the
+   header icon (.mp-music-toggle), so no caption sits on the artwork. */
 .mp-music-audio { display: none; }
-.mp-music-title { color: var(--mp-ink); }
-.mp-music-state { color: var(--mp-muted); }
-.mp-music-button {
-  min-height: 24px;
+.mp-music-toggle {
+  position: relative;
+  width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #48443b;
+  border-radius: 4px;
   background: transparent;
   color: var(--mp-ink);
-  border: 1px solid var(--mp-line);
-  border-radius: 6px;
-  padding: 2px 8px;
   cursor: pointer;
+  transition: border-color .18s, color .18s;
 }
+.mp-music-toggle:hover,
+.mp-music-toggle:focus-visible { border-color: var(--mp-accent); color: #f0c0b7; outline: none; }
+.mp-music-toggle[data-music-state="muted"] { color: var(--mp-muted); }
+.mp-music-hint { position: absolute; right: 5px; top: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--mp-accent); }
+.mp-published-actions { display: flex; align-items: center; gap: 10px; }
 
 .mp-choices { display: grid; gap: 8px; }
 
@@ -379,6 +375,9 @@
 .mp-published-intro .mp-published-back { color: #4a4238; border-color: #b7aa96; }
 .mp-published-intro .mp-published-identity small { color: #746b5e; }
 .mp-published-intro .mp-published-turn { color: #873c2e; border-color: #a65a49; }
+.mp-published-intro .mp-music-toggle { color: #3c352c; border-color: #b7aa96; }
+.mp-published-intro .mp-music-toggle:hover,
+.mp-published-intro .mp-music-toggle:focus-visible { color: #873c2e; border-color: #a65a49; }
 .mp-published-intro > .mp-intro { min-height: calc(100vh - 72px); grid-template-columns: minmax(0, 1fr) minmax(360px, 1.05fr); gap: 0; align-items: stretch; }
 .mp-published-intro .mp-intro > .mp-stage { grid-column: 2; grid-row: 1; aspect-ratio: auto; min-height: calc(100vh - 72px); }
 .mp-published-intro .mp-intro-body { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; justify-content: center; padding: clamp(34px, 7vw, 120px); background: linear-gradient(110deg,#eee6d5,#d9c8aa); }

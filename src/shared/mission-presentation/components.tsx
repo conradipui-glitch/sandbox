@@ -54,18 +54,20 @@ interface PlayableAudio {
 
 export interface MissionMusicControls {
   readonly muted: boolean;
+  readonly blocked: boolean;
   readonly onToggleMute: () => void;
+  readonly onUnblock: () => void;
+  /** Reported by the audio element itself when the browser refuses to autoplay. */
+  readonly onToggleBlocked: () => void;
 }
 
 /**
- * Plays the scene's authored music. The track is the one the author saved
- * on the screen; the state follows the real mute toggle and the browser's
- * autoplay decision (a blocked track offers "Играть" instead of pretending).
- * The contract carries the track only as its asset id, which reads as a
- * technical label, so the player sees a neutral title instead of it.
+ * Plays the scene's authored music. Nothing is drawn over the artwork: the
+ * player's control lives in the header (see `MissionMusicToggle`), exactly as in
+ * the original player, and the only thing this element carries is the real
+ * playback state.
  */
-export function MissionMusic({ url, title, muted, onToggleMute }: { url: string; title: string | null; muted: boolean; onToggleMute: () => void }) {
-  const [blocked, setBlocked] = useState(false);
+export function MissionMusic({ url, muted, blocked, onBlocked }: { url: string; muted: boolean; blocked: boolean; onBlocked: () => void }) {
   const resolved = resolveScreenMusic({ hasTrack: true, muted, autoplayAllowed: !blocked });
   const audioRef = useRef<PlayableAudio | null>(null);
   const bindAudio = useCallback((element: unknown) => {
@@ -76,27 +78,48 @@ export function MissionMusic({ url, title, muted, onToggleMute }: { url: string;
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = 0.22;
-    audio.muted = resolved.state === "muted" || resolved.state === "blocked";
-    if (resolved.shouldPlay) Promise.resolve(audio.play()).catch(() => setBlocked(true));
+    audio.muted = resolved.state !== "playing";
+    if (resolved.shouldPlay) Promise.resolve(audio.play()).catch(() => onBlocked());
     else audio.pause();
-  }, [resolved.state, resolved.shouldPlay]);
+  }, [resolved.state, resolved.shouldPlay, onBlocked]);
 
   if (!isSafePreviewUrl(url)) return null;
+  return <audio ref={bindAudio} className="mp-music-audio" data-music-state={resolved.state} src={url} loop preload="auto" />;
+}
+
+function MusicIcon({ muted }: { muted: boolean }) {
   return (
-    <div className="mp-music" data-music-state={resolved.state}>
-      <audio ref={bindAudio} className="mp-music-audio" src={url} loop preload="auto" />
-      <span className="mp-music-title">Музыка сцены</span>
-      {resolved.state === "blocked" ? (
-        <button type="button" className="mp-music-button" onClick={() => setBlocked(false)}>
-          Играть
-        </button>
-      ) : (
-        <button type="button" className="mp-music-button" aria-pressed={resolved.state === "muted"} onClick={onToggleMute}>
-          {resolved.state === "muted" ? "Включить звук" : "Выключить звук"}
-        </button>
-      )}
-      <span className="mp-music-state">{resolved.label}</span>
-    </div>
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+      {muted ? <path d="m16 9 5 6m0-6-5 6" /> : <path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" />}
+    </svg>
+  );
+}
+
+/**
+ * The music control of the original player: one icon in the header. The honest
+ * playback state — including a browser that refuses to autoplay — is announced
+ * to assistive technology and on hover instead of being printed across the
+ * scene, where it read as a technical caption on the artwork.
+ */
+export function MissionMusicToggle({ controls, hasTrack }: { controls: MissionMusicControls; hasTrack: boolean }) {
+  const resolved = resolveScreenMusic({ hasTrack, muted: controls.muted, autoplayAllowed: !controls.blocked });
+  if (resolved.state === "none") return null;
+  const blocked = resolved.state === "blocked";
+  const action = blocked || controls.muted ? "Включить музыку" : "Выключить музыку";
+  return (
+    <button
+      type="button"
+      className="mp-music-toggle"
+      data-music-state={resolved.state}
+      aria-pressed={controls.muted}
+      aria-label={`${action}. ${resolved.label}`}
+      title={`${action}. ${resolved.label}`}
+      onClick={blocked ? controls.onUnblock : controls.onToggleMute}
+    >
+      <MusicIcon muted={blocked || controls.muted} />
+      {blocked ? <i className="mp-music-hint" aria-hidden="true" /> : null}
+    </button>
   );
 }
 
@@ -160,7 +183,7 @@ export function MissionSceneStage({ frame, paused, music }: { frame: PreviewFram
       ))}
       {dialogueLinesOf(frame).length > 0 ? <MissionDialogue frame={frame} disabled={paused} /> : null}
       {music && frame.scene.musicUrl ? (
-        <MissionMusic url={frame.scene.musicUrl} title={frame.scene.musicTitle} muted={music.muted} onToggleMute={music.onToggleMute} />
+        <MissionMusic url={frame.scene.musicUrl} muted={music.muted} blocked={music.blocked} onBlocked={music.onToggleBlocked} />
       ) : null}
       <div className="mp-caption">
         <span>{frame.title}</span>
