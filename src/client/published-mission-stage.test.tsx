@@ -126,6 +126,7 @@ describe("R03 site renders the authored mission", () => {
     expect(html).toContain("mp-anim-rise");
     expect(html).toContain('data-background-source="inherited"');
     expect(html).toContain("bunker-theme");
+    expect(html).toContain("Музыка сцены");
     expect(html).toContain('data-music-state="playing"');
     expect(html).toContain("Выключить звук");
   });

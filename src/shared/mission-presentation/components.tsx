@@ -58,9 +58,11 @@ export interface MissionMusicControls {
 }
 
 /**
- * Plays the authored music of a screen. The track is the one the author saved
+ * Plays the scene's authored music. The track is the one the author saved
  * on the screen; the state follows the real mute toggle and the browser's
  * autoplay decision (a blocked track offers "Играть" instead of pretending).
+ * The contract carries the track only as its asset id, which reads as a
+ * technical label, so the player sees a neutral title instead of it.
  */
 export function MissionMusic({ url, title, muted, onToggleMute }: { url: string; title: string | null; muted: boolean; onToggleMute: () => void }) {
   const [blocked, setBlocked] = useState(false);
@@ -83,7 +85,7 @@ export function MissionMusic({ url, title, muted, onToggleMute }: { url: string;
   return (
     <div className="mp-music" data-music-state={resolved.state}>
       <audio ref={bindAudio} className="mp-music-audio" src={url} loop preload="auto" />
-      <span className="mp-music-title">{title && title.length > 0 ? title : "Музыка сцены"}</span>
+      <span className="mp-music-title">Музыка сцены</span>
       {resolved.state === "blocked" ? (
         <button type="button" className="mp-music-button" onClick={() => setBlocked(false)}>
           Играть
