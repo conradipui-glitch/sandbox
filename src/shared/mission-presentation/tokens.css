@@ -321,6 +321,22 @@
 .mp-decision .mp-choice { min-height: 58px; padding: 14px 18px; border-color: #403d36; border-radius: 3px; background: #171714; font-size: 15px; transition: border-color .18s, background .18s, transform .18s; }
 .mp-decision .mp-choice:hover,
 .mp-decision .mp-choice:focus-visible { border-color: var(--mp-accent); background: #211b18; transform: translateX(3px); outline: none; }
+.mp-decision .mp-choice.is-picked { border-color: var(--mp-accent); background: #241a16; box-shadow: inset 0 -2px rgba(201, 76, 54, .5); }
+.mp-decision-help { margin: 0 0 18px; border: 1px solid var(--mp-line); background: #171613; }
+.mp-decision-help summary { padding: 11px 14px; color: #b3ac9d; font-size: 12px; cursor: pointer; }
+.mp-decision-help summary:focus-visible { outline: 1px solid var(--mp-accent); outline-offset: -2px; }
+.mp-decision-help p { margin: 0; padding: 0 14px 13px; color: #938c7d; font-size: 12px; line-height: 1.6; }
+.mp-freeform { display: grid; gap: 9px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--mp-line); }
+.mp-freeform label { color: #b3ac9d; font-size: 12px; letter-spacing: .04em; }
+.mp-freeform textarea { width: 100%; min-height: 116px; padding: 13px 15px; border: 1px solid #403d36; border-radius: 3px; background: #141310; color: var(--mp-ink); font: inherit; font-size: 15px; line-height: 1.55; resize: vertical; }
+.mp-freeform textarea:focus-visible { border-color: var(--mp-accent); outline: none; }
+.mp-freeform textarea:disabled { opacity: .6; }
+.mp-freeform-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.mp-freeform-footer span { color: #7f796d; font-size: 11px; }
+.mp-play { min-height: 48px; display: inline-flex; align-items: center; gap: 9px; padding: 12px 26px; border: 1px solid var(--mp-accent); border-radius: 3px; background: var(--mp-accent); color: #fbf6ec; font-size: 14px; letter-spacing: .03em; cursor: pointer; transition: background .18s, transform .18s; }
+.mp-play:hover:not(:disabled) { background: #d9603f; transform: translateY(-2px); }
+.mp-play:focus-visible { outline: 2px solid #e9a58c; outline-offset: 2px; }
+.mp-play:disabled { cursor: not-allowed; border-color: #3d3a34; background: #26241f; color: #8b857a; transform: none; }
 
 .mp-resolution { border-block: 1px solid #c7bda9; background: #ded4c0; color: #24211c; }
 .mp-resolution .mp-eyebrow { color: #9e3728; }

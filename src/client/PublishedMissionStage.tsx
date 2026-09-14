@@ -1,11 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  MissionChoicePanel,
   MissionEndingScreen,
   MissionIntroPager,
   MissionSceneStage,
   type MissionMusicControls
 } from "../shared/mission-presentation/components";
+import type { PreviewChoiceView } from "../shared/mission-presentation/view-model";
 import type {
   GameState,
   PublishedMissionHistoryView,
@@ -31,6 +31,19 @@ export function isPublishedMissionGame(state: GameState): boolean {
 
 export function missionChoiceSubmission(choiceId: string): TurnSubmission {
   return { action: choiceId, source: "prepared", optionId: choiceId };
+}
+
+/**
+ * One decision box for both paths the engine accepts: a picked authored choice
+ * is sent as `prepared` with its `optionId`, anything typed by hand is sent as
+ * `freeform` text the mission writer reads word for word.
+ */
+export function missionTurnSubmission(text: string, choiceId: string | null): TurnSubmission {
+  const action = text.trim();
+  if (choiceId !== null && action.length > 0) {
+    return { action, source: "prepared", optionId: choiceId };
+  }
+  return { action, source: "freeform" };
 }
 
 function signed(delta: number): string {
@@ -114,6 +127,83 @@ function PublishedChronicle({ runtime }: { runtime: PublishedMissionRuntimeView 
         </ol>
       )}
     </aside>
+  );
+}
+
+/**
+ * The decision box of the original player: the authored choices fill the field,
+ * the field stays editable, and the turn is sent with whatever it holds.
+ */
+function PublishedDecisionComposer({
+  choices,
+  disabled,
+  onTurn
+}: {
+  choices: readonly PreviewChoiceView[];
+  disabled: boolean;
+  onTurn: (submission: TurnSubmission) => void;
+}) {
+  const [text, setText] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => {
+    setText("");
+    setSelected(null);
+  }, [choices]);
+
+  const pick = (choice: PreviewChoiceView) => {
+    setSelected(choice.choiceId);
+    setText(choice.label);
+  };
+  const ready = text.trim().length >= 4;
+
+  return (
+    <section className="mp-decision" aria-label="Что вы сделаете">
+      <h2>Что вы сделаете?</h2>
+      <details className="mp-decision-help">
+        <summary>Как выбрать или написать свой ход</summary>
+        <p>Кнопка подставит действие в поле ниже. Можно изменить его целиком или написать свою идею своими словами: ведущий прочитает весь текст. Затем нажмите «Разыграть ход».</p>
+      </details>
+      <div className="mp-choices" role="group" aria-label="Варианты решения">
+        {choices.map((choice) => (
+          <button
+            key={choice.choiceId}
+            type="button"
+            className={selected === choice.choiceId ? "mp-choice is-picked" : "mp-choice"}
+            disabled={disabled}
+            aria-pressed={selected === choice.choiceId}
+            onClick={() => pick(choice)}
+          >
+            {choice.label}
+          </button>
+        ))}
+      </div>
+      <div className="mp-freeform">
+        <label htmlFor="mp-player-action">Ваше действие — можно написать что угодно своими словами</label>
+        <textarea
+          id="mp-player-action"
+          value={text}
+          maxLength={700}
+          disabled={disabled}
+          placeholder="Что вы делаете или говорите? К кому обращаетесь?"
+          onChange={(event) => {
+            setText(event.target.value);
+            setSelected(null);
+          }}
+        />
+        <div className="mp-freeform-footer">
+          <span>{text.length}/700 · мир ответит последствиями</span>
+          <button
+            type="button"
+            className="mp-play"
+            disabled={disabled || !ready}
+            onClick={() => onTurn(missionTurnSubmission(text, selected))}
+          >
+            {disabled ? "Мир отвечает…" : "Разыграть ход"}
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -215,10 +305,7 @@ export function PublishedMissionStage({
             <h1>{frame.title}</h1>
             <p>{frame.text}</p>
           </section>
-          <section className="mp-decision" aria-label="Что вы сделаете">
-            <h2>Что вы сделаете?</h2>
-            <MissionChoicePanel choices={frame.choices} disabled={busy} onChoose={(choiceId) => onTurn(missionChoiceSubmission(choiceId))} />
-          </section>
+          <PublishedDecisionComposer choices={frame.choices} disabled={busy} onTurn={onTurn} />
         </div>
         {runtime ? <PublishedChronicle runtime={runtime} /> : <aside className="mp-runtime-chronicle mp-runtime-unavailable">Хроника начнётся в следующем выпуске.</aside>}
       </div>

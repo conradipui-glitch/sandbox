@@ -3,7 +3,8 @@ import { renderToString } from "react-dom/server";
 import {
   PublishedMissionStage,
   isPublishedMissionGame,
-  missionChoiceSubmission
+  missionChoiceSubmission,
+  missionTurnSubmission
 } from "./PublishedMissionStage";
 import type { GameState } from "../shared/types";
 import type { PreviewFrameView } from "../shared/mission-presentation/view-model";
@@ -103,6 +104,34 @@ describe("R03 site renders the authored mission", () => {
 
   it("maps a chosen option to a mission turn submission", () => {
     expect(missionChoiceSubmission("seal")).toEqual({ action: "seal", source: "prepared", optionId: "seal" });
+  });
+
+  it("offers the authored choices together with a free-text turn, like the original player", () => {
+    const html = renderToString(
+      <PublishedMissionStage state={state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame(), reaction: "start" })} onTurn={() => {}} onExit={() => {}} busy={false} />
+    );
+    expect(html).toContain("Герметизировать");
+    expect(html).toContain("mp-player-action");
+    expect(html).toContain("можно написать что угодно своими словами");
+    expect(html).toContain("Разыграть ход");
+  });
+
+  it("sends a picked choice as prepared and typed words as freeform", () => {
+    expect(missionTurnSubmission("Герметизировать", "seal")).toEqual({ action: "Герметизировать", source: "prepared", optionId: "seal" });
+    expect(missionTurnSubmission("Своя идея", null)).toEqual({ action: "Своя идея", source: "freeform" });
+    // Whitespace is not a turn: the server rejects an empty freeform action.
+    expect(missionTurnSubmission("   ", null)).toEqual({ action: "", source: "freeform" });
+    expect(missionTurnSubmission("Герметизировать", null)).toEqual({ action: "Герметизировать", source: "freeform" });
+  });
+
+  it("keeps the free-text turn out of the way while the ending is up", () => {
+    const html = renderToString(
+      <PublishedMissionStage
+        state={state({ kind: "published-mission", publicMissionId: "mission:chernobyl:shift", frame: frame({ kind: "ending", title: "Тихий контур", text: "Никто не пришёл.", choices: [] }), reaction: "applied" })}
+        onTurn={() => {}} onExit={() => {}} busy={false}
+      />
+    );
+    expect(html).not.toContain("Разыграть ход");
   });
 
   it("renders the authored composition: preset, inherited background and music", () => {
