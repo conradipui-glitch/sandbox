@@ -8,6 +8,7 @@ import {
   decodeMissionIdSegment,
   fetchPublishedMissionAsset,
   isPublishedMissionBinding,
+  missionInputModes,
   PUBLISHED_MISSION_ASSET_PATH,
   publishedMissionGameState,
   publishedMissionSceneView,
@@ -166,10 +167,27 @@ async function publishedRequest(request: Request, env: EngineBffEnv, url: URL): 
     });
   }
   if (turnMatch && request.method === "POST") {
-    const body = await request.json().catch(() => null) as { optionId?: unknown; idempotencyKey?: unknown } | null;
-    if (!body || typeof body.optionId !== "string" || typeof body.idempotencyKey !== "string") return Response.json({ error: "Invalid published mission turn", code: "MISSION_BAD_TURN" }, { status: 400 });
-    const turned = await applyPublishedMissionTurn({ binding, choiceId: body.optionId, idempotencyKey: body.idempotencyKey });
-    if (!turned.ok) return Response.json({ error: "Published mission turn failed", code: turned.code }, { status: turned.status });
+    const body = await request.json().catch(() => null) as { optionId?: unknown; action?: unknown; source?: unknown; idempotencyKey?: unknown } | null;
+    if (!body || typeof body.idempotencyKey !== "string") return Response.json({ error: "Invalid published mission turn", code: "MISSION_BAD_TURN" }, { status: 400 });
+    const action = typeof body.action === "string" ? body.action.trim() : "";
+    // A typed turn is only legal when the pinned revision opened free input.
+    const isFreeform = body.source === "freeform" && action.length > 0;
+    if (isFreeform && !missionInputModes(binding.missionDoc).includes("free-input")) {
+      return Response.json({ error: "This mission is played by its authored choices", code: "MISSION_TEXT_NOT_OPEN" }, { status: 422 });
+    }
+    const optionId = typeof body.optionId === "string" ? body.optionId : "";
+    if (!isFreeform && optionId.length === 0) return Response.json({ error: "Invalid published mission turn", code: "MISSION_BAD_TURN" }, { status: 400 });
+    const turned = await applyPublishedMissionTurn({
+      binding,
+      ...(isFreeform ? { text: action } : { choiceId: optionId }),
+      idempotencyKey: body.idempotencyKey
+    });
+    if (!turned.ok) {
+      return Response.json(
+        { error: "Published mission turn failed", code: turned.code, ...(turned.explanation === undefined ? {} : { explanation: turned.explanation }) },
+        { status: turned.status }
+      );
+    }
     if (!(await writeStoredBinding(namespace, turned.binding))) return Response.json({ error: "Published mission session unavailable", code: "PUBLIC_MISSION_ROUTE_UNAVAILABLE" }, { status: 503 });
     return Response.json(publishedMissionGameState(turned.binding, turned.view, turned.binding.mode, turned.target), { headers: { "cache-control": "no-store" } });
   }

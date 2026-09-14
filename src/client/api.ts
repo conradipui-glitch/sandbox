@@ -37,10 +37,15 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     const rawCode = (body as { code?: unknown }).code;
     const code = typeof rawCode === "string" ? rawCode : undefined;
     const message = body.error || `Ошибка ${response.status}`;
+    // A refusal the world itself wrote (for example, a typed turn that matches
+    // none of the authored choices) is shown to the player verbatim: it is the
+    // honest reason, not an implementation detail.
+    const rawExplanation = (body as { explanation?: unknown }).explanation;
+    const explanation = typeof rawExplanation === "string" && rawExplanation.trim().length > 0 ? rawExplanation.trim() : null;
     // Keep provider diagnostics available during preview smoke checks without
     // exposing implementation codes in the ordinary player experience.
     const debug = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1";
-    throw new ApiError(debug && code ? `${message} [${code}]` : message, response.status, code);
+    throw new ApiError(explanation ?? (debug && code ? `${message} [${code}]` : message), response.status, code);
   }
   return body;
 }

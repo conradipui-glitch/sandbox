@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import type { DecisionOption, GameMode, GameState, ProductAnalyticsOverview, ScenarioSummary, TurnSubmission } from "../shared/types";
 import { campaignActForTurn } from "../shared/campaign";
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import { CatalogNotice, RetryToast, catalogNoticeText, failureMessage, shouldDropSession } from "./upstream-notices";
 import minister1917 from "./assets/characters/minister-1917.webp";
 import officer1917 from "./assets/characters/officer-stavka-1917.webp";
@@ -1113,7 +1113,13 @@ function GameApp() {
       setGame(nextState);
       await new Promise<void>((resolve) => window.setTimeout(resolve, 360));
     }
-    catch (cause) { fail(cause, "Мир не ответил на ход", () => void playTurn(pending.submission, pending)); }
+    catch (cause) {
+      // Отказ мира — не сбой связи: повторять тот же текст бессмысленно,
+      // игрок должен изменить ход, а не нажать «ещё раз».
+      const refused = cause instanceof ApiError
+        && (cause.code === "MISSION_TURN_TEXT_UNSUPPORTED" || cause.code === "MISSION_TEXT_NOT_OPEN");
+      fail(cause, "Мир не ответил на ход", refused ? null : () => void playTurn(pending.submission, pending));
+    }
     finally { setBusy(false); }
   };
 

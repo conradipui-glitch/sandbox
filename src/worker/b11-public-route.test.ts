@@ -83,4 +83,59 @@ describe("M06 generic published mission route", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("forwards a typed turn as text only when the revision opened free input", async () => {
+    const originalFetch = globalThis.fetch;
+    // A revision that opens free input: the same words the player types reach
+    // the engine as text, and the chronicle names the player's own turn.
+    const freeDoc = { ...doc, listing: { supportedModes: ["choice", "free-input"] } };
+    const sent: string[] = [];
+    const namespace = new FakeNamespace();
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "https://engine/public/v1/missions") return Response.json(catalog);
+      if (url.endsWith("/sessions") && init?.method === "POST") return new Response(JSON.stringify({ mission: freeDoc, session: { currentSceneId: "start", turn: 0 }, credential: "server-only" }), { status: 201 });
+      if (url.endsWith("/turns") && init?.method === "POST") {
+        sent.push(String(init.body));
+        return Response.json({ mission: freeDoc, session: { currentSceneId: "start", turn: 1 }, target: { kind: "ending", endingId: "done" }, choiceId: "finish" });
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    }) as typeof fetch;
+    try {
+      const env = { ENGINE_PUBLIC_CATALOG_URL: "https://engine/public/v1/missions", ENGINE_PUBLIC_MISSION_URL: "https://engine", PUBLIC_MISSION_ROUTE_SESSIONS: namespace } as any;
+      const created = await worker.fetch(new Request("https://site.example/api/games", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scenarioId: "mission:p:q", mode: "chronicle" }) }), env);
+      expect(created.status).toBe(201);
+      const game = await created.json() as { id: string };
+      const typed = await worker.fetch(new Request(`https://site.example/api/games/${game.id}/turn`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "  Закончу разговор  ", source: "freeform", idempotencyKey: "turn-text" }) }), env);
+      expect(typed.status).toBe(200);
+      expect(JSON.parse(sent[0])).toEqual({ baseTurn: 0, input: { kind: "text", text: "Закончу разговор" } });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("refuses a typed turn for a revision that only opened its choices", async () => {
+    const originalFetch = globalThis.fetch;
+    const namespace = new FakeNamespace();
+    const turnBodies: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "https://engine/public/v1/missions") return Response.json(catalog);
+      if (url.endsWith("/sessions") && init?.method === "POST") return new Response(JSON.stringify({ mission: doc, session: { currentSceneId: "start", turn: 0 }, credential: "server-only" }), { status: 201 });
+      if (url.endsWith("/turns") && init?.method === "POST") { turnBodies.push(String(init.body)); return Response.json({ mission: doc, session: { currentSceneId: "start", turn: 1 }, target: { kind: "ending", endingId: "done" } }); }
+      throw new Error(`unexpected fetch ${url}`);
+    }) as typeof fetch;
+    try {
+      const env = { ENGINE_PUBLIC_CATALOG_URL: "https://engine/public/v1/missions", ENGINE_PUBLIC_MISSION_URL: "https://engine", PUBLIC_MISSION_ROUTE_SESSIONS: namespace } as any;
+      const created = await worker.fetch(new Request("https://site.example/api/games", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scenarioId: "mission:p:q", mode: "chronicle" }) }), env);
+      const game = await created.json() as { id: string };
+      const typed = await worker.fetch(new Request(`https://site.example/api/games/${game.id}/turn`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "Закончу разговор", source: "freeform", idempotencyKey: "turn-text" }) }), env);
+      expect(typed.status).toBe(422);
+      expect((await typed.json() as { code: string }).code).toBe("MISSION_TEXT_NOT_OPEN");
+      // Ничего не ушло в движок: миссия играется авторскими вариантами.
+      expect(turnBodies.length).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

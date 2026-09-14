@@ -378,30 +378,43 @@ export async function createPublishedMissionSession(input: {
 export async function applyPublishedMissionTurn(input: {
   readonly fetchImpl?: typeof fetch;
   readonly binding: PublishedMissionBinding;
-  readonly choiceId: string;
+  /** Авторский вариант — либо свободный текст игрока, но не оба сразу. */
+  readonly choiceId?: string;
+  readonly text?: string;
   readonly idempotencyKey: string;
-}): Promise<{ readonly ok: true } & PublishedMissionTurnResult | { readonly ok: false; readonly status: number; readonly code: string }> {
-  if (!ID.test(input.choiceId) || !ID.test(input.idempotencyKey)) return { ok: false, status: 400, code: "MISSION_BAD_TURN" };
+}): Promise<{ readonly ok: true } & PublishedMissionTurnResult | { readonly ok: false; readonly status: number; readonly code: string; readonly explanation?: string }> {
+  if (!ID.test(input.idempotencyKey)) return { ok: false, status: 400, code: "MISSION_BAD_TURN" };
+  const text = typeof input.text === "string" ? input.text.trim() : "";
+  const isTextTurn = text.length > 0;
+  if (isTextTurn ? text.length > 700 : !ID.test(input.choiceId ?? "")) return { ok: false, status: 400, code: "MISSION_BAD_TURN" };
+  const body = isTextTurn ? { baseTurn: input.binding.turn, input: { kind: "text", text } } : { baseTurn: input.binding.turn, choiceId: input.choiceId };
   const response = await (input.fetchImpl ?? fetch)(`${input.binding.engineBaseUrl}/public/v1/missions/${encodeURIComponent(input.binding.scenarioRef)}/sessions/${encodeURIComponent(input.binding.missionSessionId)}/turns`, {
     method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${input.binding.credential}`, "idempotency-key": input.idempotencyKey },
-    body: JSON.stringify({ baseTurn: input.binding.turn, choiceId: input.choiceId })
+    body: JSON.stringify(body)
   }).then(jsonResult).catch(() => null);
   if (!response || !response.ok) {
     const code = typeof response?.payload?.error?.code === "string" ? response.payload.error.code : "MISSION_TURN_FAILED";
-    return { ok: false, status: response?.status === 409 ? 409 : response?.status === 422 ? 422 : 503, code };
+    const explanation = typeof response?.payload?.error?.explanation === "string" ? response.payload.error.explanation : undefined;
+    const status = response?.status === 409 ? 409 : response?.status === 422 ? 422 : response?.status === 400 ? 400 : 503;
+    return { ok: false, status, code, ...(explanation === undefined ? {} : { explanation }) };
   }
   const session = response.payload?.session;
   if (!session || typeof session.currentSceneId !== "string" || typeof session.turn !== "number") return { ok: false, status: 503, code: "MISSION_TURN_FAILED" };
   const terminal = terminalFromTarget(response.payload?.target) ?? terminalFromWorld(session.world) ?? input.binding.terminal ?? null;
   const view = viewFor(input.binding.missionDoc, session, terminal);
   if (!view) return { ok: false, status: 503, code: "MISSION_TURN_FAILED" };
+  // Применённый авторский вариант возвращает движок: свободный ход сводится к
+  // одному из них, и хроника должна называть именно его.
+  const appliedChoiceId = typeof response.payload?.choiceId === "string" && ID.test(response.payload.choiceId)
+    ? response.payload.choiceId
+    : input.choiceId ?? "";
   const nextWorld = worldSnapshot(session.world);
   const previousView = viewFor(input.binding.missionDoc, { currentSceneId: input.binding.currentSceneId, turn: input.binding.turn }, input.binding.terminal ?? null);
   const historyEntry: PublishedMissionHistoryEntry = {
     id: `turn-${session.turn}`,
     turn: session.turn,
-    choiceId: input.choiceId,
-    choiceLabel: choiceLabel(input.binding, input.choiceId),
+    choiceId: appliedChoiceId,
+    choiceLabel: isTextTurn ? text : choiceLabel(input.binding, appliedChoiceId),
     fromTitle: previousView?.title ?? input.binding.currentSceneId,
     toTitle: view.title,
     deltas: resourceDeltas(input.binding.world, nextWorld),

@@ -112,3 +112,41 @@ it("carries the input modes the pinned revision declares, so the player is never
   expect(missionInputModes({ ...doc, listing: { supportedModes: [] } })).toEqual(["choice"]);
   expect(missionInputModes({ ...doc, listing: { supportedModes: [7] as unknown as string[] } })).toEqual(["choice"]);
 });
+
+it("sends a typed turn as text and keeps the player's own words in the chronicle", async () => {
+  const created = await createPublishedMissionSession({ engineBaseUrl: "https://engine.example", publicMissionId: "mission:p:q", publicSessionId: "browser-session", mode: "chronicle", listing, newSessionId: () => "engine-session", fetchImpl: async () => new Response(JSON.stringify({ mission: doc, session: { currentSceneId: "start", turn: 0, world: world0 }, runtime, credential: "server-only" }), { status: 201 }) });
+  if (!created.ok) throw new Error("setup failed");
+  let sent: Record<string, unknown> | null = null;
+  const result = await applyPublishedMissionTurn({
+    binding: created.binding,
+    text: "  Закончу разговор  ",
+    idempotencyKey: "turn-text",
+    fetchImpl: async (_url, init) => {
+      sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        mission: doc,
+        session: { currentSceneId: "start", turn: 1, world: { ...world1, terminal: { outcome: "done" } } },
+        target: { kind: "ending", endingId: "done" },
+        choiceId: "finish"
+      }), { status: 200 });
+    }
+  });
+  // Текст уходит как есть (обрезанный), а не как идентификатор варианта.
+  expect(sent).toEqual({ baseTurn: 0, input: { kind: "text", text: "Закончу разговор" } });
+  expect(result.ok).toBe(true);
+  if (!result.ok) return;
+  // Хроника называет ход словами игрока, но применённый вариант — авторский.
+  expect(result.binding.history?.[0]).toMatchObject({ choiceId: "finish", choiceLabel: "Закончу разговор" });
+});
+
+it("carries the world's own refusal back to the player", async () => {
+  const created = await createPublishedMissionSession({ engineBaseUrl: "https://engine.example", publicMissionId: "mission:p:q", publicSessionId: "browser-session", mode: "chronicle", listing, newSessionId: () => "engine-session", fetchImpl: async () => new Response(JSON.stringify({ mission: doc, session: { currentSceneId: "start", turn: 0, world: world0 }, runtime, credential: "server-only" }), { status: 201 }) });
+  if (!created.ok) throw new Error("setup failed");
+  const result = await applyPublishedMissionTurn({
+    binding: created.binding,
+    text: "Улетаю на воздушном шаре",
+    idempotencyKey: "turn-refused",
+    fetchImpl: async () => new Response(JSON.stringify({ error: { code: "MISSION_TURN_TEXT_UNSUPPORTED", explanation: "В этой сцене так поступить нельзя." } }), { status: 422 })
+  });
+  expect(result).toEqual({ ok: false, status: 422, code: "MISSION_TURN_TEXT_UNSUPPORTED", explanation: "В этой сцене так поступить нельзя." });
+});
