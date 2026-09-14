@@ -5,30 +5,32 @@
   },
   "clicked": {
     "ok": true,
-    "enabled": true,
-    "overlay": false,
-    "button": "Разыграть ход"
+    "mode": "choice",
+    "label": "Показать незавершённый картон",
+    "overlay": false
   },
   "after": {
     "overlay": false,
-    "turn": "Ход 1",
-    "title": "Срок и условие заказчика",
-    "resolution": null,
-    "chronicle": [],
-    "error": "Invalid published mission turn Повторить×"
+    "turn": "Ход 2",
+    "title": "Люди и доказательства",
+    "resolution": "Показать незавершённый картон",
+    "chronicle": [
+      "Показать незавершённый картон"
+    ],
+    "error": null
   },
   "events": [
     {
       "kind": "request",
       "url": "https://living-history-florence-preview.conradipui.workers.dev/api/games/9be2290b-e918-4a3f-958e-28d78b76ea7f/turn",
       "method": "POST",
-      "body": "{\"action\":\"Тихо подкупаю поставщика пигмента и переношу работу в мастерскую до рассвета.\",\"source\":\"freeform\",\"visitorId\":\"c779467c-47d6-4c6d-bed6-0b5cd2d9b78c\",\"idempotencyKey\":\"a2135263-1035-4919-a626-72e2a6ed0cd3\"}",
-      "requestId": "8440.50"
+      "body": "{\"action\":\"draft\",\"source\":\"prepared\",\"optionId\":\"draft\",\"visitorId\":\"c779467c-47d6-4c6d-bed6-0b5cd2d9b78c\",\"idempotencyKey\":\"65a2bedf-d4d4-426f-b4c2-b2c39d8ed708\"}",
+      "requestId": "9172.50"
     },
     {
       "kind": "response",
-      "status": 400,
-      "requestId": "8440.50"
+      "status": 200,
+      "requestId": "9172.50"
     }
   ]
 }

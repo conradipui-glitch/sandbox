@@ -37,10 +37,15 @@
   display: block;
   width: 100%;
   height: auto;
+  /* The portrait sits in the scene rather than on it, as in the original player. */
+  filter: drop-shadow(-14px 12px 20px rgba(0, 0, 0, .52));
 }
 
 .mp-layer-anim { width: 100%; height: 100%; }
-.mp-anim-breathe { animation: mp-breathe 5.5s ease-in-out 1s infinite; transform-origin: 53% 75%; }
+/* A character first arrives, then breathes: the entrance is what makes the scene
+   read as played rather than pasted, matching the original player's
+   character-arrive + character-breathe pair. */
+.mp-anim-breathe { animation: mp-arrive 0.9s cubic-bezier(0.2, 0.8, 0.25, 1) both, mp-breathe 5.5s ease-in-out 1.1s infinite; transform-origin: 53% 75%; }
 .mp-anim-arrive { animation: mp-arrive 0.9s cubic-bezier(0.2, 0.8, 0.25, 1) both; }
 .mp-anim-fade { animation: mp-fade 0.9s ease both; }
 .mp-anim-rise { animation: mp-rise 0.9s cubic-bezier(0.2, 0.8, 0.25, 1) both; }

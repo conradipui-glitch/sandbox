@@ -97,6 +97,15 @@ async function main() {
   }))()`);
 
   const clicked = await evaluate(`(async () => {
+    const mode = ${JSON.stringify(process.env.TURN_MODE ?? "freeform")};
+    if (mode === "choice") {
+      const button = document.querySelector('.mp-choice');
+      if (!button) return { ok: false, reason: 'no choice button' };
+      const label = button.textContent;
+      button.click();
+      await new Promise((r) => setTimeout(r, 600));
+      return { ok: true, mode, label, overlay: !!document.querySelector('.mp-thinking') };
+    }
     const field = document.querySelector('#mp-player-action');
     const button = document.querySelector('.mp-play');
     if (!field || !button) return { ok: false, reason: 'no freeform control' };
@@ -107,7 +116,7 @@ async function main() {
     const enabled = !button.disabled;
     button.click();
     await new Promise((r) => setTimeout(r, 600));
-    return { ok: true, enabled, overlay: !!document.querySelector('.mp-thinking'), button: document.querySelector('.mp-play')?.textContent ?? null };
+    return { ok: true, mode, enabled, overlay: !!document.querySelector('.mp-thinking'), button: document.querySelector('.mp-play')?.textContent ?? null };
   })()`);
   await shot("turn-1-clicked");
 
