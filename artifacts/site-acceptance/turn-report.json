@@ -1,36 +1,38 @@
 {
   "before": {
-    "turn": "Ход 1",
-    "title": "Срок и условие заказчика"
+    "turn": "Ход 2",
+    "title": "Люди и доказательства"
   },
   "clicked": {
     "ok": true,
     "mode": "choice",
-    "label": "Показать незавершённый картон",
+    "label": "Сверить счёт с накладной",
+    "filled": "Сверить счёт с накладной",
     "overlay": false
   },
   "after": {
     "overlay": false,
-    "turn": "Ход 2",
-    "title": "Люди и доказательства",
-    "resolution": "Показать незавершённый картон",
+    "turn": "Ход 3",
+    "title": "Цена договорённости",
+    "resolution": "Сверить счёт с накладной",
     "chronicle": [
-      "Показать незавершённый картон"
+      "Сверить счёт с накладной",
+      "Пошлю Джулиано к лекарю — без руки он всё равно не работник."
     ],
     "error": null
   },
   "events": [
     {
       "kind": "request",
-      "url": "https://living-history-florence-preview.conradipui.workers.dev/api/games/9be2290b-e918-4a3f-958e-28d78b76ea7f/turn",
+      "url": "https://living-history-florence-preview.conradipui.workers.dev/api/games/cefa3197-ad08-444c-b65f-63b512c2828e/turn",
       "method": "POST",
-      "body": "{\"action\":\"draft\",\"source\":\"prepared\",\"optionId\":\"draft\",\"visitorId\":\"c779467c-47d6-4c6d-bed6-0b5cd2d9b78c\",\"idempotencyKey\":\"65a2bedf-d4d4-426f-b4c2-b2c39d8ed708\"}",
-      "requestId": "9172.50"
+      "body": "{\"action\":\"Сверить счёт с накладной\",\"source\":\"prepared\",\"optionId\":\"ledger\",\"visitorId\":\"c0d40325-0599-4b6f-8a94-8c74b7df9220\",\"idempotencyKey\":\"14b8a125-7a30-4cd9-9e7a-6ada6cb39c1a\"}",
+      "requestId": "25120.42"
     },
     {
       "kind": "response",
       "status": 200,
-      "requestId": "9172.50"
+      "requestId": "25120.42"
     }
   ]
 }

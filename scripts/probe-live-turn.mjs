@@ -103,8 +103,15 @@ async function main() {
       if (!button) return { ok: false, reason: 'no choice button' };
       const label = button.textContent;
       button.click();
-      await new Promise((r) => setTimeout(r, 600));
-      return { ok: true, mode, label, overlay: !!document.querySelector('.mp-thinking') };
+      await new Promise((r) => setTimeout(r, 400));
+      // Авторский вариант подставляет свой текст в поле: ход отправляет кнопка
+      // действия, как в исходном плеере. Без свободного ввода поле скрыто и
+      // вариант отправляется сам.
+      const play = document.querySelector('.mp-play');
+      const field = document.querySelector('#mp-player-action');
+      const filled = field ? field.value : label;
+      if (play) { play.click(); await new Promise((r) => setTimeout(r, 600)); }
+      return { ok: true, mode, label, filled, overlay: !!document.querySelector('.mp-thinking') };
     }
     const field = document.querySelector('#mp-player-action');
     const button = document.querySelector('.mp-play');
